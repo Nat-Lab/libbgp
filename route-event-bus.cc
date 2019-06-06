@@ -3,30 +3,30 @@
 namespace bgpfsm
 {
 
-int RouteEventBus::publish(BgpFsm *fsm, RouteEvent ev) {
+int RouteEventBus::publish(RouteEventReceiver *recv, RouteEvent ev) {
     int n = 0;
 
-    for (BgpFsm* &subscriber : subscribers) {
-        if (subscriber != fsm) {
-            if (fsm->handleRouteEvent(ev)) n++;
+    for (RouteEventReceiver* &subscriber : subscribers) {
+        if (subscriber != recv) {
+            if (recv->handleRouteEvent(ev)) n++;
         }
     }
 
     return n;
 }
 
-bool RouteEventBus::subscribe(BgpFsm *fsm) {
-    for (BgpFsm* &subscriber : subscribers) {
-        if (fsm == subscriber) return false;
+bool RouteEventBus::subscribe(RouteEventReceiver *recv) {
+    for (RouteEventReceiver* &subscriber : subscribers) {
+        if (recv == subscriber) return false;
     }
 
-    subscribers.push_back(fsm);
+    subscribers.push_back(recv);
     return true;
 }
 
-bool RouteEventBus::unsubscribe(BgpFsm *fsm) {
+bool RouteEventBus::unsubscribe(RouteEventReceiver *recv) {
     for (auto it = subscribers.begin(); it != subscribers.end(); it++) {
-        if (*it == fsm) {
+        if (*it == recv) {
             subscribers.erase(it);
             return true;
         }

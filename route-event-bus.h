@@ -1,25 +1,25 @@
 #ifndef ROUTE_EV_BUS_H_
 #define ROUTE_EV_BUS_H_
 #include "route-event.h"
-#include "bgp-fsm.h"
+#include "route-event-receiver.h"
 #include <vector>
 namespace bgpfsm {
 
-class BgpFsm;
+class RouteEventReceiver;
 
 class RouteEventBus {
 public:
     // publish a route event. For non FSM (administratively/other proto), use fsm = NULL
     // return number of subscriber reached, or -1 on error
-    int publish(BgpFsm *fsm, RouteEvent ev);
+    int publish(RouteEventReceiver *recv, RouteEvent ev);
 
     // subscribe to event bus, return true if success
-    bool subscribe(BgpFsm *fsm);
+    bool subscribe(RouteEventReceiver *recv);
 
     // unsubscribe from event bus, return true if success
-    bool unsubscribe(BgpFsm *fsm);
+    bool unsubscribe(RouteEventReceiver *recv);
 private:
-    std::vector<BgpFsm *> subscribers;
+    std::vector<RouteEventReceiver *> subscribers;
 };
 
 }
