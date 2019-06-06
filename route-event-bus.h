@@ -10,14 +10,14 @@ class BgpFsm;
 class RouteEventBus {
 public:
     // publish a route event. For non FSM (administratively/other proto), use fsm = NULL
-    // return number of subscriber reached
+    // return number of subscriber reached, or -1 on error
     int publish(BgpFsm *fsm, RouteEvent ev);
 
     // subscribe to event bus, return true if success
     bool subscribe(BgpFsm *fsm);
 
     // unsubscribe from event bus, return true if success
-    int unsubscribe(BgpFsm *fsm);
+    bool unsubscribe(BgpFsm *fsm);
 private:
     std::vector<BgpFsm *> subscribers;
 };

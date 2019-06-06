@@ -44,8 +44,9 @@ public:
     // (NOTIFICATION received / FSM error)
     int run(const uint8_t *buffer, const size_t buffer_size);
 
+    friend class RouteEventBus;
 private:
-    void handleRouteEvent (RouteEvent ev);
+    bool handleRouteEvent (RouteEvent ev);
 
     int fsmEvalIdle(const uint8_t *buffer, const size_t buffer_size);
     int fsmEvalOpenSent(const uint8_t *buffer, const size_t buffer_size);
