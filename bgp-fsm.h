@@ -1,22 +1,25 @@
 #ifndef BGP_FSM_H_
 #define BGP_FSM_H_
 #define BGP_FSM_BUFFER_SIZE_IN 8192
-#define BGP_FSM_BUFFER_SIZE_OUT 8192
 
 #include "bgp-rib.h"
 #include "bgp-config.h"
 #include "bgp-sink.h"
+#include "route-event-bus.h"
 #include <stdint.h>
 #include <unistd.h>
 
 namespace bgpfsm {
+
+class RouteEventBus;
 
 enum BgpState {
     IDLE,
     ACTIVE,
     OPEN_SENT,
     OPEN_CONFIRM,
-    ESTABLISHED
+    ESTABLISHED,
+    FEED // TODO: FEED status: sending routes but blocked by out_sink
 };
 
 class BgpFsm {
@@ -36,8 +39,9 @@ public:
     BufferPtr run(const uint8_t *buffer, const size_t buffer_size);
 
 private:
+    void handleRouteEvent (RouteEvent ev);
+
     BgpSink in_sink;
-    BgpSink out_sink;
 
     BgpState state;
     BgpConfig config;
