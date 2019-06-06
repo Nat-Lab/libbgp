@@ -15,8 +15,17 @@ class BgpMessage {
 public:
     BgpMessageType type;
 
+    // prase BGP message from buffer
     virtual ssize_t parse(const uint8_t *from, size_t msg_sz) = 0;
-    virtual ssize_t write(uint8_t *to, size_t msg_sz) const = 0;
+
+    // write BGP message to buffer
+    virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
+
+    // get error payload (data field of NOTIFICATION message)
+    virtual const uint8_t* getError() const = 0;
+
+    // get length of error payload
+    virtual ssize_t getErrorLength() const = 0;
 
     virtual ~BgpMessage() {}
 };
