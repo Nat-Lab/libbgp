@@ -32,7 +32,7 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
         }
     }
 
-    memcpy(this->buffer, buffer, len);
+    memcpy(this->buffer + offset_end, buffer, len);
     offset_end += len;
 }
 
