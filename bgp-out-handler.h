@@ -7,7 +7,7 @@ namespace bgpfsm {
 class BgpOutHandler {
 public:
     virtual bool handleOut(const uint8_t *buffer, size_t length) = 0;
-    ~BgpOutHandler() {}
+    virtual ~BgpOutHandler() {}
 };
 
 }
