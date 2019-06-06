@@ -6,14 +6,26 @@
 
 namespace bgpfsm {
 
-BgpFsm::BgpFsm(BgpConfig config) : in_sink(BGP_FSM_SINK_SIZE) {
+BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(BGP_FSM_SINK_SIZE) {
     this->config = config;
     state = IDLE;
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
+    
+    if (!config.rib) {
+        rib = new BgpRib();
+        rib_local = true;
+    } else rib = config.rib;
+
+    if (config.rev_bus) {
+        rev_bus_exist = true;
+        config.rev_bus->subscribe(this);
+    }
 }
 
 BgpFsm::~BgpFsm() {
     free(out_buffer);
+    if (rib_local) delete rib;
+    if (rev_bus_exist) config.rev_bus->unsubscribe(this);
 }
 
 uint32_t BgpFsm::getAsn() const {

@@ -4,6 +4,7 @@
 #include "bgp-rib.h"
 #include "bgp-filter.h"
 #include "bgp-out-handler.h"
+#include "route-event-bus.h"
 
 namespace bgpfsm {
 
@@ -12,6 +13,7 @@ typedef struct BgpConfig {
     BgpFilterRules out_filters;
     BgpOutHandler *out_handler;
     BgpRib *rib;
+    RouteEventBus *rev_bus;
     bool use_4b_asn;
     uint32_t asn;
     uint32_t peer_asn;

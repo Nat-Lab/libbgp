@@ -6,13 +6,11 @@
 #include "bgp-rib.h"
 #include "bgp-config.h"
 #include "bgp-sink.h"
-#include "route-event-bus.h"
+#include "route-event-receiver.h"
 #include <stdint.h>
 #include <unistd.h>
 
 namespace bgpfsm {
-
-class RouteEventBus;
 
 enum BgpState {
     IDLE,
@@ -21,9 +19,9 @@ enum BgpState {
     ESTABLISHED
 };
 
-class BgpFsm {
+class BgpFsm : public RouteEventReceiver {
 public:
-    BgpFsm(BgpConfig config);
+    BgpFsm(const BgpConfig &config);
     ~BgpFsm();
 
     uint32_t getAsn() const;
@@ -44,10 +42,13 @@ public:
     // run FSM on buffer
     // return value: -1: fatal_error, check errbuf, 0: error: NOTIFY sent, FSM
     // now IDLE, 1: success, 2: FSM reseted (NOTIFICATION received / FSM error)
+    // errbuf might has details.
     int run(const uint8_t *buffer, const size_t buffer_size);
 
-    friend class RouteEventBus;
 private:
+    bool rib_local;
+    bool rev_bus_exist;
+
     bool handleRouteEvent (RouteEvent ev);
 
     int fsmEvalIdle(BgpMessage *msg);
@@ -60,6 +61,7 @@ private:
     BgpSink in_sink;
     BgpState state;
     BgpConfig config;
+    BgpRib *rib;
 
     uint8_t *out_buffer;
     
