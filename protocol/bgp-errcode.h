@@ -3,8 +3,61 @@
 
 namespace bgpfsm {
 
+const char* bgp_error_code_str[] = {
+    "Success"
+    "Message Header Error",
+    "OPEN Message Error",
+    "UPDATE Message Error",
+    "Hold Timer Expired",
+    "Finite State Machine Error",
+    "Cease"
+};
+
+const char* bgp_header_error_subcode_str[] = {
+    "Success",
+    "Connection Not Synchronized",
+    "Bad Message Length",
+    "Bad Message Type"
+};
+
+const char *bgp_open_error_subcode_str[] = {
+    "Success",
+    "Unsupported Version Number",
+    "Bad Peer AS",
+    "Bad Peer BGP ID",
+    "Unsupported Optional Parameter",
+    "Authentication Failure",
+    "Unacceptable Hold Time"
+};
+
+const char *bgp_update_error_str[] = {
+    "Success",
+    "Malformed Attribute List",
+    "Missing Well-known Attribute",
+    "Attribute Flags Error",
+    "Attribute Length Error",
+    "Invalid ORIGIN Attribute",
+    "AS Routing Loop",
+    "Invalid NEXT_HOP Attribute",
+    "Optional Attribute Error",
+    "Invalid Network Field",
+    "Malformed AS_PATH"
+};
+
+const char *bgp_cease_error_str[] = {
+    "Success",
+    "Maximum Number of Prefixes Reached",
+    "Administrative Shutdown",
+    "Peer De-configured",
+    "Administrative Reset",
+    "Connection Rejected",
+    "Other Configuration Change",
+    "Connection Collision Resolution",
+    "Out of Resources"
+};
+
 enum BgpErrorCode {
-    E_MSG_HDR = 1, // Message Header Error
+    E_HEADER = 1, // Message Header Error
     E_OPEN = 2, // OPEN Message Error 
     E_UPDATE = 3, // UPDATE Message Error
     E_HOLD = 4, // Hold Timer Expired
@@ -39,6 +92,17 @@ enum BgpUpdateErrorSubcode {
     E_OPT_ATTR = 9, // Optional Attribute Error
     E_NETFIELD = 10, // Invalid Network Field
     E_AS_PATH = 11 // Malformed AS_PATH
+};
+
+enum BgpCeaseErrorSubcode {
+    E_MAX_PREFIX = 1, // Maximum Number of Prefixes Reached
+    E_SHUTDOWN = 2, // Administrative Shutdown
+    E_DECONF = 3, // Peer De-configured
+    E_RESET = 4, // Administrative Reset
+    E_REJECT = 5, // Connection Rejected
+    E_CONFGCHANGE = 6, // Other Configuration Change
+    E_COLLISION = 7, // Connection Collision Resolution
+    E_RESOURCES = 8 // Out of Resources
 };
 
 }
