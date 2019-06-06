@@ -9,7 +9,7 @@ namespace bgpfsm {
 class BgpNotificationMessage : public BgpMessage {
 public:
     BgpNotificationMessage();
-    /* TODO */
+    BgpNotificationMessage(uint8_t errcode, uint8_t subcode, const uint8_t *data, uint16_t data_len);
 
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;

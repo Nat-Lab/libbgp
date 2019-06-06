@@ -16,6 +16,7 @@ typedef struct BgpConfig {
     uint32_t asn;
     uint32_t peer_asn;
     uint32_t router_id;
+    uint16_t hold_timer;
 } BgpConfig;
 
 }

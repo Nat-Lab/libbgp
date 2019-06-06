@@ -1,6 +1,7 @@
 #ifndef BGP_FSM_H_
 #define BGP_FSM_H_
-#define BGP_FSM_BUFFER_SIZE_IN 8192
+#define BGP_FSM_SINK_SIZE 8192
+#define BGP_FSM_BUFFER_SIZE 4096
 
 #include "bgp-rib.h"
 #include "bgp-config.h"
@@ -23,40 +24,44 @@ enum BgpState {
 class BgpFsm {
 public:
     BgpFsm(BgpConfig config);
+    ~BgpFsm();
 
     uint32_t getAsn() const;
     uint32_t getBgpId() const;
     uint32_t getPeerAsn() const;
     uint32_t getPeerBgpId() const;
     const BgpRib& getRib() const;
+    BgpState getState() const;
 
     // start BGP (Idle -> Open Sent)
-    // return value: false/0: error, check errbuf, true/1: success
+    // return value: -1: fatal_error, check errbuf, 1: success
     int start();
 
     // stop BGP (Any -> Idle)
-    // return value: false/0: error, check errbuf, true/1: success
+    // return value: -1: fatal_error, check errbuf, 1: success
     int stop();
 
     // run FSM on buffer
-    // return value: fatal_error/-1, check errbuf, true/1: success, 
-    // pending/0: in_sink non empty after run, error/2: FSM reseted
-    // (NOTIFICATION received / FSM error)
+    // return value: -1: fatal_error, check errbuf, 0: error: NOTIFY sent, FSM
+    // now IDLE, 1: success, 2: FSM reseted (NOTIFICATION received / FSM error)
     int run(const uint8_t *buffer, const size_t buffer_size);
 
     friend class RouteEventBus;
 private:
     bool handleRouteEvent (RouteEvent ev);
 
-    int fsmEvalIdle(const uint8_t *buffer, const size_t buffer_size);
-    int fsmEvalOpenSent(const uint8_t *buffer, const size_t buffer_size);
-    int fsmEvalOpenConfirm(const uint8_t *buffer, const size_t buffer_size);
-    int fsmEvalEstablished(const uint8_t *buffer, const size_t buffer_size);
+    int fsmEvalIdle(BgpMessage *msg);
+    int fsmEvalOpenSent(BgpMessage *msg);
+    int fsmEvalOpenConfirm(BgpMessage *msg);
+    int fsmEvalEstablished(BgpMessage *msg);
+
+    bool writeMessage(const uint8_t *buffer, ssize_t len);
 
     BgpSink in_sink;
-
     BgpState state;
     BgpConfig config;
+
+    uint8_t *out_buffer;
     
     uint32_t peer_bgp_id;
 };
