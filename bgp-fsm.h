@@ -15,11 +15,9 @@ class RouteEventBus;
 
 enum BgpState {
     IDLE,
-    ACTIVE,
     OPEN_SENT,
     OPEN_CONFIRM,
-    ESTABLISHED,
-    FEED // TODO: FEED status: sending routes but blocked by out_sink
+    ESTABLISHED
 };
 
 class BgpFsm {
@@ -32,12 +30,27 @@ public:
     uint32_t getPeerBgpId() const;
     const BgpRib& getRib() const;
 
-    bool start();
-    bool stop();
-    bool run(const uint8_t *buffer, const size_t buffer_size);
+    // start BGP (Idle -> Open Sent)
+    // return value: false/0: error, check errbuf, true/1: success
+    int start();
+
+    // stop BGP (Any -> Idle)
+    // return value: false/0: error, check errbuf, true/1: success
+    int stop();
+
+    // run FSM on buffer
+    // return value: fatal_error/-1, check errbuf, true/1: success, 
+    // pending/0: in_sink non empty after run, error/2: FSM reseted
+    // (NOTIFICATION received / FSM error)
+    int run(const uint8_t *buffer, const size_t buffer_size);
 
 private:
     void handleRouteEvent (RouteEvent ev);
+
+    int fsmEvalIdle(const uint8_t *buffer, const size_t buffer_size);
+    int fsmEvalOpenSent(const uint8_t *buffer, const size_t buffer_size);
+    int fsmEvalOpenConfirm(const uint8_t *buffer, const size_t buffer_size);
+    int fsmEvalEstablished(const uint8_t *buffer, const size_t buffer_size);
 
     BgpSink in_sink;
 
@@ -45,7 +58,6 @@ private:
     BgpConfig config;
     
     uint32_t peer_bgp_id;
-    
 };
 
 }
