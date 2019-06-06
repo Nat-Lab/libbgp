@@ -1,5 +1,5 @@
-#ifndef BGP_STATUS_H_
-#define BGP_STATUS_H_
+#ifndef BGP_FSM_H_
+#define BGP_FSM_H_
 #define BGP_FSM_BUFFER_SIZE_IN 8192
 #define BGP_FSM_BUFFER_SIZE_OUT 8192
 
@@ -48,4 +48,4 @@ private:
 
 }
 
-#endif // BGP_STATUS_H_
+#endif // BGP_FSM_H_
