@@ -32,11 +32,9 @@ public:
     uint32_t getPeerBgpId() const;
     const BgpRib& getRib() const;
 
-    BufferPtr start();
-    BufferPtr stop();
-
-    BufferPtr run(const BufferPtr &buffer);
-    BufferPtr run(const uint8_t *buffer, const size_t buffer_size);
+    bool start();
+    bool stop();
+    bool run(const uint8_t *buffer, const size_t buffer_size);
 
 private:
     void handleRouteEvent (RouteEvent ev);
