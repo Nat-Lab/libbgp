@@ -16,7 +16,8 @@ enum BgpState {
     IDLE,
     OPEN_SENT,
     OPEN_CONFIRM,
-    ESTABLISHED
+    ESTABLISHED,
+    BROKEN
 };
 
 class BgpFsm : public RouteEventReceiver {
@@ -32,31 +33,40 @@ public:
     BgpState getState() const;
 
     // start BGP (Idle -> Open Sent)
-    // return value: -1: fatal_error, check errbuf, 1: success
+    // return value: 0: error, check errbuf, 1: success
     int start();
 
     // stop BGP (Any -> Idle)
-    // return value: -1: fatal_error, check errbuf, 1: success
+    // return value: 0: error, check errbuf, 1: success
     int stop();
 
     // run FSM on buffer
-    // return value: -1: fatal_error, check errbuf, 0: error: NOTIFY sent, FSM
-    // now IDLE, 1: success, 2: FSM reseted (NOTIFICATION received / FSM error)
-    // errbuf might has details.
+    // return value: 
+    // -1: fatal_error, FSM now BROKEN, check errbuf.
+    // 0: error: NOTIFY sent, FSM now IDLE, errbuf might has details.
+    // 1: success
+    // 2: FSM reseted (NOTIFY received / FSM error), errbuf might has details.
+    // 3: success, incomplete packet in sink
     int run(const uint8_t *buffer, const size_t buffer_size);
+
+    // soft reset: send Administrative Reset and go to idle
+    void resetSoft();
+
+    // hard reset: go to idle
+    void resetHard();
 
 private:
     bool rib_local;
     bool rev_bus_exist;
 
-    bool handleRouteEvent (RouteEvent ev);
+    bool handleRouteEvent (const RouteEvent ev);
 
-    int fsmEvalIdle(BgpMessage *msg);
-    int fsmEvalOpenSent(BgpMessage *msg);
-    int fsmEvalOpenConfirm(BgpMessage *msg);
-    int fsmEvalEstablished(BgpMessage *msg);
+    int fsmEvalIdle(const BgpMessage *msg);
+    int fsmEvalOpenSent(const BgpMessage *msg);
+    int fsmEvalOpenConfirm(const BgpMessage *msg);
+    int fsmEvalEstablished(const BgpMessage *msg);
 
-    bool writeMessage(const uint8_t *buffer, ssize_t len);
+    bool writeMessage(const BgpMessage &msg);
 
     BgpSink in_sink;
     BgpState state;

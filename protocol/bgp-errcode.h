@@ -4,7 +4,7 @@
 namespace bgpfsm {
 
 const char* bgp_error_code_str[] = {
-    "Success"
+    "Unspecific"
     "Message Header Error",
     "OPEN Message Error",
     "UPDATE Message Error",
@@ -14,14 +14,14 @@ const char* bgp_error_code_str[] = {
 };
 
 const char* bgp_header_error_subcode_str[] = {
-    "Success",
+    "Unspecific",
     "Connection Not Synchronized",
     "Bad Message Length",
     "Bad Message Type"
 };
 
 const char *bgp_open_error_subcode_str[] = {
-    "Success",
+    "Unspecific",
     "Unsupported Version Number",
     "Bad Peer AS",
     "Bad Peer BGP ID",
@@ -31,7 +31,7 @@ const char *bgp_open_error_subcode_str[] = {
 };
 
 const char *bgp_update_error_str[] = {
-    "Success",
+    "Unspecific",
     "Malformed Attribute List",
     "Missing Well-known Attribute",
     "Attribute Flags Error",
@@ -45,7 +45,7 @@ const char *bgp_update_error_str[] = {
 };
 
 const char *bgp_cease_error_str[] = {
-    "Success",
+    "Unspecific",
     "Maximum Number of Prefixes Reached",
     "Administrative Shutdown",
     "Peer De-configured",

@@ -21,11 +21,17 @@ public:
     // write BGP message to buffer
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
 
+    // get error code
+    virtual uint8_t getErrorCode() const = 0;
+
+    // get error subcode
+    virtual uint8_t getErrorSubCode() const = 0;
+
     // get error payload (data field of NOTIFICATION message)
     virtual const uint8_t* getError() const = 0;
 
     // get length of error payload
-    virtual ssize_t getErrorLength() const = 0;
+    virtual size_t getErrorLength() const = 0;
 
     virtual ~BgpMessage() {}
 };
