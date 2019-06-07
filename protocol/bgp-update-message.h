@@ -11,6 +11,12 @@ class BgpUpdateMessage : public BgpMessage {
 public:
     BgpUpdateMessage();
 
+    // construct with pre-defined attribs
+    BgpUpdateMessage(const std::vector<BgpPathAttrib> &arrtibs);
+
+    // construct with pre-defined withdrawn
+    BgpUpdateMessage(const std::vector<Route> &withdraws);
+
     std::vector<Route> withdrawn_routes;
     std::vector<BgpPathAttrib> path_attribute;
     std::vector<Route> nlri;
@@ -19,7 +25,9 @@ public:
     void addAttrib(const BgpPathAttrib &attrib);
 
     void addWithdrawn(uint32_t prefix, uint8_t length);
+    void addWithdrawn(const Route &route);
     void addNlri(uint32_t prefix, uint8_t length);
+    void addNlri(const Route &route);
 
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;

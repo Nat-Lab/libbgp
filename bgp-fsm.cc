@@ -275,6 +275,27 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
     return false;
 }
 
+bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
+    BgpUpdateMessage update (ev.attribs);
+
+    for (const Route &route : ev.routes) {
+        if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
+            update.addNlri(route);
+        } 
+    }
+
+    if (update.nlri.size() <= 0) return false;
+    if(!writeMessage(update)) return false;
+    return true;
+}
+
+bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
+    BgpUpdateMessage withdraw (ev.routes);
+
+    if(!writeMessage(withdraw)) return false;
+    return true;
+}
+
 int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     if (msg->type == NOTIFICATION) return 1;
 
@@ -352,6 +373,17 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
     if(!writeMessage(keep)) return -1;
 
     state = ESTABLISHED;
+
+    // feed rib to peer; TODO: feed routes w/ same attrib w/ single message
+    for (const RibEntry &entry : rib->get()) {
+        const Route route = entry.route;
+        if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
+            BgpUpdateMessage update (entry.attribs);
+            update.addNlri(route);
+            if(!writeMessage(update)) return -1;
+        }
+    }
+
     return 1;
 }
 
