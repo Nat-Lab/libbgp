@@ -13,6 +13,7 @@ bool __bgp_err_buf_init = false;
 void _bgp_error (const char *format_str, ...);
 
 const char *get_bgp_errors();
+void clear_bgp_errors();
 
 }
 

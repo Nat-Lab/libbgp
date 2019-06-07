@@ -25,4 +25,9 @@ const char *get_bgp_errors() {
     return __bgp_err_buf_init ? __bgp_error : "";
 }
 
+void clear_bgp_errors() {
+    memset(__bgp_error, 0, 255);
+    __bgp_err_offset = 0;
+}
+
 }
