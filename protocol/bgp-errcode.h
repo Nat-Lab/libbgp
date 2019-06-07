@@ -27,7 +27,8 @@ const char *bgp_open_error_subcode_str[] = {
     "Bad Peer BGP ID",
     "Unsupported Optional Parameter",
     "Authentication Failure",
-    "Unacceptable Hold Time"
+    "Unacceptable Hold Time",
+    "Unsupported Capability"
 };
 
 const char *bgp_update_error_str[] = {
@@ -44,6 +45,13 @@ const char *bgp_update_error_str[] = {
     "Malformed AS_PATH"
 };
 
+const char *bgp_fsm_error_str[] = {
+    "Unspecific",
+    "Receive Unexpected Message in OpenSent State",
+    "Receive Unexpected Message in OpenConfirm State",
+    "Receive Unexpected Message in Established State"
+};
+
 const char *bgp_cease_error_str[] = {
     "Unspecific",
     "Maximum Number of Prefixes Reached",
@@ -57,6 +65,7 @@ const char *bgp_cease_error_str[] = {
 };
 
 enum BgpErrorCode {
+    E_UNSPEC = 0,
     E_HEADER = 1, // Message Header Error
     E_OPEN = 2, // OPEN Message Error 
     E_UPDATE = 3, // UPDATE Message Error
@@ -66,21 +75,25 @@ enum BgpErrorCode {
 };
 
 enum BgpHeaderErrorSubcode {
+    E_UNSPEC = 0,
     E_SYNC = 1, // Connection Not Synchronized
     E_LENGTH = 2, // Bad Message Length
     E_TYPE = 3 // Bad Message Type
 };
 
 enum BgpOpenErrorSubcode {
+    E_UNSPEC = 0,
     E_VERSION = 1, // Unsupported Version Number
     E_PEER_AS = 2, // Bad Peer AS
     E_BGP_ID = 3, // Bad Peer BGP ID
     E_OPT_PARAM = 4, // Unsupported Optional Parameter
     E_AUTH_FAILED = 5, // Authentication Failure (Deprecated)
-    E_HOLD_TIME = 6 // Unacceptable Hold Time
+    E_HOLD_TIME = 6, // Unacceptable Hold Time
+    E_CAPABILITY = 7 // Unsupported Capability
 };
 
 enum BgpUpdateErrorSubcode {
+    E_UNSPEC = 0,
     E_ATTR_LIST = 1, // Malformed Attribute List
     E_BAD_WELL_KNOWN = 2, // Unrecognized Well-known Attribute
     E_MISS_WELL_KNOWN = 3, // Missing Well-known Attribute
@@ -94,7 +107,15 @@ enum BgpUpdateErrorSubcode {
     E_AS_PATH = 11 // Malformed AS_PATH
 };
 
+enum BgpFsmErrorSubcode {
+    E_UNSPEC = 0,
+    E_OPEN_SENT = 1, // Receive Unexpected Message in OpenSent State
+    E_OPEN_CONFIRM = 2, // Receive Unexpected Message in OpenConfirm State
+    E_ESTABLISHED = 3 // Receive Unexpected Message in Established State
+};
+
 enum BgpCeaseErrorSubcode {
+    E_UNSPEC = 0,
     E_MAX_PREFIX = 1, // Maximum Number of Prefixes Reached
     E_SHUTDOWN = 2, // Administrative Shutdown
     E_DECONF = 3, // Peer De-configured
