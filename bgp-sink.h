@@ -1,5 +1,6 @@
 #ifndef BGP_SINK_H_
 #define BGP_SINK_H_
+#include <mutex>
 #include <stdint.h>
 #include <unistd.h>
 
@@ -40,18 +41,19 @@ public:
     // get number of bytes currently in sink
     size_t getBytesInSink();
 
-    // settle the sink
-    void settle();
-
     // discard packets in sink
     void drain();
     ~BgpSink();
 
 private:
+    // settle the sink
+    void settle();
+
     uint8_t *buffer;
     size_t buffer_size;
     size_t offset_start;
     size_t offset_end;
+    std::mutex mutex;
 };
 
 }

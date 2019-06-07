@@ -18,6 +18,7 @@ BgpSink::~BgpSink() {
 }
 
 ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
+    std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
     if (len > buffer_size) {
         _bgp_error("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
@@ -37,6 +38,7 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
 }
 
 BufferPtr BgpSink::pourPtr() {
+    std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
 
     uint8_t *cur = this->buffer + offset_start;
@@ -63,6 +65,7 @@ BufferPtr BgpSink::pourPtr() {
 }
 
 BufferPtr BgpSink::pourPtrAll() {
+    std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
     ssize_t sz = getBytesInSink();
     uint8_t *cur = buffer + offset_start;
@@ -71,6 +74,7 @@ BufferPtr BgpSink::pourPtrAll() {
 }
 
 ssize_t BgpSink::pour(uint8_t *buffer, size_t len) {
+    std::lock_guard<std::mutex> lock(mutex);
     BufferPtr bp = pourPtr();
     
     if (bp.buffer_size < 0) return -1;
@@ -88,6 +92,7 @@ ssize_t BgpSink::pour(uint8_t *buffer, size_t len) {
 }
 
 ssize_t BgpSink::pourAll(uint8_t *buffer, size_t len) {
+    std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
     size_t bytes = getBytesInSink();
 
@@ -110,6 +115,7 @@ void BgpSink::settle() {
 }
 
 void BgpSink::drain() {
+    std::lock_guard<std::mutex> lock(mutex);
     offset_end = offset_start = 0;
 }
 
