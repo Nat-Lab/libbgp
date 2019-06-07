@@ -30,6 +30,7 @@ public:
 };
 
 class BgpFilterRules {
+public:
     std::vector<BgpFilterRule> rules;
 
     void append(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint32_t mask);
