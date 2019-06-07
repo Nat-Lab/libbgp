@@ -345,13 +345,6 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
 int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     if (msg->type == KEEPALIVE) {
         last_recv = clock->getTime();
-
-        // since we are here, also check if we need to send keepalive.
-        if (clock->getTime() - last_sent > hold_timer / 3) {
-            BgpKeepaliveMessage keep = BgpKeepaliveMessage();
-            if(!writeMessage(keep)) return -1;
-        }
-
         return 1;
     }
 
@@ -391,6 +384,12 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         }
     }
 
+    // since we are here, check if we need to keepalive
+    if (clock->getTime() - last_sent > hold_timer / 3) {
+        BgpKeepaliveMessage keep = BgpKeepaliveMessage();
+        if(!writeMessage(keep)) return -1;
+    }
+
     return 1;
 }
 
@@ -415,6 +414,7 @@ bool BgpFsm::writeMessage(const BgpMessage &msg) {
         return false;
     }
 
+    last_sent = clock->getTime();
     return true;
 }
 
