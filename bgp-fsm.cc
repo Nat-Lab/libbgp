@@ -104,6 +104,8 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         return -1;
     }
 
+    // since we use pourPtr, we need to make sure no fill() happens
+    std::lock_guard<std::mutex> lock(in_sink_mutex);
     in_sink.fill(buffer, buffer_size);
 
     // tick the clock

@@ -91,7 +91,9 @@ private:
     BgpConfig config;
     BgpRib *rib;
     Clock *clock;
+
     std::mutex out_buffer_mutex;
+    std::mutex in_sink_mutex;
 
     // pointer to output buffer
     uint8_t *out_buffer;
