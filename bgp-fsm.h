@@ -74,7 +74,9 @@ private:
     bool clock_local;
     bool rev_bus_exist;
 
-    bool handleRouteEvent (const RouteEvent ev);
+    bool handleRouteEvent(const RouteEvent &ev);
+    bool handleRouteWithdrawEvent(const RouteWithdrawEvent &ev);
+    bool handleRouteAddEvent(const RouteAddEvent &ev);
 
     int fsmEvalIdle(const BgpMessage *msg);
     int fsmEvalOpenSent(const BgpMessage *msg);

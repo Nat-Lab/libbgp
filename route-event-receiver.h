@@ -10,7 +10,13 @@ class RouteEventReceiver {
     friend class RouteEventBus;
 
 protected:
-    virtual bool handleRouteEvent (const RouteEvent ev) = 0;
+
+    // handle a route event
+    // return:
+    // true: event handled
+    // false: event not handled
+    virtual bool handleRouteEvent(const RouteEvent &ev) = 0;
+    
     virtual ~RouteEventReceiver() {};
 };
 

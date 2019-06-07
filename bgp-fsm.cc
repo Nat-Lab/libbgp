@@ -268,6 +268,13 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     return 1;
 }
 
+bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
+    if (ev.type == ADD) return handleRouteAddEvent(dynamic_cast <const RouteAddEvent&>(ev));
+    if (ev.type == WITHDRAW) return handleRouteWithdrawEvent(dynamic_cast <const RouteWithdrawEvent&>(ev));
+
+    return false;
+}
+
 int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     if (msg->type == NOTIFICATION) return 1;
 
@@ -362,15 +369,20 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     }
 
     const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
-    
+
     for (const Route &route : update->withdrawn_routes) {
         rib->withdraw(peer_bgp_id, route);
     }
 
+    std::vector<Route> routes = std::vector<Route> ();
     for (const Route &route : update->nlri) {
         if(config.in_filters.apply(route.prefix, route.length) == ACCEPT) {
-            rib->insert(peer_bgp_id, route, update->path_attribute);
+            routes.push_back(route);
         }
+    }
+
+    if (routes.size() > 0) {
+        rib->insert(peer_bgp_id, routes, update->path_attribute);
     }
 
     if (rev_bus_exist) {
@@ -381,10 +393,12 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         }
 
         if (update->nlri.size() > 0) {
-            RouteAddEvent aev = RouteAddEvent();
-            aev.routes = update->nlri;
-            aev.attribs = update->path_attribute;
-            config.rev_bus->publish(this, aev);
+            if (routes.size() > 0) {
+                RouteAddEvent aev = RouteAddEvent();
+                aev.routes = routes;
+                aev.attribs = update->path_attribute;
+                config.rev_bus->publish(this, aev);
+            }
         }
     }
 

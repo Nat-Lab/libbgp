@@ -19,6 +19,9 @@ public:
     // insert a new route into RIB
     int insert(uint32_t src_router_id, const Route &route, const std::vector<BgpPathAttrib> &attrib);
 
+    // insert new routes into RIB
+    int insert(uint32_t src_router_id, const std::vector<Route> &route, const std::vector<BgpPathAttrib> &attrib);
+
     // remove a route from RIB
     int withdraw(uint32_t src_router_id, const Route &route);
 

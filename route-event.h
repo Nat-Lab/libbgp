@@ -14,6 +14,7 @@ enum RouteEventType {
 class RouteEvent {
 public:
     RouteEventType type;
+    virtual ~RouteEvent() {}
 };
 
 class RouteAddEvent : public RouteEvent {
