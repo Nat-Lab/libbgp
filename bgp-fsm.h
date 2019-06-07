@@ -76,6 +76,9 @@ private:
     uint8_t *out_buffer;
     
     uint32_t peer_bgp_id;
+
+    // true if both peer & local support 4B ASN
+    bool fsm_use_4b_asn;
 };
 
 }

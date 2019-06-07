@@ -154,6 +154,23 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             return -1;
         }
 
+        if (message_type == NOTIFICATION) {
+            const BgpNotificationMessage *notify = dynamic_cast<const BgpNotificationMessage *>(msg);
+            const char *err_msg = bgp_error_code_str[notify->errcode];
+            const char *err_sub_msg = bgp_error_code_str[0];
+            switch (notify->errcode) {
+                case E_HEADER: err_sub_msg = bgp_header_error_subcode_str[notify->subcode]; break;
+                case E_OPEN: err_sub_msg = bgp_open_error_subcode_str[notify->subcode]; break;
+                case E_UPDATE: err_sub_msg = bgp_update_error_str[notify->subcode]; break;
+                case E_FSM: err_sub_msg = bgp_fsm_error_str[notify->subcode]; break;
+                case E_CEASE: err_sub_msg = bgp_cease_error_str[notify->subcode]; break;
+            }
+            _bgp_error("BgpFsm::run: got NOTIFICATION: %s: %s.\n", err_msg, err_sub_msg);
+            delete msg;
+            state = IDLE;
+            return 0;
+        };
+
         int retval = -1;
 
         switch (state) {
@@ -180,8 +197,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
 
 int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     if (msg->type != OPEN) {
-        BgpNotificationMessage notify (E_FSM, 0, NULL, 0);
-        if(!writeMessage(notify)) return -1;
+        _bgp_error("BgpFsm::fsmEvalIdle: got non-OPEN message in IDLE state.\n");
         return 0;
     }
 
@@ -199,14 +215,10 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
         return 0;
     }
 
-    if (!config.use_4b_asn && open_msg->use_4b_asn) {
-        BgpNotificationMessage notify (E_OPEN, E_OPT_PARAM, NULL, 0);
-        if(!writeMessage(notify)) return -1;
-        return 0;
-    }
+    fsm_use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
 
     BgpOpenMessage open_reply (config.asn, config.hold_timer, config.router_id);
-    open_reply.use_4b_asn = config.use_4b_asn;
+    open_reply.use_4b_asn = fsm_use_4b_asn;
     if(!writeMessage(open_reply)) return -1;
 
     state = OPEN_CONFIRM;
