@@ -3,6 +3,7 @@
 #define BGP_FSM_SINK_SIZE 8192
 #define BGP_FSM_BUFFER_SIZE 4096
 
+#include "clock.h"
 #include "bgp-rib.h"
 #include "bgp-config.h"
 #include "bgp-sink.h"
@@ -49,14 +50,14 @@ public:
     // 3: success, incomplete packet in sink
     int run(const uint8_t *buffer, const size_t buffer_size);
 
-    // tell FSM the current time (in second)
+    // tick the clock (check for time-based event e.g. hold timer)
     // return value:
     // -1: fatal_error, FSM now BROKEN, check errbuf.
     // 0: error: NOTIFY sent, FSM now IDLE, errbuf might has details. (likely 
     // hold timer exipred)
     // 1: success
     // 2: success, keepalive sent
-    int tick(uint64_t time);
+    int tick();
 
     // soft reset: send Administrative Reset and go to idle
     void resetSoft();
@@ -66,6 +67,7 @@ public:
 
 private:
     bool rib_local;
+    bool clock_local;
     bool rev_bus_exist;
 
     bool handleRouteEvent (const RouteEvent ev);
@@ -81,10 +83,13 @@ private:
     BgpState state;
     BgpConfig config;
     BgpRib *rib;
+    Clock *clock;
 
     uint8_t *out_buffer;
     uint32_t peer_bgp_id;
-    uint64_t last_tick;
+    uint16_t hold_timer;
+    uint64_t last_sent;
+    uint64_t last_recv;
 
     // true if both peer & local support 4B ASN
     bool fsm_use_4b_asn;

@@ -1,6 +1,7 @@
 #ifndef BGP_CONFIG_H_
 #define BGP_CONFIG_H_
 #include <stdint.h>
+#include "clock.h"
 #include "bgp-rib.h"
 #include "bgp-filter.h"
 #include "bgp-out-handler.h"
@@ -43,8 +44,8 @@ typedef struct BgpConfig {
     // Hold timer
     uint16_t hold_timer;
 
-    // current time in second (used for hold-timer/keepalive, can be relative time)
-    uint64_t now;
+    // pointer to clock object, if NULL, real time clock will be used
+    Clock *clock;
 } BgpConfig;
 
 }

@@ -1,5 +1,6 @@
 #include "bgp-fsm.h"
 #include "bgp-error.h"
+#include "realtime-clock.h"
 #include "protocol/bgp.h"
 #include "protocol/value-op.h"
 #include <stdlib.h>
@@ -22,11 +23,17 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(BGP_FSM_SINK_SIZE) {
         rev_bus_exist = true;
         config.rev_bus->subscribe(this);
     }
+
+    if (!config.clock) {
+        clock = new RealtimeClock();
+        clock_local = true;
+    } else clock = config.clock;
 }
 
 BgpFsm::~BgpFsm() {
     free(out_buffer);
     if (rib_local) delete rib;
+    if (clock_local) delete clock;
     if (rev_bus_exist) config.rev_bus->unsubscribe(this);
 }
 
