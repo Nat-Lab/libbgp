@@ -310,6 +310,7 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
 }
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
+    std::lock_guard<std::mutex> lock(out_buffer_mutex);
     ssize_t len = msg.write(out_buffer + 19, BGP_FSM_BUFFER_SIZE - 19);
 
     if (len < 0) {

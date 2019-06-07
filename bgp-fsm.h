@@ -10,6 +10,7 @@
 #include "route-event-receiver.h"
 #include <stdint.h>
 #include <unistd.h>
+#include <mutex>
 
 namespace bgpfsm {
 
@@ -87,6 +88,7 @@ private:
     BgpConfig config;
     BgpRib *rib;
     Clock *clock;
+    std::mutex out_buffer_mutex;
 
     // pointer to output buffer
     uint8_t *out_buffer;
