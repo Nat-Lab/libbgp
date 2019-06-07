@@ -177,7 +177,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             case IDLE: retval = fsmEvalIdle(msg); break;
             case OPEN_SENT: retval = fsmEvalOpenSent(msg); break;
             case OPEN_CONFIRM: retval = fsmEvalOpenConfirm(msg); break;
-            case ESTABLISHED: retval = fsmEvalOpenConfirm(msg); break;
+            case ESTABLISHED: retval = fsmEvalEstablished(msg); break;
             default: {
                 _bgp_error("BgpFsm::run: FSM in invalid state: %d.\n", state);
                 delete msg;
