@@ -49,6 +49,15 @@ public:
     // 3: success, incomplete packet in sink
     int run(const uint8_t *buffer, const size_t buffer_size);
 
+    // tell FSM the current time (in second)
+    // return value:
+    // -1: fatal_error, FSM now BROKEN, check errbuf.
+    // 0: error: NOTIFY sent, FSM now IDLE, errbuf might has details. (likely 
+    // hold timer exipred)
+    // 1: success
+    // 2: success, keepalive sent
+    int tick(uint64_t time);
+
     // soft reset: send Administrative Reset and go to idle
     void resetSoft();
 
@@ -74,8 +83,8 @@ private:
     BgpRib *rib;
 
     uint8_t *out_buffer;
-    
     uint32_t peer_bgp_id;
+    uint64_t last_tick;
 
     // true if both peer & local support 4B ASN
     bool fsm_use_4b_asn;

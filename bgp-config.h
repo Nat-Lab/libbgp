@@ -42,6 +42,9 @@ typedef struct BgpConfig {
 
     // Hold timer
     uint16_t hold_timer;
+
+    // current time in second (used for hold-timer/keepalive, can be relative time)
+    uint64_t now;
 } BgpConfig;
 
 }
