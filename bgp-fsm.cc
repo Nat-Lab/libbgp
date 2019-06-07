@@ -263,6 +263,8 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 }
 
 int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
+    if (msg->type == NOTIFICATION) return 1;
+
     if (msg->type != OPEN) {
         _bgp_error("BgpFsm::fsmEvalIdle: got non-OPEN message in IDLE state.\n");
         return 0;
@@ -304,6 +306,26 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
 }
 
 int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
+    if (msg->type == OPEN && config.connectionless) {
+        const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
+
+        if (config.router_id > open_msg->bgp_id) {
+            // we have higher bgp-id, notify peer and re-send open
+            BgpNotificationMessage notify (E_CEASE, E_COLLISION, NULL, 0);
+            if(!writeMessage(notify)) return -1;
+
+            BgpOpenMessage msg(config.asn, config.hold_timer, config.router_id);
+            if(!writeMessage(msg)) return -1;
+
+            state = OPEN_SENT;
+            return 1;
+        } else {
+            // peer has higher bgp-id, we'll go to IDLE
+            state = IDLE;
+            return 1;
+        }
+    }
+
     if (msg->type != KEEPALIVE) {
         _bgp_error("BgpFsm::fsmEvalOpenConfirm: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
         BgpNotificationMessage notify (E_FSM, E_OPEN_CONFIRM, NULL, 0);

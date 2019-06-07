@@ -27,6 +27,13 @@ typedef struct BgpConfig {
     // FSM thru event bus, won't use if NULL
     RouteEventBus *rev_bus;
 
+    // mark the transport layer this session as connectionless.
+    // marking the session as connectionless makes bgp-fsm do collision 
+    // detection. normally, one connection is associated with an FSM, bgp-fsm
+    // won't be able to do collision detection in this case. in connectionless
+    // mode, each remote host is associated with an FSM.
+    bool connectionless;
+
     // use 4 byte ASN?
     // false: don't send 4B ASN capability.
     // true: send 4B ASN capability.
