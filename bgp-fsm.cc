@@ -202,14 +202,29 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
     return final_ret_val;
 }
 
-int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
-    if (msg->type != OPEN) {
-        _bgp_error("BgpFsm::fsmEvalIdle: got non-OPEN message in IDLE state.\n");
+int BgpFsm::tick() {
+    if (state != ESTABLISHED) return 1;
+
+    // peer hold-timer exipred?
+    if (clock->getTime() - last_recv > hold_timer) {
+        _bgp_error("BgpFsm::tick: peer hold timer timeout.\n");
+        BgpNotificationMessage notify (E_HOLD, 0, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+        state = IDLE;
         return 0;
     }
 
-    const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
+    // send keepalive? 
+    if (clock->getTime() - last_sent > hold_timer / 3) {
+        BgpKeepaliveMessage keep = BgpKeepaliveMessage();
+        if(!writeMessage(keep)) return -1;
+        return 2;
+    }
 
+    return 1;
+}
+
+int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     if (open_msg->version != 4) {
         BgpNotificationMessage notify (E_OPEN, E_VERSION, NULL, 0);
         if(!writeMessage(notify)) return -1;
@@ -222,10 +237,33 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
         return 0;
     }
 
-    fsm_use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
+    // if hold timer != 0 but < 3, reject witl E_HOLD_TIME (as per rfc4271)
+    if (open_msg->hold_time < 3 && open_msg->hold_time != 0) {
+        _bgp_error("BgpFsm::openRecv: invalid hold timer %d.\n", open_msg->hold_time);
+        BgpNotificationMessage notify (E_OPEN, E_HOLD_TIME, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+        return 0;
+    }
 
-    BgpOpenMessage open_reply (config.asn, config.hold_timer, config.router_id);
-    open_reply.use_4b_asn = fsm_use_4b_asn;
+    hold_timer = config.hold_timer > open_msg->hold_time ? open_msg->hold_time : config.hold_timer;
+    use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
+    
+    return 1;
+}
+
+int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
+    if (msg->type != OPEN) {
+        _bgp_error("BgpFsm::fsmEvalIdle: got non-OPEN message in IDLE state.\n");
+        return 0;
+    }
+
+    const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
+
+    int retval = openRecv(open_msg);
+    if (retval != 1) return retval;
+
+    BgpOpenMessage open_reply (config.asn, hold_timer, config.router_id);
+    open_reply.use_4b_asn = use_4b_asn;
     if(!writeMessage(open_reply)) return -1;
 
     state = OPEN_CONFIRM;
@@ -244,19 +282,8 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
 
     const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
 
-    if (open_msg->version != 4) {
-        BgpNotificationMessage notify (E_OPEN, E_VERSION, NULL, 0);
-        if(!writeMessage(notify)) return -1;
-        return 0;
-    }
-
-    if (open_msg->my_asn != config.peer_asn) {
-        BgpNotificationMessage notify (E_OPEN, E_PEER_AS, NULL, 0);
-        if(!writeMessage(notify)) return -1;
-        return 0;
-    }
-
-    fsm_use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
+    int retval = openRecv(open_msg);
+    if (retval != 1) return retval;
 
     BgpKeepaliveMessage keep = BgpKeepaliveMessage();
     if(!writeMessage(keep)) return -1;

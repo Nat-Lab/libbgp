@@ -77,6 +77,9 @@ private:
     int fsmEvalOpenConfirm(const BgpMessage *msg);
     int fsmEvalEstablished(const BgpMessage *msg);
 
+    // since we handle open recv event in both idle and opensent, make it a func
+    int openRecv(const BgpOpenMessage *open);
+
     bool writeMessage(const BgpMessage &msg);
 
     BgpSink in_sink;
@@ -85,14 +88,23 @@ private:
     BgpRib *rib;
     Clock *clock;
 
+    // pointer to output buffer
     uint8_t *out_buffer;
+
+    // peer's bgp id
     uint32_t peer_bgp_id;
+
+    // negotiated hold_timer
     uint16_t hold_timer;
+
+    // time last event sent
     uint64_t last_sent;
+
+    // time last event received
     uint64_t last_recv;
 
     // true if both peer & local support 4B ASN
-    bool fsm_use_4b_asn;
+    bool use_4b_asn;
 };
 
 }
