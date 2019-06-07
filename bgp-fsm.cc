@@ -320,6 +320,58 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
     return 1;
 }
 
+int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
+    if (msg->type == KEEPALIVE) {
+        last_recv = clock->getTime();
+
+        // since we are here, also check if we need to send keepalive.
+        if (clock->getTime() - last_sent > hold_timer / 3) {
+            BgpKeepaliveMessage keep = BgpKeepaliveMessage();
+            if(!writeMessage(keep)) return -1;
+        }
+
+        return 1;
+    }
+
+    if (msg->type != UPDATE) {
+        _bgp_error("BgpFsm::fsmEvalOpenConfirm: got invalid message in ESTABLISHED state.\n");
+        BgpNotificationMessage notify (E_FSM, E_ESTABLISHED, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+
+        state = IDLE;
+        return 0;
+    }
+
+    const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
+    
+    for (const Route &route : update->withdrawn_routes) {
+        rib->withdraw(peer_bgp_id, route);
+    }
+
+    for (const Route &route : update->nlri) {
+        if(config.in_filters.apply(route.prefix, route.length) == ACCEPT) {
+            rib->insert(peer_bgp_id, route, update->path_attribute);
+        }
+    }
+
+    if (rev_bus_exist) {
+        if (update->withdrawn_routes.size() > 0) {
+            RouteWithdrawEvent wev = RouteWithdrawEvent();
+            wev.routes = update->withdrawn_routes;
+            config.rev_bus->publish(this, wev);
+        }
+
+        if (update->nlri.size() > 0) {
+            RouteAddEvent aev = RouteAddEvent();
+            aev.routes = update->nlri;
+            aev.attribs = update->path_attribute;
+            config.rev_bus->publish(this, aev);
+        }
+    }
+
+    return 1;
+}
+
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     std::lock_guard<std::mutex> lock(out_buffer_mutex);
     ssize_t len = msg.write(out_buffer + 19, BGP_FSM_BUFFER_SIZE - 19);
