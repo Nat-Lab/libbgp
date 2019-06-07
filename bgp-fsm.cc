@@ -225,6 +225,56 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     return 1;
 }
 
+int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
+    if (msg->type != OPEN) {
+        _bgp_error("BgpFsm::fsmEvalOpenSent: got non-OPEN message in OPEN_SENT state.\n");
+        BgpNotificationMessage notify (E_FSM, E_OPEN_SENT, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+
+        state = IDLE;
+        return 0;
+    }
+
+    const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
+
+    if (open_msg->version != 4) {
+        BgpNotificationMessage notify (E_OPEN, E_VERSION, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+        return 0;
+    }
+
+    if (open_msg->my_asn != config.peer_asn) {
+        BgpNotificationMessage notify (E_OPEN, E_PEER_AS, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+        return 0;
+    }
+
+    fsm_use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
+
+    BgpKeepaliveMessage keep = BgpKeepaliveMessage();
+    if(!writeMessage(keep)) return -1;
+
+    state = OPEN_CONFIRM;
+    return 1;
+}
+
+int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
+    if (msg->type != KEEPALIVE) {
+        _bgp_error("BgpFsm::fsmEvalOpenConfirm: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
+        BgpNotificationMessage notify (E_FSM, E_OPEN_CONFIRM, NULL, 0);
+        if(!writeMessage(notify)) return -1;
+
+        state = IDLE;
+        return 0;
+    }
+
+    BgpKeepaliveMessage keep = BgpKeepaliveMessage();
+    if(!writeMessage(keep)) return -1;
+
+    state = ESTABLISHED;
+    return 1;
+}
+
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     ssize_t len = msg.write(out_buffer + 19, BGP_FSM_BUFFER_SIZE - 19);
 
