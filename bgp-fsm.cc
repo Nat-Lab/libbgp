@@ -224,6 +224,17 @@ int BgpFsm::tick() {
     return 1;
 }
 
+int BgpFsm::resetSoft() {
+    BgpNotificationMessage notify (E_CEASE, E_RESET, NULL, 0);
+    if(!writeMessage(notify)) return -1;
+    state = IDLE;
+    return 0;
+}
+
+void BgpFsm::resetHard() {
+    state = IDLE;
+}
+
 int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     if (open_msg->version != 4) {
         BgpNotificationMessage notify (E_OPEN, E_VERSION, NULL, 0);

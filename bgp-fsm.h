@@ -61,7 +61,10 @@ public:
     int tick();
 
     // soft reset: send Administrative Reset and go to idle
-    void resetSoft();
+    // return value:
+    // -1: fatal_error, FSM now BROKEN, check errbuf.
+    // 0: success, NOTIFY sent, FSM not IDLE
+    int resetSoft();
 
     // hard reset: go to idle
     void resetHard();
