@@ -106,6 +106,10 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
 
     in_sink.fill(buffer, buffer_size);
 
+    // tick the clock
+    tick();
+    last_recv = clock->getTime();
+
     int final_ret_val = -1;
 
     // keep running untill sink empty
@@ -343,10 +347,8 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
 }
 
 int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
-    if (msg->type == KEEPALIVE) {
-        last_recv = clock->getTime();
-        return 1;
-    }
+    if (msg->type == KEEPALIVE) return 1;
+    if (msg->type == OPEN && config.connectionless) return 1;
 
     if (msg->type != UPDATE) {
         _bgp_error("BgpFsm::fsmEvalOpenConfirm: got invalid message in ESTABLISHED state.\n");
@@ -382,12 +384,6 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             aev.attribs = update->path_attribute;
             config.rev_bus->publish(this, aev);
         }
-    }
-
-    // since we are here, check if we need to keepalive
-    if (clock->getTime() - last_sent > hold_timer / 3) {
-        BgpKeepaliveMessage keep = BgpKeepaliveMessage();
-        if(!writeMessage(keep)) return -1;
     }
 
     return 1;
