@@ -28,6 +28,9 @@ public:
     uint8_t getErrorSubCode() const;
     const uint8_t* getError() const;
     size_t getErrorLength() const;
+
+private:
+    uint8_t err_data;
 };
 
 }
