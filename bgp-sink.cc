@@ -35,6 +35,8 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
 
     memcpy(this->buffer + offset_end, buffer, len);
     offset_end += len;
+
+    return len;
 }
 
 BufferPtr BgpSink::pourPtr() {
@@ -80,7 +82,7 @@ ssize_t BgpSink::pour(uint8_t *buffer, size_t len) {
     if (bp.buffer_size < 0) return -1;
     if (bp.buffer_size == 0) return 0;
 
-    if (bp.buffer_size > len) {
+    if ((size_t) bp.buffer_size > len) {
         _bgp_error("BgpSink::pour: not enough space in output buffer (%d more needed).", bp.buffer_size - len);
         offset_start -= bp.buffer_size; // un-pour
         return -1;

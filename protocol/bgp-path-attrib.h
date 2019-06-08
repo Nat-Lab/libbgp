@@ -2,6 +2,7 @@
 #define BGP_PATH_ATTR_H
 
 #include <stdint.h>
+#include <unistd.h>
 #include <vector>
 
 namespace bgpfsm {

@@ -5,7 +5,6 @@
 namespace bgpfsm {
 
 enum BgpCapabilityCode {
-    RESERVED = 0,
     MP_BGP = 1,
     ROUTE_REFRESH = 2,
     ORF = 3,

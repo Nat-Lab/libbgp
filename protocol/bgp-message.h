@@ -1,6 +1,7 @@
 #ifndef BGP_MSG_H_
 #define BGP_MSG_H_
 #include <stdint.h>
+#include <unistd.h>
 
 namespace bgpfsm {
 

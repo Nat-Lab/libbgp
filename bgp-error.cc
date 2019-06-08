@@ -3,6 +3,10 @@
 
 namespace bgpfsm {
 
+char __bgp_error[255];
+uint8_t __bgp_err_offset = 0;
+bool __bgp_err_buf_init = false;
+
 void _bgp_error (const char *format_str, ...) {
     if (!__bgp_err_buf_init) {
         __bgp_err_buf_init = true;
@@ -17,7 +21,7 @@ void _bgp_error (const char *format_str, ...) {
     va_end(args);
 
     if (sz < 0) throw "_bgp_error: I/O error when writing error buffer.";
-    if (sz > buf_left) throw "_bgp_error: error buffer full.";
+    if ((size_t) sz > buf_left) throw "_bgp_error: error buffer full.";
     __bgp_err_offset += (uint8_t) sz;
 }
 
