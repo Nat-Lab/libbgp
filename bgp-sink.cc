@@ -53,7 +53,7 @@ BufferPtr BgpSink::pourPtr() {
 
     if (field_len < 19 || field_len > 4096) {
         _bgp_error("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
-        return BufferPtr(NULL, -1);
+        return BufferPtr(NULL, -2);
     }
 
     ssize_t bytes = getBytesInSink();
@@ -117,6 +117,10 @@ void BgpSink::settle() {
 void BgpSink::drain() {
     std::lock_guard<std::mutex> lock(mutex);
     offset_end = offset_start = 0;
+}
+
+size_t BgpSink::getBytesInSink() const {
+    return offset_end - offset_start;
 }
 
 }

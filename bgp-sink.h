@@ -39,10 +39,11 @@ public:
     ssize_t pourAll(uint8_t *buffer, size_t len);
 
     // get number of bytes currently in sink
-    size_t getBytesInSink();
+    size_t getBytesInSink() const;
 
     // discard packets in sink
     void drain();
+
     ~BgpSink();
 
 private:

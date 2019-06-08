@@ -119,6 +119,23 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
     while (in_sink.getBytesInSink() > 0) {
         BufferPtr packet = in_sink.pourPtr();
         if (packet.buffer_size == 0) return 3;
+        if (packet.buffer_size == -1) {
+            _bgp_error("BgpFsm::run: packet sink error.\n");
+            state = BROKEN;
+            return -1;
+        }
+
+        if (packet.buffer_size == -2) {
+            // FIXME: data field should be length
+            BgpNotificationMessage notify (E_HEADER, E_LENGTH, NULL, 0);
+            if (!writeMessage(notify)) return -1;
+
+            // we have some invalid data in sink, remove it.
+            in_sink.drain();
+
+            state = IDLE;
+            return 0;
+        }
 
         const uint8_t *packet_ptr = packet.buffer + 18;
         uint8_t message_type = getValue<uint8_t> (&packet_ptr);
@@ -132,7 +149,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             case NOTIFICATION: msg = new BgpNotificationMessage(); break;
             default: {
                 // unknow message type
-                BgpNotificationMessage notify (E_HEADER, E_TYPE, NULL, 0);
+                BgpNotificationMessage notify (E_HEADER, E_TYPE, &message_type, 1);
                 if(!writeMessage(notify)) return -1;
                 return 0;
             }
@@ -234,11 +251,12 @@ int BgpFsm::tick() {
 int BgpFsm::resetSoft() {
     BgpNotificationMessage notify (E_CEASE, E_RESET, NULL, 0);
     if(!writeMessage(notify)) return -1;
-    state = IDLE;
+    resetHard();
     return 0;
 }
 
 void BgpFsm::resetHard() {
+    in_sink.drain();
     state = IDLE;
 }
 
