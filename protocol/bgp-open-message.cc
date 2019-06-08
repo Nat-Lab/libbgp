@@ -9,6 +9,7 @@
 namespace bgpfsm {
 
 BgpOpenMessage::BgpOpenMessage() {
+    this->type = OPEN;
     this->version = 4;
     err_len = 0;
     err_code = 0;
@@ -64,6 +65,9 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     while (parsed_opt_params_len < opt_params_len) {
         uint8_t param_type = getValue<uint8_t> (&buffer);
         uint8_t param_length = getValue<uint8_t> (&buffer);
+
+        // param_type & param_length
+        parsed_opt_params_len += 2;
 
         // opt param size exceed opt_params_len
         if (parsed_opt_params_len + param_length > opt_params_len) {
