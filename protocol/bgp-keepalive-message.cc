@@ -6,6 +6,7 @@
 namespace bgpfsm {
 
 BgpKeepaliveMessage::BgpKeepaliveMessage() {
+    type = KEEPALIVE;
     err_data = 0;
 }
 

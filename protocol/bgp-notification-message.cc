@@ -7,6 +7,7 @@
 namespace bgpfsm {
 
 BgpNotificationMessage::BgpNotificationMessage() {
+    type = NOTIFICATION;
     err_data = 0;
 }
 
