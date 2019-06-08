@@ -20,7 +20,7 @@ enum BgpCapabilityCode {
 
 class BgpCapability {
 public:
-    BgpCapabilityCode code;
+    uint8_t code;
     uint8_t length;
     virtual ~BgpCapability() {}
 };
@@ -32,6 +32,8 @@ public:
 
 class BgpCapabilityUnknow : public BgpCapability {
 public:
+    BgpCapabilityUnknow (const uint8_t *buffer, uint8_t len);
+    ~BgpCapabilityUnknow ();
     uint8_t *value;
 };
 

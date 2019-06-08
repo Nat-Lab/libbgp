@@ -15,6 +15,8 @@ public:
     uint8_t version;
     uint32_t my_asn;
     uint16_t hold_time;
+
+    // bgp-id is in host-byte
     uint32_t bgp_id;
 
     // also avaliable thru getCapabilities()
@@ -33,6 +35,10 @@ public:
     const std::vector<BgpCapability>& getCapabilities() const;
 private:
     std::vector<BgpCapability> capabilities;
+    uint8_t *err_data;
+    uint8_t err_code;
+    uint8_t err_subcode;
+    size_t err_len;
 };
 
 }
