@@ -3,6 +3,7 @@
 #include <vector>
 #include <unistd.h>
 #include "bgp-message.h"
+#include "bgp-capability.h"
 
 namespace bgpfsm {
 
@@ -16,6 +17,7 @@ public:
     uint16_t hold_time;
     uint32_t bgp_id;
 
+    // also avaliable thru getCapabilities()
     bool use_4b_asn;
 
     ssize_t parse(const uint8_t *from, size_t msg_sz);
@@ -25,6 +27,12 @@ public:
     uint8_t getErrorSubCode() const;
     const uint8_t* getError() const;
     size_t getErrorLength() const;
+
+    // bgp-fsm only supports 4-bytes asn capability. getCapabilities() allows
+    // you to get a full, read-only list of cpabilities.
+    const std::vector<BgpCapability>& getCapabilities() const;
+private:
+    std::vector<BgpCapability> capabilities;
 };
 
 }
