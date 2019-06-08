@@ -109,7 +109,8 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
     in_sink.fill(buffer, buffer_size);
 
     // tick the clock
-    tick();
+    int tick_ret = tick();
+    if (tick_ret <= 0) return tick_ret;
     last_recv = clock->getTime();
 
     int final_ret_val = -1;
