@@ -25,12 +25,12 @@ public:
     virtual ~BgpCapability() {}
 };
 
-class Bgp4BytesAsnCapability : public BgpCapability {
+class BgpCapability4BytesAsn : public BgpCapability {
 public:
     uint32_t my_asn;
 };
 
-class BgpUnknowCapability : public BgpCapability {
+class BgpCapabilityUnknow : public BgpCapability {
 public:
     uint8_t *value;
 };
