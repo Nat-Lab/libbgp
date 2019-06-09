@@ -88,6 +88,10 @@ private:
 
     bool writeMessage(const BgpMessage &msg);
 
+    // prepare update message for advertisement (prepend my_asn, remove 
+    // non-trans attrs)
+    void prepareUpdateMessage(BgpUpdateMessage &update);
+
     BgpSink in_sink;
     BgpState state;
     BgpConfig config;

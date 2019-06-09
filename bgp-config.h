@@ -48,6 +48,9 @@ typedef struct BgpConfig {
     // BGP ID
     uint32_t router_id;
 
+    // nexthop to use when advertising routes to peers
+    uint32_t nexthop;
+
     // Hold timer
     uint16_t hold_timer;
 

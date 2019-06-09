@@ -295,6 +295,8 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
 }
 
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
+    if (state != ESTABLISHED) return false;
+
     BgpUpdateMessage update (ev.attribs);
 
     for (const Route &route : ev.routes) {
@@ -304,15 +306,47 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     }
 
     if (update.nlri.size() <= 0) return false;
+
+    prepareUpdateMessage(update);
+
     if(!writeMessage(update)) return false;
     return true;
 }
 
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
+    if (state != ESTABLISHED) return false;
+
     BgpUpdateMessage withdraw (ev.routes);
 
     if(!writeMessage(withdraw)) return false;
     return true;
+}
+
+void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
+    update.dropNonTransitive();
+    update.setNextHop(config.nexthop);
+
+    if (config.use_4b_asn) {
+        if (use_4b_asn) {                    
+            // both peer and us are configured to use 4b-asn.
+
+            // just in case this is added by some FSM w/ non 4b-asn cap peer
+            update.restoreAsPath();
+
+            update.prepend(config.asn);
+        } else {
+            // local system support 4b-asn, but peer does not.
+            update.prepend2b(config.asn);
+        }
+    } else {
+        // local system does not use 4b-asn
+
+        // FIXME: we should not be changeing AS4_PATH if don't know 
+        // 4b-asn, but since some other FSM shareing the RIB might
+        // strip AS4_PATH off, we will lost all 4b-asn in path, so we
+        // will be constructing AS4_PATH ourself.
+        update.prepend2b(config.asn);
+    }    
 }
 
 int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
@@ -397,8 +431,9 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
     for (const RibEntry &entry : rib->get()) {
         const Route route = entry.route;
         if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
-            BgpUpdateMessage update (entry.attribs);
+            BgpUpdateMessage update(entry.attribs);
             update.addNlri(route);
+            prepareUpdateMessage(update);
             if(!writeMessage(update)) return -1;
         }
     }
