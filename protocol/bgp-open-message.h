@@ -11,6 +11,7 @@ class BgpOpenMessage : public BgpMessage {
 public:
     BgpOpenMessage();
     BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id);
+    BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, const char* bgp_id);
     ~BgpOpenMessage();
 
     uint8_t version;

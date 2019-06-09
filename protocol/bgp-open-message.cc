@@ -27,6 +27,13 @@ BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp
     this->bgp_id = bgp_id;
 }
 
+BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage() {
+    this->my_asn = my_asn;
+    this->hold_time = hold_time;
+    inet_pton(AF_INET, bgp_id, &(this->bgp_id));
+    this->bgp_id = ntohl(this->bgp_id);
+}
+
 ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 10) {
         err_data = (uint8_t *) malloc(sizeof(uint8_t));
@@ -166,9 +173,55 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     return parsed_opt_params_len + 10;
 }
 
-
 ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
-    return -1;
+    if (buf_sz < 10) {
+        _bgp_error("BgpOpenMessage::write: buffer size too small (need 10, avaliable %d).\n", buf_sz);
+        return -1;
+    }
+
+    if (!use_4b_asn && my_asn > 65535) {
+        _bgp_error("BgpOpenMessage::write: my_asn %d is not 2-bytes but use_4b_asn is false.\n", my_asn);
+        return -1;
+    }
+
+    uint8_t *buffer = to;
+
+    putValue<uint8_t>(&buffer, version);
+    putValue<uint16_t>(&buffer, htons(my_asn > 65535 ? 23456 : my_asn));
+    putValue<uint16_t>(&buffer, htons(hold_time));
+    putValue<uint32_t>(&buffer, htonl(bgp_id));
+    
+    if (!use_4b_asn) {
+        // no opt_param
+        putValue<uint8_t>(&buffer, 0);
+        return 10;
+    }
+
+    if (buf_sz < 18) {
+        _bgp_error("BgpOpenMessage::write: buffer size too small (need 18, avaliable %d).\n", buf_sz);
+        return -1;
+    }
+
+    // opt_param length is always 8 if we generate a open message, sicne we
+    // only support 4b-asn capability for now.
+    putValue<uint8_t>(&buffer, 8);
+    
+    // opt_param type 2: capability
+    putValue<uint8_t>(&buffer, 2);
+
+    // opt param len: 6
+    putValue<uint8_t>(&buffer, 6);
+
+    // capability 65: 4b-asn
+    putValue<uint8_t>(&buffer, 65);
+
+    // capability length: 4
+    putValue<uint8_t>(&buffer, 4);
+
+    // put my_asn
+    putValue<uint32_t>(&buffer, htonl(my_asn));
+
+    return 18;
 }
 
 uint8_t BgpOpenMessage::getErrorCode() const {
