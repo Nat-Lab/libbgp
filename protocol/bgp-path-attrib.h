@@ -39,18 +39,19 @@ public:
     // get attribute type from buffer, return -1 if failed.
     static int8_t getType(const uint8_t *buffer, size_t buffer_sz);
 
-    // utility function to parse header (flags, types) from buffer
-    ssize_t parseHeader(const uint8_t *buffer, size_t length);
-
-    // utility function to write header (flags, types) to buffer
-    ssize_t writeHeader(uint8_t *buffer, size_t buffer_sz) const;
-
     // parse attribute 
     virtual ssize_t parse(const uint8_t *buffer, size_t length) = 0;
 
     // write attribute
     virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const = 0;
     virtual ~BgpPathAttrib() {}
+
+protected:
+    // utility function to parse header (flags, types) from buffer
+    ssize_t parseHeader(const uint8_t *buffer, size_t length);
+
+    // utility function to write header (flags, types) to buffer
+    ssize_t writeHeader(uint8_t *buffer, size_t buffer_sz) const;
 };
 
 class BgpPathAttribUnknow : public BgpPathAttrib {
