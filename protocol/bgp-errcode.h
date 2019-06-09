@@ -3,6 +3,13 @@
 
 namespace bgpfsm {
 
+extern const char *bgp_error_code_str[];
+extern const char* bgp_header_error_subcode_str[];
+extern const char *bgp_open_error_subcode_str[];
+extern const char *bgp_update_error_str[];
+extern const char *bgp_fsm_error_str[];
+extern const char *bgp_cease_error_str[];
+
 enum BgpErrorCode {
     E_UNSPEC = 0,
     E_HEADER = 1, // Message Header Error

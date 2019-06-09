@@ -2,7 +2,7 @@
 
 namespace bgpfsm {
 
-const char* bgp_error_code_str[] = {
+const char *bgp_error_code_str[] = {
     "Unspecific"
     "Message Header Error",
     "OPEN Message Error",
