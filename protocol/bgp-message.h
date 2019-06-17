@@ -14,6 +14,7 @@ enum BgpMessageType {
 
 class BgpMessage {
 public:
+    BgpMessage();
     BgpMessageType type;
 
     // prase BGP message from buffer
@@ -23,18 +24,26 @@ public:
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
 
     // get error code
-    virtual uint8_t getErrorCode() const = 0;
+    virtual uint8_t getErrorCode() const;
 
     // get error subcode
-    virtual uint8_t getErrorSubCode() const = 0;
+    virtual uint8_t getErrorSubCode() const;
 
     // get error payload (data field of NOTIFICATION message)
-    virtual const uint8_t* getError() const = 0;
+    virtual const uint8_t* getError() const;
 
     // get length of error payload
-    virtual size_t getErrorLength() const = 0;
+    virtual size_t getErrorLength() const;
 
     virtual ~BgpMessage() {}
+protected:
+    // utility function to error related values
+    void setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len);
+
+    uint8_t err_code;
+    uint8_t err_subcode;
+    size_t err_len;
+    uint8_t *err_data;
 };
 
 }
