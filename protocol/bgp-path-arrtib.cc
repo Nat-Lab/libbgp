@@ -1,5 +1,6 @@
 #include "bgp-path-attrib.h"
 #include "bgp-error.h"
+#include "bgp-errcode.h"
 #include "value-op.h"
 #include <stdlib.h>
 
@@ -10,8 +11,23 @@ int8_t BgpPathAttrib::getType(const uint8_t *from, size_t buffer_sz) {
     return *((uint8_t *) (from + 1));
 }
 
+BgpPathAttrib::BgpPathAttrib() {
+    err_buf_len = 0;
+    err_code = 0;
+    err_subcode = 0;
+    err_buf = NULL;
+}
+
+BgpPathAttrib::~BgpPathAttrib() {
+    if (err_buf_len > 0) free(err_buf);
+}
+
 ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
-    if (buffer_sz < 2) {
+    // header has the length of 3 (flag, type, length). parseHeader only uses 2,
+    // but since a packet of size < 3 can't be valid we will reject it here.
+    if (buffer_sz < 3) {
+        err_code = E_UPDATE;
+        err_subcode = E_UNSPEC_UPDATE;
         _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size.\n");
         return -1;
     }
@@ -23,7 +39,7 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     transitive = (flags >> 6) & 0x1;
     partial = (flags >> 5) & 0x1;
     extened = (flags >> 4) & 0x1;
-    type = getValue<uint8_t>(&buffer);
+    type_code = getValue<uint8_t>(&buffer);
 
     return 2;
 }
@@ -37,8 +53,24 @@ ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     uint8_t *buffer = to;
     uint8_t flags = (optional << 7) | (transitive << 6)| (partial << 5) | (extened << 4);
     putValue<uint8_t>(&buffer, flags);
-    putValue<uint8_t>(&buffer, type);
+    putValue<uint8_t>(&buffer, type_code);
     return 2;
+}
+
+uint8_t BgpPathAttrib::getErrorCode() const {
+    return err_code;
+}
+
+uint8_t BgpPathAttrib::getErrorSubCode() const {
+    return err_subcode;
+}
+
+const uint8_t* BgpPathAttrib::getError() const {
+    return err_buf;
+}
+
+size_t BgpPathAttrib::getErrorLength() const {
+    return err_buf_len;
 }
 
 BgpPathAttribUnknow::BgpPathAttribUnknow() {}
@@ -48,13 +80,34 @@ BgpPathAttribUnknow::~BgpPathAttribUnknow() {
 }
 
 ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
-    if (parseHeader(from, 2) != 2) return -1;
+    if (parseHeader(from, length) != 3) return -1;
 
     const uint8_t *buffer = from + 2;
 
     value_len = getValue<uint8_t>(&buffer);
-    if (value_len != length - 3) {
-        _bgp_error("BgpPathAttribUnknow::parse: value_length (%d) != buffer left (%d).\n", value_len, length - 3);
+    if (value_len < length - 3) {
+        err_code = E_UPDATE;
+        // This is kind of "invalid length", but we are not using E_ATTR_LEN.
+        // E_ATTR_LEN: "Attribute Length that conflict with the expected length
+        // (based on the attribute type code)." This is not based on type code,
+        // but it is buffer overflow, so we set subcode to E_UNSPEC,
+        err_subcode = E_UNSPEC_UPDATE;
+        _bgp_error("BgpPathAttribUnknow::parse: value_length (%d) < buffer left (%d).\n", value_len, length - 3);
+        return -1;
+    }
+
+    if (!optional) {
+        // mandatory, but not recognized
+        err_code = E_UPDATE;
+        err_subcode = E_BAD_WELL_KNOWN;
+
+        err_buf_len = value_len + 3;
+        err_buf = (uint8_t *) malloc(err_buf_len);
+        memcpy(err_buf, from, err_buf_len);
+
+        _bgp_error("BgpPathAttribUnknow::parse: optional bit not set but this attribute is unknown.\n");
+        // set value_len = 0, so we won't free() nullptr when destruct.
+        value_len = 0; 
         return -1;
     }
 
@@ -83,7 +136,7 @@ ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
 BgpPathAttribOrigin::BgpPathAttribOrigin() {}
 
 ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
-    if (parseHeader(from, 2) != 2) return -1;
+    if (parseHeader(from, length) != 3) return -1;
 
     const uint8_t *buffer = from + 2;
 
