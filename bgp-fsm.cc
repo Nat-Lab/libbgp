@@ -363,6 +363,7 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
 }
 
 bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
+    if (state != OPEN_CONFIRM) return false;
     return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
 
