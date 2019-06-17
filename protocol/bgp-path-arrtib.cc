@@ -65,7 +65,7 @@ ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
 }
 
 ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
-    if (buffer_sz < 3) {
+    if (buffer_sz < value_len + 3) {
         _bgp_error("BgpPathAttribUnknow::write: destination buffer size too small.\n");
         return -1;
     }
@@ -77,7 +77,38 @@ ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
 
     if (value_len > 0) memcpy(buffer, value_ptr, value_len);
 
-    return value_len + 2;   
+    return value_len + 3;   
+}
+
+BgpPathAttribOrigin::BgpPathAttribOrigin() {}
+
+ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
+    if (parseHeader(from, 2) != 2) return -1;
+
+    const uint8_t *buffer = from + 2;
+
+    origin = getValue<uint8_t>(&buffer);
+
+    if (origin > 2) {
+        _bgp_error("BgpPathAttribOrigin::Bad Origin Value: %d.\n", origin);
+        return -1;
+    }
+
+    return 3;
+}
+
+ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 3) {
+        _bgp_error("BgpPathAttribOrigin::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+    uint8_t *buffer = to + 2;
+
+    putValue<uint8_t>(&buffer, origin);
+    return 3;
+
 }
 
 }
