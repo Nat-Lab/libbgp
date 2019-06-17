@@ -35,7 +35,7 @@ public:
     // get length of error payload
     virtual size_t getErrorLength() const;
 
-    virtual ~BgpMessage() {}
+    virtual ~BgpMessage();
 protected:
     // utility function to error related values
     void setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len);
