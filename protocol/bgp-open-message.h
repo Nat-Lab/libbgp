@@ -27,20 +27,11 @@ public:
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;
 
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
-
     // bgp-fsm only supports 4-bytes asn capability. getCapabilities() allows
     // you to get a full, read-only list of cpabilities.
     const std::vector<BgpCapability>& getCapabilities() const;
 private:
     std::vector<BgpCapability> capabilities;
-    uint8_t *err_data;
-    uint8_t err_code;
-    uint8_t err_subcode;
-    size_t err_len;
 };
 
 }

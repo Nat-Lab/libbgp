@@ -11,15 +11,9 @@ namespace bgpfsm {
 BgpOpenMessage::BgpOpenMessage() {
     this->type = OPEN;
     this->version = 4;
-    err_len = 0;
-    err_code = 0;
-    err_subcode = 0;
-    err_data = NULL;
 }
 
-BgpOpenMessage::~BgpOpenMessage() {
-    if (err_len > 0) free(err_data);
-}
+BgpOpenMessage::~BgpOpenMessage() { }
 
 BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id) : BgpOpenMessage() {
     this->my_asn = my_asn;
@@ -39,8 +33,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
         err_data = (uint8_t *) malloc(sizeof(uint8_t));
         *err_data = msg_sz + 19;
         err_len = sizeof(uint8_t);
-        err_code = E_HEADER;
-        err_subcode = E_LENGTH;
+        setError(E_HEADER, E_LENGTH, NULL, 0);
         _bgp_error("BgpOpenMessage::parse: invalid open message size: %d.\n", msg_sz);
         return -1;
     }
@@ -58,8 +51,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     // size of rest of message != length of opt_param or invalid length
     if (opt_params_len != msg_sz - 10 || opt_params_len < 2) {
-        err_code = E_OPEN;
-        err_subcode = E_UNSPEC_OPEN;
+        setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
         if (opt_params_len + 10 != (uint8_t) msg_sz) 
             _bgp_error("BgpOpenMessage::parse: size of rest of message (%d) != length of opt_param (%d).\n", msg_sz - 10, opt_params_len);
         if (opt_params_len < 2)
@@ -78,24 +70,21 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
         // opt param size exceed opt_params_len
         if (parsed_opt_params_len + param_length > opt_params_len) {
-            err_code = E_OPEN;
-            err_subcode = E_UNSPEC_OPEN;
+            setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
             _bgp_error("BgpOpenMessage::parse: opt param size exceed opt_params_len.\n");
             return -1;
         }
 
         // not capability?
         if (param_type != 2) {
-            err_code = E_OPEN;
-            err_subcode = E_OPT_PARAM;
+            setError(E_OPEN, E_OPT_PARAM, NULL, 0);
             _bgp_error("BgpOpenMessage::parse: unknow opt param type: %d.\n", param_type);
             return -1;
         }
 
         // invalid capability field?
         if (param_length < 2) {
-            err_code = E_OPEN;
-            err_subcode = E_UNSPEC_OPEN;
+            setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
             _bgp_error("BgpOpenMessage::parse: invalid capability opt param length: %d.\n", param_length);
             return -1;
         }
@@ -111,8 +100,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
             // capa value len exceed opt param
             if (parsed_opt_param_len + capa_len > param_length) {
-                err_code = E_OPEN;
-                err_subcode = E_UNSPEC_OPEN;
+                setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
                 _bgp_error("BgpOpenMessage::parse: capability length exceed param length.\n");
                 return -1;
             }
@@ -121,8 +109,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
                 use_4b_asn = true;
 
                 if (capa_len != 4) {
-                    err_code = E_OPEN;
-                    err_subcode = E_UNSPEC_OPEN;
+                    setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
                     _bgp_error("BgpOpenMessage::parse: capability length invalid (want 4, saw %d).\n", capa_len);
                     return -1;
                 }
@@ -134,8 +121,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
                 // peer has 4b-asn but my_asn is not AS_TRANS
                 if (my_4b_asn > 65535 && my_asn != 23456) {
-                    err_code = E_OPEN;
-                    err_subcode = E_UNSPEC_OPEN;
+                    setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
                     _bgp_error("BgpOpenMessage::parse: peer has 4b-asn but my_asn is not AS_TRANS (%d).\n", my_asn);
                     return -1;
                 }
@@ -222,22 +208,6 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
     putValue<uint32_t>(&buffer, htonl(my_asn));
 
     return 18;
-}
-
-uint8_t BgpOpenMessage::getErrorCode() const {
-    return err_code;
-}
-
-uint8_t BgpOpenMessage::getErrorSubCode() const {
-    return err_subcode;
-}
-
-const uint8_t* BgpOpenMessage::getError() const {
-    return err_data;
-}
-
-size_t BgpOpenMessage::getErrorLength() const {
-    return err_len;
 }
 
 }
