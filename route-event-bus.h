@@ -11,7 +11,7 @@ class RouteEventBus {
 public:
     // publish a route event. For non FSM (administratively/other proto), use fsm = NULL
     // return number of subscriber reached, or -1 on error
-    int publish(RouteEventReceiver *recv, RouteEvent ev);
+    int publish(RouteEventReceiver *recv, const RouteEvent ev);
 
     // subscribe to event bus, return true if success
     bool subscribe(RouteEventReceiver *recv);

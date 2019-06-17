@@ -8,7 +8,8 @@ namespace bgpfsm {
 
 enum RouteEventType {
     ADD, 
-    WITHDRAW
+    WITHDRAW,
+    COLLISION
 };
 
 class RouteEvent {
@@ -27,6 +28,12 @@ class RouteWithdrawEvent : public RouteEvent {
 public:
     std::vector<Route> routes;
 };
+
+class RouteCollisionEvent : public RouteEvent {
+public:
+    uint32_t peer_bgp_id;
+};
+
 }
 
 #endif // ROUTE_EV_H_

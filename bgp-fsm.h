@@ -75,6 +75,7 @@ private:
     bool rev_bus_exist;
 
     bool handleRouteEvent(const RouteEvent &ev);
+    bool handleRouteCollisionEvent(const RouteCollisionEvent &ev);
     bool handleRouteWithdrawEvent(const RouteWithdrawEvent &ev);
     bool handleRouteAddEvent(const RouteAddEvent &ev);
 
@@ -82,6 +83,14 @@ private:
     int fsmEvalOpenSent(const BgpMessage *msg);
     int fsmEvalOpenConfirm(const BgpMessage *msg);
     int fsmEvalEstablished(const BgpMessage *msg);
+
+    // resloveCollison: resloving collsion
+    // return value:
+    // -1: fatal_error, FSM now BROKEN, check errbuf.
+    // 0: there is a collision and this FSM should be dispose, FSM is now
+    // IDLE and should be disposed
+    // 1: there is a collision and the other FSM should be dispose.
+    int resloveCollision(uint32_t peer_bgp_id, bool is_new);
 
     // since we handle open recv event in both idle and opensent, make it a func
     int openRecv(const BgpOpenMessage *open);
@@ -118,6 +127,7 @@ private:
 
     // true if both peer & local support 4B ASN
     bool use_4b_asn;
+
 };
 
 }

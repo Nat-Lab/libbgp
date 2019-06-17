@@ -27,16 +27,14 @@ typedef struct BgpConfig {
     // FSM thru event bus, won't use if NULL
     RouteEventBus *rev_bus;
 
-    // mark the transport layer this session as connectionless.
-    // marking the session as connectionless makes bgp-fsm do collision 
-    // detection. normally, one connection is associated with an FSM, bgp-fsm
-    // won't be able to do collision detection in this case. in connectionless
-    // mode, each remote host is associated with an FSM.
-    bool connectionless;
+    // disable collision detection? collision detection is done by sending 
+    // "collision" event to event bus upon reception of an open message.
+    bool no_collision_detection;
 
     // use 4 byte ASN?
     // false: don't send 4B ASN capability.
     // true: send 4B ASN capability.
+    // this will also change behaviour of updates
     bool use_4b_asn;
 
     // local ASN, MUST be < 65535 if use_4b_asn != 1
@@ -45,7 +43,7 @@ typedef struct BgpConfig {
     // peer ASN, MUST be < 65535 if use_4b_asn != 1
     uint32_t peer_asn;
 
-    // BGP ID
+    // BGP ID in host byte order
     uint32_t router_id;
 
     // nexthop to use when advertising routes to peers

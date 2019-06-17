@@ -3,7 +3,7 @@
 namespace bgpfsm
 {
 
-int RouteEventBus::publish(RouteEventReceiver *recv, RouteEvent ev) {
+int RouteEventBus::publish(RouteEventReceiver *recv, const RouteEvent ev) {
     int n = 0;
 
     for (RouteEventReceiver* &subscriber : subscribers) {

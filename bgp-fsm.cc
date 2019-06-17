@@ -200,7 +200,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             delete msg;
             state = IDLE;
             return 0;
-        };
+        }
 
         int retval = -1;
 
@@ -261,6 +261,7 @@ void BgpFsm::resetHard() {
 }
 
 int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
+
     if (open_msg->version != 4) {
         BgpNotificationMessage notify (E_OPEN, E_VERSION, NULL, 0);
         if(!writeMessage(notify)) return -1;
@@ -281,17 +282,88 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
         return 0;
     }
 
+    if (!config.no_collision_detection && rev_bus_exist) {
+        RouteCollisionEvent col = RouteCollisionEvent();
+        col.peer_bgp_id = open_msg->bgp_id;
+
+        // publish returned 0: no one complained about collision (either 
+        // there's no collision, or some fsm has killed themselves)
+        //
+        // publish returned > 0: someone complained about collision, it think 
+        // this session should be dropped
+        if(config.rev_bus->publish(this, col) > 0) {
+            int res_result = resloveCollision(open_msg->bgp_id, true);
+
+            if(res_result == -1) return -1;
+            if(res_result == 0) return 0;
+
+            // should not be happening
+            if(res_result == 1) {
+                _bgp_error(
+                    "BgpFsm::openRecv: collision found, and some other FSM feels like they should live"
+                    "while we feel like we should live too. is there duplicated FSMs?"
+                );
+                state = BROKEN;
+                return -1;
+            }
+        }
+    }
+
     hold_timer = config.hold_timer > open_msg->hold_time ? open_msg->hold_time : config.hold_timer;
     use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
     
     return 1;
 }
 
+int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
+    if(is_new) {
+        if (config.router_id > peer_bgp_id) {
+            // this is a new connection, and "we" have higer ID, there's 
+            // already a connection so THIS fsm should be dispose. since 
+            // THIS fsm is created by peer connecting to us.
+            BgpNotificationMessage notify (E_CEASE, E_COLLISION, NULL, 0);
+            if(!writeMessage(notify)) return -1;
+
+            state = IDLE;
+            return 0;
+        } else {
+            // this is a new connection, and peer has higher ID. the exisiting
+            // connection should be dispose, since THIS fsm is created by peer 
+            // connecting to us, this one will be kept, we do nothing.
+            return 1;
+        }
+    } else {
+        if (config.router_id > peer_bgp_id) {
+            // this is a old connection, and "we" have higer ID, the new one
+            // shoud close, we do nothing.
+
+            return 1;
+        } else {
+            // this is a old connection, and "peer" have higer ID, this one
+            // shoud close.
+            BgpNotificationMessage notify (E_CEASE, E_COLLISION, NULL, 0);
+            if(!writeMessage(notify)) return -1;
+
+            state = IDLE;
+            return 0;
+        }
+    }
+
+    // UNREACHED
+    _bgp_error("BgpFsm::resloveCollison: ??? :( \n");
+    return -1;
+}
+
 bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
     if (ev.type == ADD) return handleRouteAddEvent(dynamic_cast <const RouteAddEvent&>(ev));
     if (ev.type == WITHDRAW) return handleRouteWithdrawEvent(dynamic_cast <const RouteWithdrawEvent&>(ev));
+    if (ev.type == COLLISION) return handleRouteCollisionEvent(dynamic_cast <const RouteCollisionEvent&>(ev));
 
     return false;
+}
+
+bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
+    return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
 
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
@@ -393,26 +465,6 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
 }
 
 int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
-    if (msg->type == OPEN && config.connectionless) {
-        const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
-
-        if (config.router_id > open_msg->bgp_id) {
-            // we have higher bgp-id, notify peer and re-send open
-            BgpNotificationMessage notify (E_CEASE, E_COLLISION, NULL, 0);
-            if(!writeMessage(notify)) return -1;
-
-            BgpOpenMessage msg(config.asn, config.hold_timer, config.router_id);
-            if(!writeMessage(msg)) return -1;
-
-            state = OPEN_SENT;
-            return 1;
-        } else {
-            // peer has higher bgp-id, we'll go to IDLE
-            state = IDLE;
-            return 1;
-        }
-    }
-
     if (msg->type != KEEPALIVE) {
         _bgp_error("BgpFsm::fsmEvalOpenConfirm: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
         BgpNotificationMessage notify (E_FSM, E_OPEN_CONFIRM, NULL, 0);
@@ -443,7 +495,6 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
 
 int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     if (msg->type == KEEPALIVE) return 1;
-    if (msg->type == OPEN && config.connectionless) return 1;
 
     if (msg->type != UPDATE) {
         _bgp_error("BgpFsm::fsmEvalOpenConfirm: got invalid message in ESTABLISHED state.\n");
