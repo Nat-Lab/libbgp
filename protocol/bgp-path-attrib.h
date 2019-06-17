@@ -62,11 +62,19 @@ public:
     virtual ~BgpPathAttrib();
 
 protected:
-    // utility function to parse header (flags, types) from buffer
+    // utility function to parse header (flags, typecode, length) from buffer
     ssize_t parseHeader(const uint8_t *buffer, size_t length);
 
-    // utility function to write header (flags, types) to buffer
+    // utility function to write header (flags, type_code) to buffer. notice
+    // that length is not write to buffer by this function.
     ssize_t writeHeader(uint8_t *buffer, size_t buffer_sz) const;
+
+    // utility function to error related values
+    void setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len);
+
+    // the length of attribute value, use only when parse. when write(), this
+    // value is ignored.
+    uint8_t value_len;
 
     uint8_t err_code;
     uint8_t err_subcode;
@@ -79,7 +87,6 @@ public:
     BgpPathAttribUnknow();
     ~BgpPathAttribUnknow();
     uint8_t* value_ptr;
-    uint8_t value_len;
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
