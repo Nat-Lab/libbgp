@@ -34,7 +34,9 @@ public:
     bool transitive;
     bool partial;
     bool extened;
-    uint8_t type;
+    uint8_t type_code;
+
+    BgpPathAttrib();
 
     // get attribute type from buffer, return -1 if failed.
     static int8_t getType(const uint8_t *buffer, size_t buffer_sz);
@@ -46,18 +48,18 @@ public:
     virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const = 0;
 
     // get error code
-    virtual uint8_t getErrorCode() const = 0;
+    virtual uint8_t getErrorCode() const;
 
     // get error subcode
-    virtual uint8_t getErrorSubCode() const = 0;
+    virtual uint8_t getErrorSubCode() const;
 
     // get error payload (data field of NOTIFICATION message)
-    virtual const uint8_t* getError() const = 0;
+    virtual const uint8_t* getError() const;
 
     // get length of error payload
-    virtual size_t getErrorLength() const = 0;
+    virtual size_t getErrorLength() const;
 
-    virtual ~BgpPathAttrib() {}
+    virtual ~BgpPathAttrib();
 
 protected:
     // utility function to parse header (flags, types) from buffer
@@ -65,13 +67,17 @@ protected:
 
     // utility function to write header (flags, types) to buffer
     ssize_t writeHeader(uint8_t *buffer, size_t buffer_sz) const;
+
+    uint8_t err_code;
+    uint8_t err_subcode;
+    size_t err_buf_len;
+    uint8_t *err_buf;
 };
 
 class BgpPathAttribUnknow : public BgpPathAttrib {
 public:
     BgpPathAttribUnknow();
     ~BgpPathAttribUnknow();
-    uint8_t type_code;
     uint8_t* value_ptr;
     uint8_t value_len;
 
