@@ -109,10 +109,14 @@ ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
 
     const uint8_t *buffer = from + 2;
 
-    if (!optional) {
-        // mandatory, but not recognized
+    // Well-Known, Mandatory = !optional, transitive
+    // Well-Known, Discretionary = !optional, !transitive
+    // Optional, Transitive = optional, transitive
+    // Optional, Non-Transitive = optional, !transitive
+    if (!optional && transitive) {
+        // well-known mandatory, but not recognized
         setError(E_UPDATE, E_BAD_WELL_KNOWN, from, value_len + 3);
-        _bgp_error("BgpPathAttribUnknow::parse: optional bit not set but this attribute is unknown.\n");
+        _bgp_error("BgpPathAttribUnknow::parse: flag indicates well-known, mandatory but this attribute is unknown.\n");
         // set value_len = 0, so we won't free() nullptr when destruct.
         value_len = 0; 
         return -1;
@@ -156,6 +160,12 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     if (value_len != 1) {
         _bgp_error("BgpPathAttribOrigin::parse: bad length, want 1, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, 4);
+        return -1;
+    }
+
+    if (optional || !transitive) {
+        _bgp_error("BgpPathAttribOrigin::parse: bad flag bits, must be !optional, transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from , 4);
         return -1;
     }
 
