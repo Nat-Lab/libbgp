@@ -107,7 +107,7 @@ BgpPathAttribUnknow::~BgpPathAttribUnknow() {
 ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
     if (parseHeader(from, length) != 3) return -1;
 
-    const uint8_t *buffer = from + 2;
+    const uint8_t *buffer = from + 3;
 
     // Well-Known, Mandatory = !optional, transitive
     // Well-Known, Discretionary = !optional, !transitive
@@ -149,7 +149,7 @@ BgpPathAttribOrigin::BgpPathAttribOrigin() {}
 ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     if (parseHeader(from, length) != 3) return -1;
 
-    const uint8_t *buffer = from + 2;
+    const uint8_t *buffer = from + 3;
 
     if (value_len < 1) {
         _bgp_error("BgpPathAttribOrigin::parse: incomplete attrib.\n");
@@ -192,7 +192,72 @@ ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
     putValue<uint8_t>(&buffer, 1); // length = 1
     putValue<uint8_t>(&buffer, origin);
     return 4;
+}
 
+BgpPathAttribAsPath::BgpPathAttribAsPath(bool is_4b) {
+    this->is_4b = is_4b;
+}
+
+BgpAsPathSegment2b::BgpAsPathSegment2b(uint8_t type) {
+    is_4b = false;
+    this->type = type;
+}
+
+BgpAsPathSegment4b::BgpAsPathSegment4b(uint8_t type) {
+    is_4b = true;
+    this->type = type;
+}
+
+ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
+    if (parseHeader(from, length) != 3) return -1;
+
+    const uint8_t *buffer = from + 3;
+
+    // empty as_path
+    if (value_len == 0) return 3; 
+
+    uint8_t parsed_len = 0;
+
+    while (parsed_len < value_len) {
+        // bad as_path
+        if (value_len - parsed_len < 3) {
+            _bgp_error("BgpPathAttribAsPath::parse: incomplete as_path segment.\n");
+            setError(E_UPDATE, E_AS_PATH, NULL, 0);
+            return -1;
+        }
+
+        uint8_t type = getValue<uint8_t>(&buffer);
+        uint8_t n_asn = getValue<uint8_t>(&buffer);
+
+        // type & count
+        parsed_len += 2;
+
+        uint8_t asns_length = is_4b ? n_asn * sizeof(uint32_t) : n_asn * sizeof(uint16_t);
+
+        // overflow
+        if (parsed_len + asns_length > value_len) {
+            _bgp_error("BgpPathAttribAsPath::parse: as_path overflow attribute length.\n");
+            setError(E_UPDATE, E_AS_PATH, NULL, 0);
+            return -1;
+        }
+
+        if (is_4b) {
+            BgpAsPathSegment4b path = BgpAsPathSegment4b(type);
+            for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
+            as_paths.push_back(path);
+        } else {
+            BgpAsPathSegment2b path = BgpAsPathSegment2b(type);
+            for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint16_t>(&buffer));
+            as_paths.push_back(path);
+        }
+
+        // parsed asns
+        parsed_len += asns_length;
+    }
+
+    assert(parsed_len == value_len);
+
+    return parsed_len + 3;
 }
 
 }

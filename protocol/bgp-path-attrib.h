@@ -37,11 +37,13 @@ public:
 
 class BgpAsPathSegment2b : public BgpAsPathSegment {
 public:
+    BgpAsPathSegment2b(uint8_t type);
     std::vector<uint16_t> value;
 };
 
 class BgpAsPathSegment4b : public BgpAsPathSegment {
 public:
+    BgpAsPathSegment4b(uint8_t type);
     std::vector<uint32_t> value;
 };
 
