@@ -28,6 +28,23 @@ enum BgpPathAttribType {
     // TODO: RFC4760
 };
 
+class BgpAsPathSegment {
+public:
+    bool is_4b;
+    uint8_t type;
+    virtual ~BgpAsPathSegment() {}
+};
+
+class BgpAsPathSegment2b : public BgpAsPathSegment {
+public:
+    std::vector<uint16_t> value;
+};
+
+class BgpAsPathSegment4b : public BgpAsPathSegment {
+public:
+    std::vector<uint32_t> value;
+};
+
 class BgpPathAttrib {
 public:
     bool optional;
@@ -119,11 +136,14 @@ public:
 
 class BgpPathAttribAsPath : public BgpPathAttrib {
 public:
-    BgpPathAttribAsPath();
-    std::vector<uint32_t> as_path;
-
     // is_4b: 4b ASN in AS_PATH?
+    BgpPathAttribAsPath(bool is_4b);
+
+    std::vector<BgpAsPathSegment> as_paths;
     bool is_4b;
+
+    // prepend: utility function to prepend an ASN to path
+    void prepend(uint32_t asn);
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
@@ -192,11 +212,11 @@ public:
 
 class BgpPathAttribAggregator : public BgpPathAttrib {
 public:
-    BgpPathAttribAggregator();
+    // is_4b: 4b asn in aggregator?
+    BgpPathAttribAggregator(bool is_4b);
     uint32_t aggregator;
     uint32_t aggregator_asn;
 
-    // is_4b: 4b asn in aggregator?
     bool is_4b;
 
     ssize_t parse(const uint8_t *buffer, size_t length);
@@ -211,7 +231,9 @@ public:
 class BgpPathAttribAs4Path : public BgpPathAttrib {
 public:
     BgpPathAttribAs4Path();
-    std::vector<uint32_t> as4_path;
+    std::vector<BgpAsPathSegment4b> as4_paths;
+
+    void prepend(uint32_t asn);
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
