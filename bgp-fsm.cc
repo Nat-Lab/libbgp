@@ -530,13 +530,11 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             config.rev_bus->publish(this, wev);
         }
 
-        if (update->nlri.size() > 0) {
-            if (routes.size() > 0) {
-                RouteAddEvent aev = RouteAddEvent();
-                aev.routes = routes;
-                aev.attribs = update->path_attribute;
-                config.rev_bus->publish(this, aev);
-            }
+        if (routes.size() > 0) {
+            RouteAddEvent aev = RouteAddEvent();
+            aev.routes = routes;
+            aev.attribs = update->path_attribute;
+            config.rev_bus->publish(this, aev);
         }
     }
 
