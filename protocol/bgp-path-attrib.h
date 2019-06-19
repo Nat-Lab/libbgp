@@ -28,25 +28,6 @@ enum BgpPathAttribType {
     // TODO: RFC4760
 };
 
-class BgpAsPathSegment {
-public:
-    bool is_4b;
-    uint8_t type;
-    virtual ~BgpAsPathSegment() {}
-};
-
-class BgpAsPathSegment2b : public BgpAsPathSegment {
-public:
-    BgpAsPathSegment2b(uint8_t type);
-    std::vector<uint16_t> value;
-};
-
-class BgpAsPathSegment4b : public BgpAsPathSegment {
-public:
-    BgpAsPathSegment4b(uint8_t type);
-    std::vector<uint32_t> value;
-};
-
 class BgpPathAttrib {
 public:
     bool optional;
@@ -136,6 +117,36 @@ public:
     size_t getErrorLength() const;
 };
 
+enum BgpAsPathSegmentType {
+    AS_SET = 1,
+    AS_SEQUENCE = 2
+};
+
+class BgpAsPathSegment {
+public:
+    bool is_4b;
+    uint8_t type;
+    virtual size_t getCount() const = 0;
+    virtual bool prepend(uint32_t asn) = 0;
+    virtual ~BgpAsPathSegment() {}
+};
+
+class BgpAsPathSegment2b : public BgpAsPathSegment {
+public:
+    size_t getCount() const;
+    bool prepend(uint32_t asn);
+    BgpAsPathSegment2b(uint8_t type);
+    std::vector<uint16_t> value;
+};
+
+class BgpAsPathSegment4b : public BgpAsPathSegment {
+public:
+    size_t getCount() const;
+    bool prepend(uint32_t asn);
+    BgpAsPathSegment4b(uint8_t type);
+    std::vector<uint32_t> value;
+};
+
 class BgpPathAttribAsPath : public BgpPathAttrib {
 public:
     // is_4b: 4b ASN in AS_PATH?
@@ -145,7 +156,7 @@ public:
     bool is_4b;
 
     // prepend: utility function to prepend an ASN to path
-    void prepend(uint32_t asn);
+    bool prepend(uint32_t asn);
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
@@ -154,6 +165,9 @@ public:
     uint8_t getErrorSubCode() const;
     const uint8_t* getError() const;
     size_t getErrorLength() const;
+private:
+    // addSeg: add a new AS_SEQUENCE with one ASN to AS_PATH 
+    void addSeg(uint32_t asn);
 };
 
 class BgpPathAttribNexthop : public BgpPathAttrib {

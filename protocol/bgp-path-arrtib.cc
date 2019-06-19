@@ -203,6 +203,29 @@ BgpAsPathSegment2b::BgpAsPathSegment2b(uint8_t type) {
     this->type = type;
 }
 
+size_t BgpAsPathSegment2b::getCount() const {
+    return value.size();
+}
+
+bool BgpAsPathSegment2b::prepend(uint32_t asn) {
+    if (value.size() >= 255) return false;
+    uint16_t prepend_asn = asn > 65535 ? 23456 : asn;
+
+    value.insert(value.begin(), prepend_asn);
+    return true;
+}
+
+size_t BgpAsPathSegment4b::getCount() const {
+    return value.size();
+}
+
+bool BgpAsPathSegment4b::prepend(uint32_t asn) {
+    if (value.size() >= 255) return false;
+
+    value.insert(value.begin(), asn);
+    return true;
+}
+
 BgpAsPathSegment4b::BgpAsPathSegment4b(uint8_t type) {
     is_4b = true;
     this->type = type;
@@ -242,11 +265,11 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
         }
 
         if (is_4b) {
-            BgpAsPathSegment4b path = BgpAsPathSegment4b(type);
+            BgpAsPathSegment4b path(type);
             for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
             as_paths.push_back(path);
         } else {
-            BgpAsPathSegment2b path = BgpAsPathSegment2b(type);
+            BgpAsPathSegment2b path(type);
             for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint16_t>(&buffer));
             as_paths.push_back(path);
         }
@@ -258,6 +281,49 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     assert(parsed_len == value_len);
 
     return parsed_len + 3;
+}
+
+void BgpPathAttribAsPath::addSeg(uint32_t asn) {
+    if (is_4b) {
+        BgpAsPathSegment4b segment(AS_SEQUENCE);
+        segment.prepend(asn);
+        as_paths.push_back(segment);
+    } else {
+        uint16_t push_asn = asn > 65535 ? 23456 : asn;
+        BgpAsPathSegment2b segment(AS_SEQUENCE);
+        segment.prepend(push_asn);
+        as_paths.push_back(segment);
+    }
+}
+
+bool BgpPathAttribAsPath::prepend(uint32_t asn) {
+    if (as_paths.size() == 0) {
+        // nothing here yet, add a new sequence. (5.1.2.b.3)
+        addSeg(asn);
+        return true;
+    }
+
+    // something here already. what to do?
+    BgpAsPathSegment *segment = as_paths.data();
+
+    if (segment->type == AS_SET) {
+        // seg is set, create a new segment of type AS_SEQUENCE (5.1.2.b.2)
+        // FIXME: checks needed: really create a new segment? 
+        addSeg(asn);
+        return true;
+    } else if (segment->type == AS_SEQUENCE) {
+        if (segment->getCount() >= 255) {
+            // seg full, create a new segment of type AS_SEQUENCE (5.1.2.b.1)
+            addSeg(asn);
+            return true;
+        } else {
+            segment->prepend(asn);
+            return true;
+        }
+    }
+
+    _bgp_error("BgpPathAttribAsPath::prepend: unknow first segment type: %d, can't append.\n", segment->type);
+    return false;
 }
 
 }
