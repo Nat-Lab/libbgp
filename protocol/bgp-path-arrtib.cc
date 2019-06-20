@@ -181,7 +181,7 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
 }
 
 ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
-    if (buffer_sz < 3) {
+    if (buffer_sz < 4) {
         _bgp_error("BgpPathAttribOrigin::write: destination buffer size too small.\n");
         return -1;
     }
