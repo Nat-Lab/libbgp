@@ -90,11 +90,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 enum BgpPathAttribOrigins {
@@ -110,11 +105,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 enum BgpAsPathSegmentType {
@@ -160,11 +150,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 private:
     // addSeg: add a new AS_SEQUENCE with one ASN to AS_PATH 
     void addSeg(uint32_t asn);
@@ -177,11 +162,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribMed : public BgpPathAttrib {
@@ -191,11 +171,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribLocalPref : public BgpPathAttrib {
@@ -205,11 +180,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribAtomicAggregate : public BgpPathAttrib {
@@ -219,11 +189,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribAggregator : public BgpPathAttrib {
@@ -237,11 +202,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribAs4Path : public BgpPathAttrib {
@@ -253,11 +213,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribAs4Aggregator : public BgpPathAttrib {
@@ -268,11 +223,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 class BgpPathAttribCommunity : public BgpPathAttrib {
@@ -282,11 +232,6 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-
-    uint8_t getErrorCode() const;
-    uint8_t getErrorSubCode() const;
-    const uint8_t* getError() const;
-    size_t getErrorLength() const;
 };
 
 }
