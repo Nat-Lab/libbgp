@@ -332,4 +332,92 @@ bool BgpPathAttribAsPath::prepend(uint32_t asn) {
     return false;
 }
 
+ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 3) {
+        _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+    uint8_t *buffer = to + 2;
+
+    // keep track of length field so we can write it later
+    uint8_t *len_field = buffer;
+
+    // skip length field for now
+    buffer++;
+
+    uint8_t written_len = 0;
+
+    for (const BgpAsPathSegment &seg : as_paths) {
+        if (seg.is_4b) {
+            const BgpAsPathSegment4b &seg4 = dynamic_cast<const BgpAsPathSegment4b &>(seg);
+
+            size_t asn_count = seg4.value.size();
+
+            if (asn_count > 255) {
+                _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
+                return -1;
+            }
+
+            // asn list + seg type & asn count
+            size_t bytes_need = asn_count * sizeof(uint32_t) + 2;
+
+            if (written_len + bytes_need > buffer_sz) {
+                _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
+                return -1;
+            }
+
+            // put type
+            putValue<uint8_t>(&buffer, seg4.type);
+
+            // put asn count
+            putValue<uint8_t>(&buffer, asn_count);
+
+            // put asns
+            for (uint32_t asn : seg4.value) {
+                putValue<uint32_t>(&buffer, asn);
+            }
+
+            written_len += bytes_need;
+        } else {
+            const BgpAsPathSegment2b &seg2 = dynamic_cast<const BgpAsPathSegment2b &>(seg);
+
+            size_t asn_count = seg2.value.size();
+
+            if (asn_count > 255) {
+                _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
+                return -1;
+            }
+
+            // asn list + seg type & asn count
+            size_t bytes_need = asn_count * sizeof(uint16_t) + 2;
+
+            if (written_len + bytes_need > buffer_sz) {
+                _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
+                return -1;
+            }
+
+            // put type
+            putValue<uint8_t>(&buffer, seg2.type);
+
+            // put asn count
+            putValue<uint8_t>(&buffer, asn_count);
+
+            // put asns
+            for (uint16_t asn : seg2.value) {
+                putValue<uint16_t>(&buffer, asn);
+            }
+
+            written_len += bytes_need;
+        }
+    }
+
+    // fill in the length.
+    putValue<uint8_t>(&len_field, written_len);
+
+    // written_len: the as_paths, 3: attr header (flag, typecode, length)
+    return written_len + 3;
+}
+
 }
