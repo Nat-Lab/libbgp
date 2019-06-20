@@ -261,7 +261,6 @@ void BgpFsm::resetHard() {
 }
 
 int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
-
     if (open_msg->version != 4) {
         BgpNotificationMessage notify (E_OPEN, E_VERSION, NULL, 0);
         if(!writeMessage(notify)) return -1;
@@ -350,6 +349,7 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
     }
 
     // UNREACHED
+    state = BROKEN;
     _bgp_error("BgpFsm::resloveCollison: ??? :( \n");
     return -1;
 }
@@ -397,7 +397,7 @@ bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
 
 void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     update.dropNonTransitive();
-    update.setNextHop(config.nexthop);
+    update.setNextHop(config.nexthop); // TODO: find real nexthop w/ peering_lan_*
 
     if (config.use_4b_asn) {
         if (use_4b_asn) {                    
@@ -511,6 +511,8 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     for (const Route &route : update->withdrawn_routes) {
         rib->withdraw(peer_bgp_id, route);
     }
+
+    // TODO: verify nexthop w/ peering_lan_*
 
     std::vector<Route> routes = std::vector<Route> ();
     for (const Route &route : update->nlri) {

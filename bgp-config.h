@@ -46,7 +46,22 @@ typedef struct BgpConfig {
     // BGP ID in host byte order
     uint32_t router_id;
 
-    // nexthop to use when advertising routes to peers
+    // when processing update from the peer, routes with nexthop outside the 
+    // network specified by peering_lan_prefix and peering_lan_length will be
+    // ignored. These two values also affect the nexthop selection behavior
+    // when sending updates to the peer.
+
+    // the prefix of the peering LAN in host-byte order.
+    uint32_t peering_lan_prefix;
+
+    // the mask of the peering LAN. (e.g., for /24, peering_lan_length should 
+    // be 24)
+    uint8_t peering_lan_length;
+
+    // nexthop to use when advertising routes to peers. the peering_lan_prefix 
+    // and peering_lan_length value will be used for nexthop selection. If an 
+    // egress route has a nexthop inside the peering LAN, the nexthop will not
+    // be changed. Otherwise, this value will be used as nexthop.
     uint32_t nexthop;
 
     // Hold timer
