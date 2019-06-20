@@ -234,6 +234,12 @@ BgpAsPathSegment4b::BgpAsPathSegment4b(uint8_t type) {
 ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     if (parseHeader(from, length) != 3) return -1;
 
+    if (optional || !transitive) {
+        _bgp_error("BgpPathAttribAsPath::parse: bad flag bits, must be !optional, transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from , 4);
+        return -1;
+    }
+
     const uint8_t *buffer = from + 3;
 
     // empty as_path
