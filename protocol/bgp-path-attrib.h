@@ -208,10 +208,12 @@ public:
     BgpPathAttribAs4Path();
     std::vector<BgpAsPathSegment4b> as4_paths;
 
-    void prepend(uint32_t asn);
+    bool prepend(uint32_t asn);
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
+private:
+    void addSeg(uint32_t asn);
 };
 
 class BgpPathAttribAs4Aggregator : public BgpPathAttrib {

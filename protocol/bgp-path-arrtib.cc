@@ -703,4 +703,153 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
     return write_value_sz + 3;
 }
 
+BgpPathAttribAs4Path::BgpPathAttribAs4Path() {
+    optional = true;
+    transitive = true;
+    type_code = AS4_PATH;
+}
+
+ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
+    ssize_t header_length = parseHeader(from, length);
+    if (header_length < 0) return -1;
+
+    if (!optional || !transitive || extened || partial) {
+        _bgp_error("BgpPathAttribAs4Path::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from , value_len + header_length);
+        return -1;
+    }
+
+    const uint8_t *buffer = from + 3;
+
+    // empty as_path
+    if (value_len == 0) return 3; 
+
+    uint8_t parsed_len = 0;
+
+    while (parsed_len < value_len) {
+        // bad as_path
+        if (value_len - parsed_len < 3) {
+            _bgp_error("BgpPathAttribAs4Path::parse: incomplete as_path segment.\n");
+            setError(E_UPDATE, E_AS_PATH, NULL, 0);
+            return -1;
+        }
+
+        uint8_t type = getValue<uint8_t>(&buffer);
+        uint8_t n_asn = getValue<uint8_t>(&buffer);
+
+        // type & count
+        parsed_len += 2;
+
+        uint8_t asns_length = n_asn * sizeof(uint32_t);
+
+        // overflow
+        if (parsed_len + asns_length > value_len) {
+            _bgp_error("BgpPathAttribAs4Path::parse: as_path overflow attribute length.\n");
+            setError(E_UPDATE, E_AS_PATH, NULL, 0);
+            return -1;
+        }
+
+        BgpAsPathSegment4b path(type);
+        for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
+        as4_paths.push_back(path);
+
+        // parsed asns
+        parsed_len += asns_length;
+    }
+
+    assert(parsed_len == value_len);
+
+    return parsed_len + 3;
+}
+
+void BgpPathAttribAs4Path::addSeg(uint32_t asn) {
+    BgpAsPathSegment4b segment(AS_SEQUENCE);
+    segment.prepend(asn);
+    as4_paths.push_back(segment);
+}
+
+bool BgpPathAttribAs4Path::prepend(uint32_t asn) {
+    if (as4_paths.size() == 0) {
+        // nothing here yet, add a new sequence. (5.1.2.b.3)
+        addSeg(asn);
+        return true;
+    }
+
+    // something here already. what to do?
+    BgpAsPathSegment *segment = as4_paths.data();
+
+    if (segment->type == AS_SET) {
+        // seg is set, create a new segment of type AS_SEQUENCE (5.1.2.b.2)
+        // FIXME: checks needed: really create a new segment? 
+        addSeg(asn);
+        return true;
+    } else if (segment->type == AS_SEQUENCE) {
+        if (segment->getCount() >= 127) {
+            // seg full, create a new segment of type AS_SEQUENCE (5.1.2.b.1)
+            addSeg(asn);
+            return true;
+        } else {
+            segment->prepend(asn);
+            return true;
+        }
+    }
+
+    _bgp_error("BgpPathAttribAs4Path::prepend: unknow first segment type: %d, can't append.\n", segment->type);
+    return false;
+}
+
+ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 3) {
+        _bgp_error("BgpPathAttribAs4Path::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+    uint8_t *buffer = to + 2;
+
+    // keep track of length field so we can write it later
+    uint8_t *len_field = buffer;
+
+    // skip length field for now
+    buffer++;
+
+    uint8_t written_len = 0;
+
+    for (const BgpAsPathSegment4b &seg4 : as4_paths) {
+        size_t asn_count = seg4.value.size();
+
+        if (asn_count > 127) {
+            _bgp_error("BgpPathAttribAs4Path::write: segment size too big: %d\n", asn_count);
+            return -1;
+        }
+
+        // asn list + seg type & asn count
+        size_t bytes_need = asn_count * sizeof(uint32_t) + 2;
+
+        if (written_len + bytes_need > buffer_sz) {
+            _bgp_error("BgpPathAttribAs4Path::write: destination buffer size too small.\n");
+            return -1;
+        }
+
+        // put type
+        putValue<uint8_t>(&buffer, seg4.type);
+
+        // put asn count
+        putValue<uint8_t>(&buffer, asn_count);
+
+        // put asns
+        for (uint32_t asn : seg4.value) {
+            putValue<uint32_t>(&buffer, asn);
+        }
+
+        written_len += bytes_need;
+    }
+
+    // fill in the length.
+    putValue<uint8_t>(&len_field, written_len);
+
+    // written_len: the as_paths, 3: attr header (flag, typecode, length)
+    return written_len + 3;
+}
+
 }
