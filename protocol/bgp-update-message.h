@@ -33,7 +33,10 @@ public:
     bool setAttribs(const std::vector<BgpPathAttrib> &attrs);
 
     // utility function to remove attribute by type
-    bool dropAttrib(BgpPathAttribType type);
+    bool dropAttrib(uint8_t type);
+
+    // utility function to update attribute (will be append if not exist)
+    bool updateAttribute(const BgpPathAttrib &attrib);
 
     // utility function to drop all non-transitive attribute
     bool dropNonTransitive();
