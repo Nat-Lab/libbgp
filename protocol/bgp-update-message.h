@@ -15,12 +15,16 @@ public:
 
     BgpUpdateMessage(bool use_4b_asn);
 
-    // get attribute by type
-    BgpPathAttrib *getAttrib(BgpPathAttribType type);
+    // get attribute by type, if attrib of that type does not exist, exception
+    // will be thrown
+    BgpPathAttrib &getAttrib(uint8_t type);
 
-    // get attribute by type, if attrib of that type does not exist, a new one
-    // will be added.
-    BgpPathAttrib &cGetAttrib(BgpPathAttribType type);
+    // get const attribute by type, if attrib of that type does not exist, 
+    // exception will be thrown
+    const BgpPathAttrib &getAttrib(uint8_t type) const; 
+
+    // return true if this type of attribute is in the message
+    bool hasAttrib(uint8_t type) const;
 
     // add an attribute, return false if attrib of same type already exists
     bool addAttrib(const BgpPathAttrib &attrib);
