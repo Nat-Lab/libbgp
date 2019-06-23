@@ -304,7 +304,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
             if(res_result == 1) {
                 _bgp_error(
                     "BgpFsm::openRecv: collision found, and some other FSM feels like they should live"
-                    "while we feel like we should live too. is there duplicated FSMs?"
+                    "while we feel like we should live too. is there duplicated FSMs?\n"
                 );
                 state = BROKEN;
                 return -1;
