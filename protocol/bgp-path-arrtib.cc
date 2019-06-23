@@ -552,4 +552,52 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
     return 7;
 }
 
+
+BgpPathAttribMed::BgpPathAttribMed() {
+    type_code = MULTI_EXIT_DISC;
+}
+
+ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
+    ssize_t header_length = parseHeader(from, length);
+    if (header_length < 0) return -1;
+
+    const uint8_t *buffer = from + 3;
+
+    if (value_len < 4) {
+        _bgp_error("BgpPathAttribLocalPref::parse: incomplete attrib.\n");
+        setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
+        return -1;
+    }
+
+    if (value_len != 4) {
+        _bgp_error("BgpPathAttribLocalPref::parse: bad length, want 1, saw %d.\n", value_len);
+        setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
+        return -1;
+    }
+
+    if (optional || transitive || extened || partial) {
+        _bgp_error("BgpPathAttribLocalPref::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
+        return -1;
+    }
+
+    local_pref = getValue<uint32_t>(&buffer);
+
+    return 7;
+}
+
+ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 7) {
+        _bgp_error("BgpPathAttribLocalPref::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+    uint8_t *buffer = to + 2;
+
+    putValue<uint8_t>(&buffer, 4); // length = 4
+    putValue<uint32_t>(&buffer, local_pref);
+    return 7;
+}
+
 }
