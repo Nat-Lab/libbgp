@@ -165,6 +165,7 @@ ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
 
 BgpPathAttribOrigin::BgpPathAttribOrigin() {
     transitive = true;
+    type_code = ORIGIN;
 }
 
 ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
@@ -219,6 +220,7 @@ ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
 BgpPathAttribAsPath::BgpPathAttribAsPath(bool is_4b) {
     this->is_4b = is_4b;
     transitive = true;
+    type_code = AS_PATH;
 }
 
 BgpAsPathSegment2b::BgpAsPathSegment2b(uint8_t type) {
@@ -446,6 +448,7 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
 
 
 BgpPathAttribNexthop::BgpPathAttribNexthop() {
+    type_code = NEXT_HOP;
     transitive = true;
 }
 
