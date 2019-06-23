@@ -74,7 +74,7 @@ protected:
 
     // the length of attribute value, use only when parse. when write(), this
     // value is ignored.
-    uint8_t value_len;
+    uint16_t value_len;
 
     uint8_t err_code;
     uint8_t err_subcode;
