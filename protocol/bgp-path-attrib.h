@@ -185,7 +185,6 @@ public:
 class BgpPathAttribAtomicAggregate : public BgpPathAttrib {
 public:
     BgpPathAttribAtomicAggregate();
-    bool atomic_aggregate;
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
