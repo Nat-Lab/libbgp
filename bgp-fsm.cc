@@ -407,8 +407,11 @@ void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
 
     if (config.use_4b_asn && use_4b_asn) {                
         update.restoreAsPath();
+        update.restoreAggregator();
         update.prepend(config.asn);
     } else {
+        update.downgradeAsPath();
+        update.downgradeAggregator();
         update.prepend(config.asn);
     }    
 }

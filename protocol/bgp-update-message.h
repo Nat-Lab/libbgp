@@ -48,8 +48,18 @@ public:
     // AS_TRANS will be used)
     bool prepend(uint32_t asn);
 
-    // try to recover AS_TRANS in AS_PATH with infomation in AS4_PATH
+    // try to recover AS_TRANS in AS_PATH with infomation in AS4_PATH, convert
+    // 2b AS_PATH to 4b AS_PATH, and remove AS4_PATH attribute.
     bool restoreAsPath();
+
+    // convert current 4b AS_PATH to 2b AS_PATH and add AS4_PATH attribute.
+    bool downgradeAsPath();
+
+    // recover 4b aggregator from aggregator4, remove aggregator4
+    bool restoreAggregator();
+
+    // convert 4b aggregator to 2b aggregator, add aggregator4
+    bool downgradeAggregator();
 
     // replace withdrawn with routes
     bool setWithdrawn(const std::vector<Route> &routes);
