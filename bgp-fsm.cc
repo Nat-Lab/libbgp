@@ -139,6 +139,10 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
 
         const uint8_t *packet_ptr = packet.buffer + 18;
         uint8_t message_type = getValue<uint8_t> (&packet_ptr);
+        
+        int val_ret = validateState(message_type);
+        if (val_ret <= 0) return val_ret;
+
         BgpMessage *msg;
 
         // create message container
@@ -409,14 +413,51 @@ void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     }    
 }
 
-int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
-    if (msg->type == NOTIFICATION) return 1;
+int BgpFsm::validateState(uint8_t type) {
+    switch(state) {
+        case IDLE:
+            if (type != OPEN) {
+                _bgp_error("BgpFsm::validateState: got non-OPEN message in IDLE state.\n");
+                return 0;
+            }
+            return 1;
+        case OPEN_SENT:
+            if (type != OPEN) {
+                _bgp_error("BgpFsm::validateState: got non-OPEN message in OPEN_SENT state.\n");
+                BgpNotificationMessage notify (E_FSM, E_OPEN_SENT, NULL, 0);
+                if(!writeMessage(notify)) return -1;
 
-    if (msg->type != OPEN) {
-        _bgp_error("BgpFsm::fsmEvalIdle: got non-OPEN message in IDLE state.\n");
-        return 0;
+                state = IDLE;
+                return 0;
+            }
+            return 1;
+        case OPEN_CONFIRM:
+            if (type != KEEPALIVE) {
+                _bgp_error("BgpFsm::validateState: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
+                BgpNotificationMessage notify (E_FSM, E_OPEN_CONFIRM, NULL, 0);
+                if(!writeMessage(notify)) return -1;
+
+                state = IDLE;
+                return 0;
+            }
+            return 1;
+        case ESTABLISHED:
+            if (type != UPDATE) {
+                _bgp_error("BgpFsm::validateState: got invalid message in ESTABLISHED state.\n");
+                BgpNotificationMessage notify (E_FSM, E_ESTABLISHED, NULL, 0);
+                if(!writeMessage(notify)) return -1;
+
+                state = IDLE;
+                return 0;
+            }
+            return 1;
+        default:
+            _bgp_error("BgpFsm::validateState: got message in bad state. consider reset.\n");
+            return -1;
     }
+}
 
+int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
 
     int retval = openRecv(open_msg);
@@ -431,15 +472,6 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
 }
 
 int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
-    if (msg->type != OPEN) {
-        _bgp_error("BgpFsm::fsmEvalOpenSent: got non-OPEN message in OPEN_SENT state.\n");
-        BgpNotificationMessage notify (E_FSM, E_OPEN_SENT, NULL, 0);
-        if(!writeMessage(notify)) return -1;
-
-        state = IDLE;
-        return 0;
-    }
-
     const BgpOpenMessage *open_msg = dynamic_cast<const BgpOpenMessage *>(msg);
 
     int retval = openRecv(open_msg);
@@ -453,15 +485,6 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
 }
 
 int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
-    if (msg->type != KEEPALIVE) {
-        _bgp_error("BgpFsm::fsmEvalOpenConfirm: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
-        BgpNotificationMessage notify (E_FSM, E_OPEN_CONFIRM, NULL, 0);
-        if(!writeMessage(notify)) return -1;
-
-        state = IDLE;
-        return 0;
-    }
-
     BgpKeepaliveMessage keep = BgpKeepaliveMessage();
     if(!writeMessage(keep)) return -1;
 
@@ -484,15 +507,6 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
 
 int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     if (msg->type == KEEPALIVE) return 1;
-
-    if (msg->type != UPDATE) {
-        _bgp_error("BgpFsm::fsmEvalOpenConfirm: got invalid message in ESTABLISHED state.\n");
-        BgpNotificationMessage notify (E_FSM, E_ESTABLISHED, NULL, 0);
-        if(!writeMessage(notify)) return -1;
-
-        state = IDLE;
-        return 0;
-    }
 
     const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
 

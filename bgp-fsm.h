@@ -79,6 +79,7 @@ private:
     bool handleRouteWithdrawEvent(const RouteWithdrawEvent &ev);
     bool handleRouteAddEvent(const RouteAddEvent &ev);
 
+    int validateState(uint8_t type);
     int fsmEvalIdle(const BgpMessage *msg);
     int fsmEvalOpenSent(const BgpMessage *msg);
     int fsmEvalOpenConfirm(const BgpMessage *msg);
