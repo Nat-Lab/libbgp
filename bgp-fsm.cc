@@ -144,7 +144,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         // create message container
         switch (message_type) {
             case OPEN: msg = new BgpOpenMessage(); break;
-            case UPDATE: msg = new BgpUpdateMessage(); break;
+            case UPDATE: msg = new BgpUpdateMessage(use_4b_asn); break;
             case KEEPALIVE: msg = new BgpKeepaliveMessage(); break;
             case NOTIFICATION: msg = new BgpNotificationMessage(); break;
             default: {
@@ -370,7 +370,8 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    BgpUpdateMessage update (ev.attribs);
+    BgpUpdateMessage update (use_4b_asn);
+    update.setAttribs(ev.attribs);
 
     for (const Route &route : ev.routes) {
         if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
@@ -389,7 +390,8 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    BgpUpdateMessage withdraw (ev.routes);
+    BgpUpdateMessage withdraw (use_4b_asn);
+    withdraw.setWithdrawn(ev.routes);
 
     if(!writeMessage(withdraw)) return false;
     return true;
@@ -399,26 +401,11 @@ void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     update.dropNonTransitive();
     update.setNextHop(config.nexthop); // TODO: find real nexthop w/ peering_lan_*
 
-    if (config.use_4b_asn) {
-        if (use_4b_asn) {                    
-            // both peer and us are configured to use 4b-asn.
-
-            // just in case this is added by some FSM w/ non 4b-asn cap peer
-            update.restoreAsPath();
-
-            update.prepend(config.asn);
-        } else {
-            // local system support 4b-asn, but peer does not.
-            update.prepend2b(config.asn);
-        }
+    if (config.use_4b_asn && use_4b_asn) {                
+        update.restoreAsPath();
+        update.prepend(config.asn);
     } else {
-        // local system does not use 4b-asn
-
-        // FIXME: we should not be changeing AS4_PATH if don't know 
-        // 4b-asn, but since some other FSM shareing the RIB might
-        // strip AS4_PATH off, we will lost all 4b-asn in path, so we
-        // will be constructing AS4_PATH ourself.
-        update.prepend2b(config.asn);
+        update.prepend(config.asn);
     }    
 }
 
@@ -484,7 +471,8 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
     for (const RibEntry &entry : rib->get()) {
         const Route route = entry.route;
         if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
-            BgpUpdateMessage update(entry.attribs);
+            BgpUpdateMessage update (use_4b_asn);
+            update.setAttribs(entry.attribs);
             update.addNlri(route);
             prepareUpdateMessage(update);
             if(!writeMessage(update)) return -1;

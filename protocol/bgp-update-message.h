@@ -13,16 +13,7 @@ public:
     std::vector<BgpPathAttrib> path_attribute;
     std::vector<Route> nlri;
 
-    BgpUpdateMessage();
-
-    // construct with pre-defined attribs
-    BgpUpdateMessage(const std::vector<BgpPathAttrib> &arrtibs);
-
-    // construct with pre-defined attribs and NRLIs
-    BgpUpdateMessage(const std::vector<BgpPathAttrib> &arrtibs, const std::vector<Route> &nlri);
-
-    // construct with pre-defined withdrawn
-    BgpUpdateMessage(const std::vector<Route> &withdraws);
+    BgpUpdateMessage(bool use_4b_asn);
 
     // get attribute by type
     BgpPathAttrib *getAttrib(BgpPathAttribType type);
@@ -34,40 +25,42 @@ public:
     // add an attribute, return false if attrib of same type already exists
     bool addAttrib(const BgpPathAttrib &attrib);
 
+    // replace attribute list with attrs
+    bool setAttribs(const std::vector<BgpPathAttrib> &attrs);
+
     // utility function to remove attribute by type
-    void dropAttrib(BgpPathAttribType type);
+    bool dropAttrib(BgpPathAttribType type);
 
     // utility function to drop all non-transitive attribute
-    void dropNonTransitive();
+    bool dropNonTransitive();
 
     // utility function to set nexthop
-    void setNextHop(uint32_t nexthop);
+    bool setNextHop(uint32_t nexthop);
 
-    // utility function to prepend a 4-bytes ASN to AS_PATH (for peer w/ 4b-asn
-    // capability only (and 4b-asn enabled on local)), AS4_PATH attrib will be
-    // removed if exist.
-    void prepend(uint32_t asn);
-
-    // utility function to prepend a 4-bytes ASN to AS_PATH (AS_TRANS will be
-    // used if asn can't be repersent in 2b). This is for peer w/o 4b-asn
-    // capability, but 4b-asn enabled locally. AS4_PATH will be create/replace
-    // by AS_PATH, and 4-byte version of asn will be prepend to AS4_PATH.
-    void prepend2b(uint32_t asn);
+    // utility function to prepend an ASN to AS_PATH (for 2b mode, AS4_PATH and
+    // AS_TRANS will be used)
+    bool prepend(uint32_t asn);
 
     // try to recover AS_TRANS in AS_PATH with infomation in AS4_PATH
-    void restoreAsPath();
+    bool restoreAsPath();
+
+    // replace withdrawn with routes
+    bool setWithdrawn(const std::vector<Route> &routes);
 
     // utility function to add a route to withdrawn list
-    void addWithdrawn(uint32_t prefix, uint8_t length);
+    bool addWithdrawn(uint32_t prefix, uint8_t length);
 
     // utility function to add a route to withdrawn list
-    void addWithdrawn(const Route &route);
+    bool addWithdrawn(const Route &route);
+
+    // replace NLRI with routes
+    bool setNlri(const std::vector<Route> &routes);
 
     // utility function to add a route to NLRI
-    void addNlri(uint32_t prefix, uint8_t length);
+    bool addNlri(uint32_t prefix, uint8_t length);
 
     // utility function to add a route to NLRI
-    void addNlri(const Route &route);
+    bool addNlri(const Route &route);
 
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;
@@ -76,7 +69,7 @@ private:
     // utility function to forward attribute parse error to here
     void forwardParseError(const BgpPathAttrib &attrib);
 
-    bool add_as4_path;
+    bool use_4b_asn;
 };
 
 }
