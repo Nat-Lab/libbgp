@@ -209,7 +209,7 @@ size_t BgpAsPathSegment2b::getCount() const {
 
 bool BgpAsPathSegment2b::prepend(uint32_t asn) {
     if (value.size() >= 255) return false;
-    uint16_t prepend_asn = asn > 65535 ? 23456 : asn;
+    uint16_t prepend_asn = asn >= 0xffff ? 23456 : asn;
 
     value.insert(value.begin(), prepend_asn);
     return true;
@@ -295,7 +295,7 @@ void BgpPathAttribAsPath::addSeg(uint32_t asn) {
         segment.prepend(asn);
         as_paths.push_back(segment);
     } else {
-        uint16_t push_asn = asn > 65535 ? 23456 : asn;
+        uint16_t push_asn = asn > 0xffff ? 23456 : asn;
         BgpAsPathSegment2b segment(AS_SEQUENCE);
         segment.prepend(push_asn);
         as_paths.push_back(segment);

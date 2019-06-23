@@ -120,7 +120,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
                 parsed_opt_param_len += 4;
 
                 // peer has 4b-asn but my_asn is not AS_TRANS
-                if (my_4b_asn > 65535 && my_asn != 23456) {
+                if (my_4b_asn >= 0xffff && my_asn != 23456) {
                     setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
                     _bgp_error("BgpOpenMessage::parse: peer has 4b-asn but my_asn is not AS_TRANS (%d).\n", my_asn);
                     return -1;
