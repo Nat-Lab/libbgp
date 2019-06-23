@@ -1,4 +1,5 @@
 #include "bgp-update-message.h"
+#include "bgp-error.h"
 
 namespace bgpfsm {
 
@@ -71,5 +72,66 @@ bool BgpUpdateMessage::updateAttribute(const BgpPathAttrib &attrib) {
     return addAttrib(attrib);
 }
 
+bool BgpUpdateMessage::setNextHop(uint32_t nexthop) {
+    BgpPathAttribNexthop nh = BgpPathAttribNexthop();
+    nh.next_hop = nexthop;
+    return updateAttribute(nh);
+}
+
+bool BgpUpdateMessage::prepend(uint32_t asn) {
+    if (use_4b_asn) {
+        // in 4b mode, prepend 4b asn to AS_PATH directly.
+
+        // AS4_PATH can't exist in 4b mode
+        if (hasAttrib(AS4_PATH)) {
+            _bgp_error("BgpUpdateMessage::prepend: we have AS4_PATH attribute but we are running in 4b mode. " 
+                       "consider restoreAsPath().\n");
+            return false;
+        }
+
+        if (!hasAttrib(AS_PATH)) {
+            BgpPathAttribAsPath path(use_4b_asn);
+            path.prepend(asn);
+            path_attribute.push_back(path);
+            return true;
+        }
+
+        BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
+        if (!path.is_4b) {
+            _bgp_error("BgpUpdateMessage::prepend: existing AS_PATH is 2b but we are running in 4b mode. " 
+                       "consider restoreAsPath().\n");
+            return false;
+        }
+
+        return path.prepend(asn);
+    } else {
+        // in 2b-mode, prepend 2b asn to AS_PATH and update AS4_PATH.
+        // (yes, you don't update AS4_PATH as a 2b-speaker, but simplicity we do that for now)
+        // FIXME: don't change as4_path if both side disabled 4b support
+
+        uint16_t prep_asn = asn >= 0xffff ? 23456 : asn;
+
+        if (!hasAttrib(AS_PATH)) {
+            BgpPathAttribAsPath path(use_4b_asn);
+            path.prepend(prep_asn);
+            path_attribute.push_back(path);
+        } else {
+            BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
+            if (path.is_4b) {
+                _bgp_error("BgpUpdateMessage::prepend: existing AS_PATH is 4b but we are running in 2b mode. " 
+                           "consider downgradeAsPath().\n");
+                return false;
+            }
+            if(!path.prepend(prep_asn)) return false;
+        }
+
+        if (hasAttrib(AS4_PATH)) {
+            BgpPathAttribAs4Path &path4 = dynamic_cast<BgpPathAttribAs4Path &>(getAttrib(AS4_PATH));
+            if(!path4.prepend(prep_asn)) return false;
+        }
+
+        return true;
+    }
+}
 
 }
