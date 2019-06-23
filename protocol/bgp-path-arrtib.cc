@@ -553,8 +553,8 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
-BgpPathAttribMed::BgpPathAttribMed() {
-    type_code = MULTI_EXIT_DISC;
+BgpPathAttribLocalPref::BgpPathAttribLocalPref() {
+    type_code = LOCAL_PREF;
 }
 
 ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
