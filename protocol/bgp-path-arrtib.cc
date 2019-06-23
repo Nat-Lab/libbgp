@@ -638,4 +638,69 @@ ssize_t BgpPathAttribAtomicAggregate::write(uint8_t *to, size_t buffer_sz) const
     return 3;
 }
 
+
+BgpPathAttribAggregator::BgpPathAttribAggregator(bool is_4b) {
+    this->is_4b = is_4b;
+    type_code = AGGREATOR;
+    optional = true;
+    transitive = true;
+}
+
+ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
+    ssize_t header_length = parseHeader(from, length);
+    if (header_length < 0) return -1;
+
+    const uint8_t *buffer = from + 3;
+    const uint8_t want_len = (is_4b ? 8 : 6);
+
+    if (value_len < want_len) {
+        _bgp_error("BgpPathAttribAggregator::parse: incomplete attrib.\n");
+        setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
+        return -1;
+    }
+
+    if (value_len != want_len) {
+        _bgp_error("BgpPathAttribAggregator::parse: bad length, want %d, saw %d.\n", want_len, value_len);
+        setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
+        return -1;
+    }
+
+    if (!optional || !transitive || extened || partial) {
+        _bgp_error("BgpPathAttribAggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
+        return -1;
+    }
+
+    if (is_4b) aggregator_asn = getValue<uint32_t>(&buffer);
+    else aggregator_asn = getValue<uint16_t>(&buffer);
+    aggregator = getValue<uint32_t>(&buffer);
+
+    return 3 + want_len;
+}
+
+ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
+    uint8_t write_value_sz = (is_4b ? 6 : 8);
+
+    if (buffer_sz < write_value_sz + 3) {
+        _bgp_error("BgpPathAttribAggregator::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+    uint8_t *buffer = to + 2;
+
+    putValue<uint8_t>(&buffer, write_value_sz);
+    
+    if (!is_4b && aggregator_asn >= 0xffff) {
+        _bgp_error("BgpPathAttribAggregator::write: bad asn. not 4b but asn is %d.\n", aggregator_asn);
+        return -1;
+    }
+
+    if (is_4b) putValue<uint32_t>(&buffer, aggregator_asn);
+    else putValue<uint16_t>(&buffer, aggregator_asn);
+    putValue<uint32_t>(&buffer, aggregator);
+
+    return write_value_sz + 3;
+}
+
 }
