@@ -471,7 +471,7 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribNexthop::parse: bad length, want 1, saw %d.\n", value_len);
+        _bgp_error("BgpPathAttribNexthop::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
@@ -522,7 +522,7 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribMed::parse: bad length, want 1, saw %d.\n", value_len);
+        _bgp_error("BgpPathAttribMed::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
@@ -570,7 +570,7 @@ ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribLocalPref::parse: bad length, want 1, saw %d.\n", value_len);
+        _bgp_error("BgpPathAttribLocalPref::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
@@ -610,7 +610,7 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
     if (header_length < 0) return -1;
 
     if (value_len != 0) {
-        _bgp_error("BgpPathAttribAtomicAggregate::parse: bad length, want 1, saw %d.\n", value_len);
+        _bgp_error("BgpPathAttribAtomicAggregate::parse: bad length, want 0, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
