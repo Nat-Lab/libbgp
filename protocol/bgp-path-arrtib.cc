@@ -138,7 +138,7 @@ ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
     value_ptr = (uint8_t *) malloc(value_len);
     memcpy(value_ptr, buffer, value_len);
 
-    return length;
+    return value_len + header_len;
 }
 
 ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
