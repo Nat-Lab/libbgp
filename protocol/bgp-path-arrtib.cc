@@ -41,6 +41,12 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     partial = (flags >> 5) & 0x1;
     extened = (flags >> 4) & 0x1;
     type_code = getValue<uint8_t>(&buffer);
+    if (extened && buffer_sz < 4) {
+        setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
+        _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size (extened but size < 4).\n");
+        return -1;
+    }
+
     if (extened) value_len = getValue<uint16_t>(&buffer);
     else value_len = getValue<uint8_t>(&buffer);
 
