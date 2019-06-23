@@ -906,4 +906,54 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
 
     return 11;
 }
+
+
+BgpPathAttribCommunity::BgpPathAttribCommunity() {
+    type_code = LOCAL_PREF;
+    optional = true;
+    transitive = true;
+}
+
+ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
+    ssize_t header_length = parseHeader(from, length);
+    if (header_length < 0) return -1;
+
+    const uint8_t *buffer = from + 3;
+
+    if (value_len < 4) {
+        _bgp_error("BgpPathAttribCommunity::parse: incomplete attrib.\n");
+        setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
+        return -1;
+    }
+
+    if (value_len != 4) {
+        _bgp_error("BgpPathAttribCommunity::parse: bad length, want 4, saw %d.\n", value_len);
+        setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
+        return -1;
+    }
+
+    if (optional || transitive || extened || partial) {
+        _bgp_error("BgpPathAttribCommunity::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
+        return -1;
+    }
+
+    community = getValue<uint32_t>(&buffer);
+
+    return 7;
+}
+
+ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 7) {
+        _bgp_error("BgpPathAttribCommunity::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+    uint8_t *buffer = to + 2;
+
+    putValue<uint8_t>(&buffer, 4); // length = 4
+    putValue<uint32_t>(&buffer, community);
+    return 7;
+}
 }
