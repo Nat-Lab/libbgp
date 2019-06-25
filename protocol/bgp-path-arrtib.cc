@@ -383,6 +383,11 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
 
     for (const BgpAsPathSegment &seg : as_paths) {
         if (seg.is_4b) {
+            if (!is_4b) {
+                _bgp_error("BgpPathAttribAsPath::write: 4b-segment found in non-4b attrib.\n");
+                return -1;
+            }
+
             const BgpAsPathSegment4b &seg4 = dynamic_cast<const BgpAsPathSegment4b &>(seg);
 
             size_t asn_count = seg4.value.size();
@@ -413,6 +418,10 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
 
             written_len += bytes_need;
         } else {
+            if (is_4b) {
+                _bgp_error("BgpPathAttribAsPath::write: 2b-segment found in non-2b attrib.\n");
+                return -1;
+            }
             const BgpAsPathSegment2b &seg2 = dynamic_cast<const BgpAsPathSegment2b &>(seg);
 
             size_t asn_count = seg2.value.size();
