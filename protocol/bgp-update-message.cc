@@ -167,6 +167,7 @@ bool BgpUpdateMessage::restoreAsPath() {
         }
 
         path.as_paths = new_segs;
+        path.is_4b = true;
         return true;
     }
 
@@ -239,6 +240,7 @@ bool BgpUpdateMessage::restoreAsPath() {
         new_segs.push_back(new_seg);
     }
 
+    path.is_4b = true;
     path.as_paths = new_segs;
     return true;
     
@@ -274,6 +276,7 @@ bool BgpUpdateMessage::downgradeAsPath() {
     }
     
     updateAttribute(path4);
+    path.is_4b = false;
     path.as_paths = new_segs;
     return true;
 }
