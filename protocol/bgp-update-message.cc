@@ -134,6 +134,7 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
     }
 }
 
+
 bool BgpUpdateMessage::restoreAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
 
@@ -144,7 +145,30 @@ bool BgpUpdateMessage::restoreAsPath() {
     }
 
     // no AS4_PATH, just make AS_PATH 4b
-    if (!hasAttrib(AS4_PATH)) return asPathSegsTo4b();
+    if (!hasAttrib(AS4_PATH)) {
+        std::vector<BgpAsPathSegment> new_segs;
+
+        for (const BgpAsPathSegment &seg : path.as_paths) {
+            if (seg.is_4b) {
+                _bgp_error("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
+                return false;
+            }
+
+            BgpAsPathSegment4b new_seg (seg.type);
+            const BgpAsPathSegment2b &seg2 = dynamic_cast<const BgpAsPathSegment2b &>(seg);
+            for (uint16_t asn : seg2.value) {
+                if (asn == 23456) {
+                    _bgp_error("BgpUpdateMessage::restoreAsPath: warning: AS_TRANS found but no AS4_PATH.\n");
+                }
+                if(!new_seg.prepend(asn)) return false;
+            }
+
+            new_segs.push_back(new_seg);
+        }
+
+        path.as_paths = new_segs;
+        return true;
+    }
 
     // we have AS4_PATH recorver AS_TRANS.
     std::vector<uint32_t> full_as_path;
@@ -162,7 +186,62 @@ bool BgpUpdateMessage::restoreAsPath() {
         }
     }
 
-    return asPathSegsTo4b(full_as_path);
+    // AS4_PATH should be removed.
+    dropAttrib(AS4_PATH);
+
+    bool has_4b = false;
+
+    // find the iterator to first asn > 0xffff
+    std::vector<uint32_t>::const_iterator iter_4b = full_as_path.begin();
+
+    for(; iter_4b != full_as_path.end(); iter_4b++) {
+        has_4b = true;
+        if (*iter_4b > 0xffff) break;
+    }
+
+    std::vector<BgpAsPathSegment> new_segs;
+
+    for (const BgpAsPathSegment &seg : path.as_paths) {
+        std::vector<uint32_t>::const_iterator local_iter = iter_4b;
+        if (seg.is_4b) {
+            _bgp_error("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
+            return false;
+        }
+
+        BgpAsPathSegment4b new_seg (seg.type);
+        const BgpAsPathSegment2b &seg2 = dynamic_cast<const BgpAsPathSegment2b &>(seg);
+
+        // increment the local_iter iterator?
+        bool incr_iter = false;
+        for (uint16_t asn : seg2.value) {
+            uint32_t new_asn = asn;
+
+            // AS4_PATH avaliale & not ended?
+            if (has_4b && local_iter != full_as_path.end()) {
+
+                // we found AS_TRANS, we need to replace it with last asn in AS_TRANS
+                if (new_asn == 23456) {
+
+                    // we have hit our first AS_TRANS. from now on, we need to move the AS4_PATH
+                    // iterator too.
+                    incr_iter = true;
+                    new_asn = *local_iter;
+                } else if (new_asn != *local_iter) {
+                    _bgp_error("BgpUpdateMessage::restoreAsPath: warning: AS_PATH and AS4_PATH does not match.\n");
+                }
+
+                if (incr_iter) local_iter++;
+            }
+            
+            if(!new_seg.prepend(new_asn)) return false;
+        }
+
+        new_segs.push_back(new_seg);
+    }
+
+    path.as_paths = new_segs;
+    return true;
+    
 }
 
 bool BgpUpdateMessage::downgradeAsPath() {
