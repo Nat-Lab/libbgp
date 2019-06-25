@@ -249,7 +249,7 @@ bool BgpUpdateMessage::downgradeAsPath() {
 
     BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
     if (!path.is_4b) {
-        _bgp_error("BgpUpdateMessage::restoreAsPath: AS_PATH is already 2B.\n");
+        _bgp_error("BgpUpdateMessage::downgradeAsPath: AS_PATH is already 2B.\n");
         return false;
     }
 
@@ -258,7 +258,7 @@ bool BgpUpdateMessage::downgradeAsPath() {
 
     for (const BgpAsPathSegment &seg : path.as_paths) {
         if (!seg.is_4b) {
-            _bgp_error("BgpUpdateMessage::restoreAsPath: 2b seg found in 4b attrib.\n");
+            _bgp_error("BgpUpdateMessage::downgradeAsPath: 2b seg found in 4b attrib.\n");
             return false;
         }
 
