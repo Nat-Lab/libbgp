@@ -281,4 +281,35 @@ bool BgpUpdateMessage::downgradeAsPath() {
     return true;
 }
 
+bool BgpUpdateMessage::restoreAggregator() {
+    if (!hasAttrib(AGGREATOR)) return true;
+
+    BgpPathAttribAggregator &aggr = dynamic_cast<BgpPathAttribAggregator &>(getAttrib(AGGREATOR));
+    aggr.is_4b = true;
+
+    if (!hasAttrib(AS4_AGGREGATOR)) return true;
+    
+    const BgpPathAttribAs4Aggregator &aggr4 = dynamic_cast<const BgpPathAttribAs4Aggregator &>(getAttrib(AS4_AGGREGATOR));
+    aggr.aggregator = aggr4.aggregator;
+    aggr.aggregator_asn = aggr4.aggregator_asn4;
+
+    return true;
+}
+
+bool BgpUpdateMessage::downgradeAggregator() {
+    if (!hasAttrib(AGGREATOR)) return true;
+    
+    BgpPathAttribAggregator &aggr = dynamic_cast<BgpPathAttribAggregator &>(getAttrib(AGGREATOR));
+    aggr.is_4b = false;
+
+    BgpPathAttribAs4Aggregator aggr4;
+    aggr4.aggregator = aggr.aggregator;
+    aggr4.aggregator_asn4 = aggr.aggregator_asn;
+    updateAttribute(aggr4);
+
+    if (aggr.aggregator_asn >= 0xffff) aggr.aggregator_asn = 23456;
+
+    return true;
+}
+
 }
