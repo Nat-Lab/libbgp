@@ -134,4 +134,69 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
     }
 }
 
+bool BgpUpdateMessage::restoreAsPath() {
+    if (!hasAttrib(AS_PATH)) return true;
+
+    BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
+    if (path.is_4b) {
+        _bgp_error("BgpUpdateMessage::restoreAsPath: AS_PATH is already 4B.\n");
+        return false;
+    }
+
+    // no AS4_PATH, just make AS_PATH 4b
+    if (!hasAttrib(AS4_PATH)) return asPathSegsTo4b();
+
+    // we have AS4_PATH recorver AS_TRANS.
+    std::vector<uint32_t> full_as_path;
+    const BgpPathAttribAs4Path &as4_path = dynamic_cast<const BgpPathAttribAs4Path &>(getAttrib(AS4_PATH));
+    for (const BgpAsPathSegment &seg : as4_path.as4_paths) {
+        if (!seg.is_4b) {
+            _bgp_error("BgpUpdateMessage::restoreAsPath: bad as4_path: found 2b seg.\n");
+            return false;
+        }
+        
+        if (seg.type == AS_SEQUENCE) {
+            const BgpAsPathSegment4b &seg4 = dynamic_cast<const BgpAsPathSegment4b &>(seg);
+            const std::vector<uint32_t> &part = seg4.value;
+            full_as_path.insert(full_as_path.end(), part.begin(), part.end());
+        }
+    }
+
+    return asPathSegsTo4b(full_as_path);
+}
+
+bool BgpUpdateMessage::downgradeAsPath() {
+    if (!hasAttrib(AS_PATH)) return true;
+
+    BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
+    if (!path.is_4b) {
+        _bgp_error("BgpUpdateMessage::restoreAsPath: AS_PATH is already 2B.\n");
+        return false;
+    }
+
+    std::vector<BgpAsPathSegment> new_segs;
+    BgpPathAttribAs4Path path4;
+
+    for (const BgpAsPathSegment &seg : path.as_paths) {
+        if (!seg.is_4b) {
+            _bgp_error("BgpUpdateMessage::restoreAsPath: 2b seg found in 4b attrib.\n");
+            return false;
+        }
+
+        BgpAsPathSegment2b new_seg (seg.type);
+        const BgpAsPathSegment4b &seg4 = dynamic_cast<const BgpAsPathSegment4b &>(seg);
+        for (uint32_t asn : seg4.value) {
+            uint16_t new_as = asn >= 0xffff ? 23456 : asn;
+            if(!new_seg.prepend(new_as)) return false;
+        }
+
+        path4.as4_paths.push_back(seg4);
+        new_segs.push_back(new_seg);
+    }
+    
+    updateAttribute(path4);
+    path.as_paths = new_segs;
+    return true;
+}
+
 }

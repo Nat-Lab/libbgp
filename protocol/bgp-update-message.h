@@ -86,6 +86,16 @@ private:
     // utility function to forward attribute parse error to here
     void forwardParseError(const BgpPathAttrib &attrib);
 
+    // utility function to convert 2b segs in AS_PATH to 4b
+    bool asPathSegsTo4b();
+
+    // utility function to convert 2b segs in AS_PATH to 4b, recover AS_TRANS
+    // from AS4_PATH
+    bool asPathSegsTo4b(const std::vector<uint32_t> as4_path);
+
+    // utility function to duplicate AS_PATH to AS4_PATH
+    bool asPathSegsDupAs4Path();
+
     bool use_4b_asn;
 };
 
