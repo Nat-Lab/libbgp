@@ -58,8 +58,15 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     }
 
     uint8_t parsed_opt_params_len = 0;
+    uint8_t opt_params_len_left = 0;
 
-    while (parsed_opt_params_len < opt_params_len) {
+    while ((opt_params_len_left = opt_params_len - parsed_opt_params_len) > 0) {
+        if (opt_params_len_left < 2) {
+            setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
+            _bgp_error("BgpOpenMessage::parse: unexpected end of opt param list.\n");
+            return -1;
+        }
+
         uint8_t param_type = getValue<uint8_t> (&buffer);
         uint8_t param_length = getValue<uint8_t> (&buffer);
 
@@ -87,17 +94,24 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        uint8_t parsed_opt_param_len = 0;
+        uint8_t parsed_capa_param_len = 0;
+        uint8_t capa_param_left = 0;
 
-        while (parsed_opt_param_len < param_length) {
+        while ((capa_param_left = param_length - parsed_capa_param_len) > 0) {
+            if (capa_param_left < 2) {
+                setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
+                _bgp_error("BgpOpenMessage::parse: unexpected end of capa list.\n");
+                return -1;
+            }
+
             uint8_t capa_code = getValue<uint8_t> (&buffer);
             uint8_t capa_len = getValue<uint8_t> (&buffer);
 
             // capa_code & capa_len
-            parsed_opt_param_len += 2;
+            parsed_capa_param_len += 2;
 
             // capa value len exceed opt param
-            if (parsed_opt_param_len + capa_len > param_length) {
+            if (parsed_capa_param_len + capa_len > param_length) {
                 setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
                 _bgp_error("BgpOpenMessage::parse: capability length exceed param length.\n");
                 return -1;
@@ -115,7 +129,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
                 uint32_t my_4b_asn = ntohl(getValue<uint32_t> (&buffer));
 
                 // value for 4b-asn field
-                parsed_opt_param_len += 4;
+                parsed_capa_param_len += 4;
 
                 // peer has 4b-asn but my_asn is not AS_TRANS
                 if (my_4b_asn >= 0xffff && my_asn != 23456) {
@@ -141,15 +155,15 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
                 buffer += capa_len;
 
                 // count this capa
-                parsed_opt_param_len += capa_len;
+                parsed_capa_param_len += capa_len;
 
                 continue;
             }
         }
 
-        assert(parsed_opt_param_len == param_length);
+        assert(parsed_capa_param_len == param_length);
 
-        parsed_opt_params_len += parsed_opt_param_len;
+        parsed_opt_params_len += parsed_capa_param_len;
     }
 
     assert(parsed_opt_params_len == opt_params_len);
