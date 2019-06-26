@@ -1,5 +1,9 @@
 #include "bgp-update-message.h"
 #include "bgp-error.h"
+#include "bgp-errcode.h"
+#include "value-op.h"
+#include <arpa/inet.h>
+#include <assert.h>
 
 namespace bgpfsm {
 
@@ -350,6 +354,155 @@ bool BgpUpdateMessage::addNlri(const Route &route) {
 
 void BgpUpdateMessage::forwardParseError(const BgpPathAttrib &attrib) {
     setError(attrib.getErrorCode(), attrib.getErrorSubCode(), attrib.getError(), attrib.getErrorLength());
+}
+
+ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
+    if (msg_sz < 4) {
+        uint8_t _err_data = msg_sz;
+        setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
+        _bgp_error("BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
+        return -1;
+    }
+
+    const uint8_t *buffer = from;
+
+    uint16_t withdrawn_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
+
+    if (withdrawn_len > msg_sz - 4) { // -4: two length fields (withdrawn len + attrib len)
+        _bgp_error("BgpUpdateMessage::parse: withdrawn routes length overflows message.\n");
+        setError(E_UPDATE, E_UNSPEC, NULL, 0);
+        return -1;
+    }
+
+    uint16_t parsed_withdrawn_len = 0;
+    
+    while (parsed_withdrawn_len < withdrawn_len) {
+        if (withdrawn_len - parsed_withdrawn_len < 1) {
+            _bgp_error("BgpUpdateMessage::parse: unexpected end of withdrawn routes list.\n");
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
+        parsed_withdrawn_len++;
+        if (route_len > 32) {
+            _bgp_error("BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        size_t route_buffer_len = (route_len + 7) / 8;
+        if (parsed_withdrawn_len + route_buffer_len > withdrawn_len) {
+            _bgp_error("BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        Route route;
+        route.length = route_len;
+        memcpy(&(route.prefix), buffer, route_buffer_len);
+        withdrawn_routes.push_back(route);
+
+        buffer += route_buffer_len; // len2: route_buffer_len
+        parsed_withdrawn_len += route_buffer_len;
+    }
+
+    assert(parsed_withdrawn_len == withdrawn_len);
+
+    uint16_t attribute_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
+    if ((size_t) (attribute_len + withdrawn_len + 4) > msg_sz) {
+        _bgp_error("BgpUpdateMessage::parse: attribute list length overflows message buffer.\n");
+        setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
+        return -1;
+    }
+
+    uint16_t parsed_attribute_len = 0;
+
+    while (parsed_attribute_len < attribute_len) {
+        if (attribute_len - parsed_attribute_len < 3) {
+            _bgp_error("BgpUpdateMessage::parse: unexpected end of attribute list.\n");
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        int8_t attr_type = BgpPathAttrib::GetTypeFromBuffer(buffer, attribute_len - parsed_attribute_len);
+
+        if (attr_type < 0) {
+            _bgp_error("BgpUpdateMessage::parse: failed to parse attribute type.\n");
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        BgpPathAttrib *attrib = NULL;
+
+        switch(attr_type) {
+            case ORIGIN: attrib = new BgpPathAttribOrigin(); break;
+            case AS_PATH: attrib = new BgpPathAttribAsPath(use_4b_asn); break;
+            case NEXT_HOP: attrib = new BgpPathAttribNexthop(); break;
+            case MULTI_EXIT_DISC: attrib = new BgpPathAttribMed(); break;
+            case LOCAL_PREF: attrib = new BgpPathAttribLocalPref(); break;
+            case ATOMIC_AGGREGATE: attrib =  new BgpPathAttribAtomicAggregate(); break;
+            case AGGREATOR: attrib = new BgpPathAttribAggregator(use_4b_asn); break;
+            case COMMUNITY: attrib = new BgpPathAttribCommunity(); break;
+            case AS4_PATH: attrib = new BgpPathAttribAs4Path(); break;
+            case AS4_AGGREGATOR: attrib = new BgpPathAttribAs4Aggregator(); break;
+            default: attrib = new BgpPathAttribUnknow(); break;
+        }
+
+        assert(attrib != NULL);
+
+        ssize_t attrib_parsed = attrib->parse(buffer, attribute_len - parsed_attribute_len);
+
+        if (attrib_parsed < 0) {
+            forwardParseError(*attrib);
+            return -1;
+        }
+
+        parsed_attribute_len += attrib_parsed;
+        path_attribute.push_back(*attrib);
+        delete attrib;
+    }
+
+    assert(parsed_attribute_len == attribute_len);
+
+    // 4: len fields (withdrawn len & attrib len)
+    size_t nlri_len = msg_sz - 4 - parsed_attribute_len - parsed_withdrawn_len;
+    size_t parsed_nlri_len = 0;
+
+    while (parsed_nlri_len < nlri_len) {
+        if (nlri_len - parsed_nlri_len < 1) {
+            _bgp_error("BgpOpenMessage::parse: unexpected end of nlri.\n");
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
+        parsed_nlri_len++;
+        if (route_len > 32) {
+            _bgp_error("BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        size_t route_buffer_len = (route_len + 7) / 8;
+        if (parsed_nlri_len + route_buffer_len > nlri_len) {
+            _bgp_error("BgpUpdateMessage::parse: nlri route overflows routes list.\n");
+            setError(E_UPDATE, E_UNSPEC, NULL, 0);
+            return -1;
+        }
+
+        Route route;
+        route.length = route_len;
+        memcpy(&(route.prefix), buffer, route_buffer_len);
+        nlri.push_back(route);
+
+        buffer += route_buffer_len; // len2: route_buffer_len
+        parsed_nlri_len += route_buffer_len;
+    }
+
+    assert(parsed_nlri_len + parsed_attribute_len + parsed_withdrawn_len + 4 == msg_sz);
+
+    return msg_sz;
 }
 
 }
