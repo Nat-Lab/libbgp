@@ -39,7 +39,7 @@ public:
     BgpPathAttrib();
 
     // get attribute type from buffer, return -1 if failed.
-    static int8_t getType(const uint8_t *buffer, size_t buffer_sz);
+    static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
 
     // parse attribute 
     virtual ssize_t parse(const uint8_t *buffer, size_t length) = 0;

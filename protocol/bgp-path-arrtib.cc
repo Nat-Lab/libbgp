@@ -7,8 +7,11 @@
 
 namespace bgpfsm {
 
-int8_t BgpPathAttrib::getType(const uint8_t *from, size_t buffer_sz) {
-    if (buffer_sz < 3) return -1;
+int8_t BgpPathAttrib::GetTypeFromBuffer(const uint8_t *from, size_t buffer_sz) {
+    if (buffer_sz < 3) {
+        _bgp_error("BgpPathAttrib::GetTypeFromBuffer: buffer too small.\n");
+        return -1;
+    }
     return *((uint8_t *) (from + 1));
 }
 
