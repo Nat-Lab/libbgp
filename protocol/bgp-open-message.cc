@@ -30,10 +30,8 @@ BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, const char* 
 
 ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 10) {
-        err_data = (uint8_t *) malloc(sizeof(uint8_t));
-        *err_data = msg_sz + 19;
-        err_len = sizeof(uint8_t);
-        setError(E_HEADER, E_LENGTH, NULL, 0);
+        uint8_t _err_data = msg_sz;
+        setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
         _bgp_error("BgpOpenMessage::parse: invalid open message size: %d.\n", msg_sz);
         return -1;
     }
