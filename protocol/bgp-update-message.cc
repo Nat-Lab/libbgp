@@ -348,4 +348,8 @@ bool BgpUpdateMessage::addNlri(const Route &route) {
     return true;
 }
 
+void BgpUpdateMessage::forwardParseError(const BgpPathAttrib &attrib) {
+    setError(attrib.getErrorCode(), attrib.getErrorSubCode(), attrib.getError(), attrib.getErrorLength());
+}
+
 }
