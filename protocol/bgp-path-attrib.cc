@@ -149,7 +149,7 @@ ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
 }
 
 ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
-    if (buffer_sz < value_len + 3) {
+    if (buffer_sz < (size_t) (value_len + 3)) {
         _bgp_error("BgpPathAttribUnknow::write: destination buffer size too small.\n");
         return -1;
     }
@@ -705,7 +705,7 @@ ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
 ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
     uint8_t write_value_sz = (is_4b ? 6 : 8);
 
-    if (buffer_sz < write_value_sz + 3) {
+    if (buffer_sz < (size_t) (write_value_sz + 3)) {
         _bgp_error("BgpPathAttribAggregator::write: destination buffer size too small.\n");
         return -1;
     }
