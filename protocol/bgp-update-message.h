@@ -86,6 +86,10 @@ private:
     // utility function to forward attribute parse error to here
     void forwardParseError(const BgpPathAttrib &attrib);
 
+    // utility function to check if attributes are valid (i.e. no dulipicated, 
+    // no missing well-known)
+    bool validateAttribs();
+
     bool use_4b_asn;
 };
 

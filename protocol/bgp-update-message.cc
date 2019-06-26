@@ -356,6 +356,37 @@ void BgpUpdateMessage::forwardParseError(const BgpPathAttrib &attrib) {
     setError(attrib.getErrorCode(), attrib.getErrorSubCode(), attrib.getError(), attrib.getErrorLength());
 }
 
+bool BgpUpdateMessage::validateAttribs() {
+    bool has_origin = false;
+    bool has_nexthop = false;
+    bool has_as_path = false;
+
+    std::vector<BgpPathAttrib>::const_iterator attr_iter = path_attribute.begin();
+
+    for (; attr_iter != path_attribute.end(); attr_iter++) {
+        if (attr_iter->type_code == AS_PATH) has_as_path = true;
+        else if (attr_iter->type_code == NEXT_HOP) has_nexthop = true;
+        else if (attr_iter->type_code == ORIGIN) has_origin = true;
+
+        std::vector<BgpPathAttrib>::const_iterator attr_iter_inner = attr_iter + 1;
+        for(; attr_iter_inner != path_attribute.end(); attr_iter_inner++) {
+            if (attr_iter_inner->type_code == attr_iter->type_code) {
+                _bgp_error("BgpUpdateMessage::validateAttribs: duplicated attributes %d.\n", attr_iter->type_code);
+                setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
+                return false;
+            }
+        }
+    }
+
+    if (!(has_as_path && has_nexthop && has_origin)) {
+        _bgp_error("BgpUpdateMessage::validateAttribs: mandatory attribute(s) missing.\n");
+        setError(E_UPDATE, E_MISS_WELL_KNOWN, NULL, 0);
+        return false;
+    }
+
+    return true;
+}
+
 ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 4) {
         uint8_t _err_data = msg_sz;
@@ -464,6 +495,8 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         path_attribute.push_back(*attrib);
         delete attrib;
     }
+
+    if (!validateAttribs()) return -1;
 
     assert(parsed_attribute_len == attribute_len);
 
