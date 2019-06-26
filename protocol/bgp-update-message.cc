@@ -312,4 +312,40 @@ bool BgpUpdateMessage::downgradeAggregator() {
     return true;
 }
 
+bool BgpUpdateMessage::setWithdrawn(const std::vector<Route> &routes) {
+    withdrawn_routes = routes;
+    return true;
+}
+
+bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
+    Route route;
+    route.length = length;
+    route.prefix = prefix;
+    withdrawn_routes.push_back(route);
+    return true;
+}
+
+bool BgpUpdateMessage::addWithdrawn(const Route &route) {
+    withdrawn_routes.push_back(route);
+    return true;
+}
+
+bool BgpUpdateMessage::setNlri(const std::vector<Route> &routes) {
+    nlri = routes;
+    return true;
+}
+
+bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
+    Route route;
+    route.length = length;
+    route.prefix = prefix;
+    nlri.push_back(route);
+    return true;
+}
+
+bool BgpUpdateMessage::addNlri(const Route &route) {
+    nlri.push_back(route);
+    return true;
+}
+
 }
