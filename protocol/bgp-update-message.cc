@@ -400,6 +400,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
         Route route;
         route.length = route_len;
+        route.prefix = 0;
         memcpy(&(route.prefix), buffer, route_buffer_len);
         withdrawn_routes.push_back(route);
 
@@ -458,6 +459,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
+        buffer += attrib_parsed;
         parsed_attribute_len += attrib_parsed;
         path_attribute.push_back(*attrib);
         delete attrib;
@@ -493,6 +495,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
         Route route;
         route.length = route_len;
+        route.prefix = 0;
         memcpy(&(route.prefix), buffer, route_buffer_len);
         nlri.push_back(route);
 
