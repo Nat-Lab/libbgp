@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <unistd.h>
+#include <assert.h>
 #include <vector>
 
 namespace bgpfsm {
@@ -42,10 +43,10 @@ public:
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
 
     // parse attribute 
-    virtual ssize_t parse(const uint8_t *buffer, size_t length) = 0;
+    virtual ssize_t parse(const uint8_t *buffer, size_t length) { assert(false); return -1; }
 
     // write attribute
-    virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const = 0;
+    virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const { assert(false); return -1; }
 
     // get error code
     virtual uint8_t getErrorCode() const;
@@ -116,8 +117,8 @@ class BgpAsPathSegment {
 public:
     bool is_4b;
     uint8_t type;
-    virtual size_t getCount() const = 0;
-    virtual bool prepend(uint32_t asn) = 0;
+    virtual size_t getCount() const { assert(false); return 0; }
+    virtual bool prepend(uint32_t asn) { assert(false); return false; }
     virtual ~BgpAsPathSegment() {}
 };
 
