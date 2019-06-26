@@ -28,8 +28,6 @@ BgpPathAttrib::~BgpPathAttrib() {
 }
 
 ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
-    // header has the length of 3 (flag, type, length). parseHeader only uses 2,
-    // but since a packet of size < 3 can't be valid we will reject it here.
     if (buffer_sz < 3) {
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size.\n");
@@ -181,6 +179,8 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
+    assert(type_code == ORIGIN);
+
     const uint8_t *buffer = from + 3;
 
     if (value_len < 1) {
@@ -268,6 +268,8 @@ BgpAsPathSegment4b::BgpAsPathSegment4b(uint8_t type) {
 ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
+
+    assert(type_code == AS_PATH);
 
     if (optional || !transitive || extened || partial) {
         _bgp_error("BgpPathAttribAsPath::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
@@ -474,6 +476,8 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
+    assert(type_code == NEXT_HOP);
+
     const uint8_t *buffer = from + 3;
 
     if (value_len < 4) {
@@ -525,6 +529,8 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
+    assert(type_code == MULTI_EXIT_DISC);
+
     const uint8_t *buffer = from + 3;
 
     if (value_len < 4) {
@@ -572,6 +578,8 @@ BgpPathAttribLocalPref::BgpPathAttribLocalPref() {
 ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
+
+    assert(type_code == LOCAL_PREF);
 
     const uint8_t *buffer = from + 3;
 
@@ -621,6 +629,8 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
+    assert(type_code == ATOMIC_AGGREGATE);
+
     if (value_len != 0) {
         _bgp_error("BgpPathAttribAtomicAggregate::parse: bad length, want 0, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
@@ -661,6 +671,8 @@ BgpPathAttribAggregator::BgpPathAttribAggregator(bool is_4b) {
 ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
+
+    assert(type_code == AGGREATOR);
 
     const uint8_t *buffer = from + 3;
     const uint8_t want_len = (is_4b ? 8 : 6);
@@ -725,6 +737,8 @@ BgpPathAttribAs4Path::BgpPathAttribAs4Path() {
 ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
+
+    assert(type_code == AS4_PATH);
 
     if (!optional || !transitive || extened || partial) {
         _bgp_error("BgpPathAttribAs4Path::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
@@ -876,6 +890,8 @@ ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
+    assert(type_code == AS4_AGGREGATOR);
+
     const uint8_t *buffer = from + 3;
 
     if (value_len < 8) {
@@ -929,6 +945,8 @@ BgpPathAttribCommunity::BgpPathAttribCommunity() {
 ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
+
+    assert(type_code == COMMUNITY);
 
     const uint8_t *buffer = from + 3;
 
