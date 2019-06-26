@@ -168,6 +168,12 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     assert(parsed_opt_params_len == opt_params_len);
 
+    if ((size_t) (parsed_opt_params_len + 10) != msg_sz) {
+        _bgp_error("BgpOpenMessage::parse: buffer does not end after parsing finished.\n");
+        setError(E_OPEN, E_UNSPEC, NULL, 0);
+        return -1;
+    }
+
     return parsed_opt_params_len + 10;
 }
 
