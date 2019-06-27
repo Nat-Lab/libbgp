@@ -354,22 +354,24 @@ bool BgpUpdateMessage::validateAttribs() {
     bool has_origin = false;
     bool has_nexthop = false;
     bool has_as_path = false;
+    
+    uint32_t typecode_bitsmap = 0;
 
-    std::vector<BgpPathAttrib>::const_iterator attr_iter = path_attribute.begin();
+    for (std::vector<BgpPathAttrib>::const_iterator attr_iter = path_attribute.begin(); 
+        attr_iter != path_attribute.end(); attr_iter++) {
+        uint8_t type_code = attr_iter->type_code;
 
-    for (; attr_iter != path_attribute.end(); attr_iter++) {
-        if (attr_iter->type_code == AS_PATH) has_as_path = true;
-        else if (attr_iter->type_code == NEXT_HOP) has_nexthop = true;
-        else if (attr_iter->type_code == ORIGIN) has_origin = true;
+        if (type_code == AS_PATH) has_as_path = true;
+        else if (type_code == NEXT_HOP) has_nexthop = true;
+        else if (type_code == ORIGIN) has_origin = true;
 
-        std::vector<BgpPathAttrib>::const_iterator attr_iter_inner = attr_iter + 1;
-        for(; attr_iter_inner != path_attribute.end(); attr_iter_inner++) {
-            if (attr_iter_inner->type_code == attr_iter->type_code) {
-                _bgp_error("BgpUpdateMessage::validateAttribs: duplicated attributes %d.\n", attr_iter->type_code);
-                setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
-                return false;
-            }
+        if ((typecode_bitsmap >> type_code) & 1U) {
+            _bgp_error("BgpUpdateMessage::validateAttribs:: duplicated attribute type in list: %d\n", type_code);
+            setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
+            return false;
         }
+
+        typecode_bitsmap &= ~(1UL << type_code);
     }
 
     if (!(has_as_path && has_nexthop && has_origin)) {
