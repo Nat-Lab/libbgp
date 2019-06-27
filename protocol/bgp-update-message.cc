@@ -143,10 +143,7 @@ bool BgpUpdateMessage::restoreAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
 
     BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
-    if (path.is_4b) {
-        _bgp_error("BgpUpdateMessage::restoreAsPath: AS_PATH is already 4B.\n");
-        return false;
-    }
+    if (path.is_4b) return true;
 
     // no AS4_PATH, just make AS_PATH 4b
     if (!hasAttrib(AS4_PATH)) {
@@ -254,10 +251,7 @@ bool BgpUpdateMessage::downgradeAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
 
     BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
-    if (!path.is_4b) {
-        _bgp_error("BgpUpdateMessage::downgradeAsPath: AS_PATH is already 2B.\n");
-        return false;
-    }
+    if (!path.is_4b) return true;
 
     std::vector<BgpAsPathSegment> new_segs;
     BgpPathAttribAs4Path path4;
