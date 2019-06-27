@@ -21,6 +21,7 @@ BgpPathAttrib::BgpPathAttrib() {
     err_subcode = 0;
     optional = transitive = partial = extened = false;
     err_buf = NULL;
+    value_ptr = NULL;
 }
 
 BgpPathAttrib::~BgpPathAttrib() {
