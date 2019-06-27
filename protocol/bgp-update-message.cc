@@ -354,7 +354,7 @@ bool BgpUpdateMessage::validateAttribs() {
     bool has_origin = false;
     bool has_nexthop = false;
     bool has_as_path = false;
-    
+
     uint32_t typecode_bitsmap = 0;
 
     for (std::vector<BgpPathAttrib>::const_iterator attr_iter = path_attribute.begin(); 
@@ -483,6 +483,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
         if (attrib_parsed < 0) {
             forwardParseError(*attrib);
+            delete attrib;
             return -1;
         }
 
