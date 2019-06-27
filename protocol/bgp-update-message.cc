@@ -474,7 +474,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             case COMMUNITY: attrib = new BgpPathAttribCommunity(); break;
             case AS4_PATH: attrib = new BgpPathAttribAs4Path(); break;
             case AS4_AGGREGATOR: attrib = new BgpPathAttribAs4Aggregator(); break;
-            default: attrib = new BgpPathAttribUnknow(); break;
+            default: attrib = new BgpPathAttrib(); break;
         }
 
         assert(attrib != NULL);

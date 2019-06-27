@@ -43,10 +43,10 @@ public:
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
 
     // parse attribute 
-    virtual ssize_t parse(const uint8_t *buffer, size_t length) { assert(false); return -1; }
+    virtual ssize_t parse(const uint8_t *buffer, size_t length);
 
     // write attribute
-    virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const { assert(false); return -1; }
+    virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 
     // get error code
     virtual uint8_t getErrorCode() const;
@@ -81,16 +81,9 @@ protected:
     uint8_t err_subcode;
     size_t err_buf_len;
     uint8_t *err_buf;
-};
 
-class BgpPathAttribUnknow : public BgpPathAttrib {
-public:
-    BgpPathAttribUnknow();
-    ~BgpPathAttribUnknow();
+private:
     uint8_t* value_ptr;
-
-    ssize_t parse(const uint8_t *buffer, size_t length);
-    ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
 
 enum BgpPathAttribOrigins {

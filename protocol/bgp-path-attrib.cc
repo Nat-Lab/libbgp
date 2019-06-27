@@ -25,6 +25,64 @@ BgpPathAttrib::BgpPathAttrib() {
 
 BgpPathAttrib::~BgpPathAttrib() {
     if (err_buf_len > 0) free(err_buf);
+    if (value_ptr != NULL) free(value_ptr);
+}
+
+ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
+    ssize_t header_len = parseHeader(from, length);
+
+    if (header_len < 0) return -1;
+
+    const uint8_t *buffer = from + 3;
+
+    // Well-Known, Mandatory = !optional, transitive
+    // Well-Known, Discretionary = !optional, !transitive
+    // Optional, Transitive = optional, transitive
+    // Optional, Non-Transitive = optional, !transitive
+    if (!optional && transitive) {
+        // well-known mandatory, but not recognized
+        setError(E_UPDATE, E_BAD_WELL_KNOWN, from, value_len + header_len);
+        _bgp_error("BgpPathAttrib::parse: flag indicates well-known, mandatory but this attribute is unknown.\n");
+        // set value_len = 0, so we won't free() nullptr when destruct.
+        value_len = 0; 
+        return -1;
+    }
+
+    if (optional && !transitive && partial) {
+        // optional non-transitive must not be partial
+        setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_len);
+        _bgp_error("BgpPathAttrib::parse: optional non-transitive must not be partial.\n");
+        // set value_len = 0, so we won't free() nullptr when destruct.
+        value_len = 0; 
+        return -1;
+    }
+
+    value_ptr = (uint8_t *) malloc(value_len);
+    memcpy(value_ptr, buffer, value_len);
+
+    return value_len + header_len;
+}
+
+ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < (size_t) (value_len + 3)) {
+        _bgp_error("BgpPathAttrib::write: destination buffer size too small.\n");
+        return -1;
+    }
+
+    if (!extened && value_len >= 0xffff) {
+        _bgp_error("BgpPathAttrib::write: non-extended value has size > 65535: %d\n", value_len);
+        return -1;
+    }
+
+    if (writeHeader(to, 2) != 2) return -1;
+
+    uint8_t *buffer = to + 2;
+    if (extened) putValue<uint16_t>(&buffer, value_len);
+    else putValue<uint8_t>(&buffer, value_len);
+
+    if (value_len > 0) memcpy(buffer, value_ptr, value_len);
+
+    return value_len + 3;   
 }
 
 ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
@@ -105,69 +163,6 @@ const uint8_t* BgpPathAttrib::getError() const {
 
 size_t BgpPathAttrib::getErrorLength() const {
     return err_buf_len;
-}
-
-BgpPathAttribUnknow::BgpPathAttribUnknow() {}
-
-BgpPathAttribUnknow::~BgpPathAttribUnknow() {
-    if (value_len > 0) free(value_ptr);
-}
-
-ssize_t BgpPathAttribUnknow::parse(const uint8_t *from, size_t length) {
-    ssize_t header_len = parseHeader(from, length);
-
-    if (header_len < 0) return -1;
-
-    const uint8_t *buffer = from + 3;
-
-    // Well-Known, Mandatory = !optional, transitive
-    // Well-Known, Discretionary = !optional, !transitive
-    // Optional, Transitive = optional, transitive
-    // Optional, Non-Transitive = optional, !transitive
-    if (!optional && transitive) {
-        // well-known mandatory, but not recognized
-        setError(E_UPDATE, E_BAD_WELL_KNOWN, from, value_len + header_len);
-        _bgp_error("BgpPathAttribUnknow::parse: flag indicates well-known, mandatory but this attribute is unknown.\n");
-        // set value_len = 0, so we won't free() nullptr when destruct.
-        value_len = 0; 
-        return -1;
-    }
-
-    if (optional && !transitive && partial) {
-        // optional non-transitive must not be partial
-        setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_len);
-        _bgp_error("BgpPathAttribUnknow::parse: optional non-transitive must not be partial.\n");
-        // set value_len = 0, so we won't free() nullptr when destruct.
-        value_len = 0; 
-        return -1;
-    }
-
-    value_ptr = (uint8_t *) malloc(value_len);
-    memcpy(value_ptr, buffer, value_len);
-
-    return value_len + header_len;
-}
-
-ssize_t BgpPathAttribUnknow::write(uint8_t *to, size_t buffer_sz) const {
-    if (buffer_sz < (size_t) (value_len + 3)) {
-        _bgp_error("BgpPathAttribUnknow::write: destination buffer size too small.\n");
-        return -1;
-    }
-
-    if (!extened && value_len >= 0xffff) {
-        _bgp_error("BgpPathAttribUnknow::write: non-extended value has size > 65535: %d\n", value_len);
-        return -1;
-    }
-
-    if (writeHeader(to, 2) != 2) return -1;
-
-    uint8_t *buffer = to + 2;
-    if (extened) putValue<uint16_t>(&buffer, value_len);
-    else putValue<uint8_t>(&buffer, value_len);
-
-    if (value_len > 0) memcpy(buffer, value_ptr, value_len);
-
-    return value_len + 3;   
 }
 
 BgpPathAttribOrigin::BgpPathAttribOrigin() {
