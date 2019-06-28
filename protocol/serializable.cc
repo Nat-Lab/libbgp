@@ -8,11 +8,11 @@ ssize_t Serializable::print(uint8_t *to, size_t buf_sz) const {
 }
 
 ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, const char* format, ...) {
-    if (*buf_left <= indent) return 0;
+    if (*buf_left <= indent * 4) return 0;
     for (size_t i = 0; i < indent; i++) {
-        sprintf((char *) *to, "\t");
-        *to += 1;
-        *buf_left -= 1;
+        sprintf((char *) *to, "    ");
+        *to += 4;
+        *buf_left -= 4;
     }
     va_list args;
     va_start(args, format);
