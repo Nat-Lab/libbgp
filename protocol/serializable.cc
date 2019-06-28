@@ -8,17 +8,22 @@ ssize_t Serializable::print(uint8_t *to, size_t buf_sz) const {
 }
 
 ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, const char* format, ...) {
-    if (buf_left <= 0) return 0;
+    if (*buf_left <= indent) return 0;
+    for (size_t i = 0; i < indent; i++) {
+        sprintf((char *) *to, "\t");
+        *to += 1;
+        *buf_left -= 1;
+    }
     va_list args;
     va_start(args, format);
     ssize_t sz = vsnprintf((char *) *to, *buf_left, format, args);
     va_end(args);
 
-    if (sz > *buf_left) *buf_left = 0;
-    else {
-        *buf_left -= sz;
-        *to += sz;
-    }
+    if (sz < 0) return sz;
+    if ((size_t) sz > *buf_left) return *buf_left;
+
+    *buf_left -= sz;
+    *to += sz;
 
     return sz;
 }
