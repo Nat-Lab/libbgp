@@ -124,7 +124,7 @@ ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
     if (writeHeader(to, buffer_sz) < 2) return -1;
 
     uint8_t *buffer = to + 2;
-    if (extended) putValue<uint16_t>(&buffer, value_len);
+    if (extended) putValue<uint16_t>(&buffer, htons(value_len));
     else putValue<uint8_t>(&buffer, value_len);
 
     if (value_len > 0) memcpy(buffer, value_ptr, value_len);
@@ -153,7 +153,7 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
         return -1;
     }
 
-    if (extended) value_len = getValue<uint16_t>(&buffer);
+    if (extended) value_len = ntohs(getValue<uint16_t>(&buffer));
     else value_len = getValue<uint8_t>(&buffer);
 
     if (value_len > buffer_sz - 3) {
@@ -398,8 +398,8 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
         }
 
         BgpAsPathSegment path(is_4b, type);
-        if (is_4b) for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
-        else for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint16_t>(&buffer));
+        if (is_4b) for (int i = 0; i < n_asn; i++) path.value.push_back(ntohl(getValue<uint32_t>(&buffer)));
+        else for (int i = 0; i < n_asn; i++) path.value.push_back(ntohs(getValue<uint16_t>(&buffer)));
         as_paths.push_back(path);
 
         // parsed asns
@@ -487,8 +487,8 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
         putValue<uint8_t>(&buffer, seg.type);
         putValue<uint8_t>(&buffer, asn_count);
 
-        if (seg.is_4b) for (uint32_t asn : seg.value) putValue<uint32_t>(&buffer, asn);
-        else for (uint16_t asn : seg.value) putValue<uint16_t>(&buffer, asn);
+        if (seg.is_4b) for (uint32_t asn : seg.value) putValue<uint32_t>(&buffer, htonl(asn));
+        else for (uint16_t asn : seg.value) putValue<uint16_t>(&buffer, htons(asn));
 
         written_len += bytes_need;
     }
@@ -621,7 +621,7 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    med = getValue<uint32_t>(&buffer);
+    med = ntohl(getValue<uint32_t>(&buffer));
 
     return 7;
 }
@@ -636,7 +636,7 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 4); // length = 4
-    putValue<uint32_t>(&buffer, med);
+    putValue<uint32_t>(&buffer, htonl(med));
     return 7;
 }
 
@@ -689,7 +689,7 @@ ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    local_pref = getValue<uint32_t>(&buffer);
+    local_pref = ntohl(getValue<uint32_t>(&buffer));
 
     return 7;
 }
@@ -704,7 +704,7 @@ ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 4); // length = 4
-    putValue<uint32_t>(&buffer, local_pref);
+    putValue<uint32_t>(&buffer, htonl(local_pref));
     return 7;
 }
 
@@ -820,8 +820,8 @@ ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (is_4b) aggregator_asn = getValue<uint32_t>(&buffer);
-    else aggregator_asn = getValue<uint16_t>(&buffer);
+    if (is_4b) aggregator_asn = ntohl(getValue<uint32_t>(&buffer));
+    else aggregator_asn = ntohs(getValue<uint16_t>(&buffer));
     aggregator = getValue<uint32_t>(&buffer);
 
     return 3 + want_len;
@@ -845,8 +845,8 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (is_4b) putValue<uint32_t>(&buffer, aggregator_asn);
-    else putValue<uint16_t>(&buffer, aggregator_asn);
+    if (is_4b) putValue<uint32_t>(&buffer, htonl(aggregator_asn));
+    else putValue<uint16_t>(&buffer, htons(aggregator_asn));
     putValue<uint32_t>(&buffer, aggregator);
 
     return write_value_sz + 3;
@@ -938,7 +938,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
         }
 
         BgpAsPathSegment path(true, type);
-        for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
+        for (int i = 0; i < n_asn; i++) path.value.push_back(ntohl(getValue<uint32_t>(&buffer)));
         as4_paths.push_back(path);
 
         // parsed asns
@@ -1027,7 +1027,7 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
 
         // put asns
         for (uint32_t asn : seg4.value) {
-            putValue<uint32_t>(&buffer, asn);
+            putValue<uint32_t>(&buffer, htonl(asn));
         }
 
         written_len += bytes_need;
@@ -1091,7 +1091,7 @@ ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    aggregator_asn4 = getValue<uint32_t>(&buffer);
+    aggregator_asn4 = ntohl(getValue<uint32_t>(&buffer));
     aggregator = getValue<uint32_t>(&buffer);
 
     return 11;
@@ -1108,7 +1108,7 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
 
     putValue<uint8_t>(&buffer, 11);
 
-    putValue<uint32_t>(&buffer, aggregator_asn4);
+    putValue<uint32_t>(&buffer, htonl(aggregator_asn4));
     putValue<uint32_t>(&buffer, aggregator);
 
     return 11;
