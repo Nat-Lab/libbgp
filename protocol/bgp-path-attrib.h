@@ -38,6 +38,7 @@ public:
     uint8_t type_code;
 
     BgpPathAttrib();
+    BgpPathAttrib(const uint8_t *value, uint16_t val_len);
 
     // get attribute type from buffer, return -1 if failed.
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);

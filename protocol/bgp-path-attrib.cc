@@ -24,9 +24,21 @@ BgpPathAttrib::BgpPathAttrib() {
     value_ptr = NULL;
 }
 
+BgpPathAttrib::BgpPathAttrib(const uint8_t *value, uint16_t val_len) : BgpPathAttrib() {
+    if (value_len > 0) assert(value != NULL);
+
+    value_ptr = (uint8_t *) malloc(val_len);
+    memcpy(value_ptr, value, value_len);
+}
+
 BgpPathAttrib::~BgpPathAttrib() {
     if (err_buf_len > 0) free(err_buf);
     if (value_ptr != NULL) free(value_ptr);
+}
+
+BgpPathAttrib* BgpPathAttrib::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttrib(value_ptr, value_len);
 }
 
 ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
@@ -355,14 +367,14 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
     uint8_t written_len = 0;
 
     for (const BgpAsPathSegment &seg : as_paths) {
-        if (seg.is_4b != !is_4b) { // maybe allow 2b-seg in 4b-mode?
+        if (seg.is_4b != is_4b) { // maybe allow 2b-seg in 4b-mode?
             _bgp_error("BgpPathAttribAsPath::write: segment 4b-mode and message 4b-mode mismatch.\n");
             return -1;
         }
 
         size_t asn_count = seg.value.size();
 
-        if (asn_count > is_4b ? 127 : 255) {
+        if (asn_count >= (is_4b ? 127 : 255)) {
             _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
             return -1;
         }
