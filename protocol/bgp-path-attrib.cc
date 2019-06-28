@@ -50,6 +50,11 @@ BgpPathAttrib* BgpPathAttrib::clone() const {
 ssize_t BgpPathAttrib::printFlags(size_t indent, uint8_t **to, size_t *buf_sz) const {
     size_t written = 0;
 
+    if (!(transitive || optional || partial || extended)) {
+        written += _print(indent, to, buf_sz, "Flags { }\n");
+        return written;
+    }
+
     written += _print(indent, to, buf_sz, "Flags {\n");
     indent++; {
         if (optional) written += _print(indent, to, buf_sz, "Optional\n");
