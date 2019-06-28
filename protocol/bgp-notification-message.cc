@@ -9,10 +9,21 @@ namespace bgpfsm {
 BgpNotificationMessage::BgpNotificationMessage() {
     type = NOTIFICATION;
     err_data = 0;
+    data_len = 0;
 }
 
 BgpNotificationMessage::~BgpNotificationMessage() {
     if (data_len > 0) free(data);
+}
+
+BgpNotificationMessage::BgpNotificationMessage(uint8_t errcode, uint8_t subcode, const uint8_t *data, uint16_t data_len) {
+    this->errcode = errcode;
+    this->subcode = subcode;
+    this->data_len = data_len;
+    if (data_len > 0) {
+        this->data = (uint8_t *) malloc(data_len);
+        memcpy(this->data, data, data_len);
+    }
 }
 
 ssize_t BgpNotificationMessage::parse(const uint8_t *from, size_t msg_sz) {
@@ -35,7 +46,7 @@ ssize_t BgpNotificationMessage::parse(const uint8_t *from, size_t msg_sz) {
 }
 
 ssize_t BgpNotificationMessage::write(uint8_t *to, size_t buf_sz) const {
-    if (buf_sz < data_len + 2) return -1;
+    if (buf_sz < (size_t) (data_len + 2)) return -1;
     uint8_t *buffer = to;
 
     putValue<uint8_t>(&buffer, errcode);
@@ -43,6 +54,31 @@ ssize_t BgpNotificationMessage::write(uint8_t *to, size_t buf_sz) const {
     memcpy(buffer, data, data_len);
 
     return data_len + 2;
+}
+
+ssize_t BgpNotificationMessage::print(size_t indent, uint8_t *buffer, size_t buffer_size) const {
+    uint8_t *to = buffer;
+    size_t buf_sz = buffer_size;
+
+    _print(indent, &to, &buf_sz, "NotificationMessage {\n");
+    const char *err_msg = bgp_error_code_str[errcode];
+    const char *err_sub_msg = bgp_error_code_str[0];
+    switch (errcode) {
+        case E_HEADER: err_sub_msg = bgp_header_error_subcode_str[subcode]; break;
+        case E_OPEN: err_sub_msg = bgp_open_error_subcode_str[subcode]; break;
+        case E_UPDATE: err_sub_msg = bgp_update_error_str[subcode]; break;
+        case E_FSM: err_sub_msg = bgp_fsm_error_str[subcode]; break;
+        case E_CEASE: err_sub_msg = bgp_cease_error_str[subcode]; break;
+    }
+    
+    indent++; {
+        _print(indent, &to, &buf_sz, "Error { %s }\n", err_msg);
+        _print(indent, &to, &buf_sz, "SubError { %s }\n", err_sub_msg);
+    }; indent--;
+
+    _print(indent, &to, &buf_sz, "}\n");
+
+    return buffer_size - buf_sz;
 }
 
 }

@@ -17,13 +17,10 @@ public:
     uint8_t *data;
     uint16_t data_len;
 
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz) const;
 
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;
-
-private:
-    uint8_t err_data;
 };
 
 }
