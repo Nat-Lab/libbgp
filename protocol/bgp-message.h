@@ -23,6 +23,9 @@ public:
     // write BGP message to buffer
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
 
+    // print BGP message as human-readable string
+    virtual ssize_t print(uint8_t *to, size_t buf_sz) const = 0;
+
     // get error code
     virtual uint8_t getErrorCode() const;
 

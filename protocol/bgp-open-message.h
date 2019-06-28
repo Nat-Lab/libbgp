@@ -24,6 +24,8 @@ public:
     // also avaliable thru getCapabilities()
     bool use_4b_asn;
 
+    ssize_t print(uint8_t *to, size_t buf_sz) const;
+
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;
 
