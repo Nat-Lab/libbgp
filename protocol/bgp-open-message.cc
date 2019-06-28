@@ -223,22 +223,20 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
     return 18;
 }
 
-ssize_t BgpOpenMessage::print(size_t indent, uint8_t *buffer, size_t buffer_size) const {
-    uint8_t *to = buffer;
-    size_t buf_left = buffer_size;
-
-    _print(indent, &to, &buf_left, "OpenMessage {\n");
+ssize_t BgpOpenMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_left) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_left, "OpenMessage {\n");
 
     indent++; {
-        _print(indent, &to, &buf_left, "Version { %d }\n", version);
-        _print(indent, &to, &buf_left, "MyAsn { %d }\n", my_asn);
-        _print(indent, &to, &buf_left, "HoldTimer { %d }\n", hold_time);
-        _print(indent, &to, &buf_left, "FourOctetSupport { %s }\n", use_4b_asn ? "true" : "false");
+        written += _print(indent, to, buf_left, "Version { %d }\n", version);
+        written += _print(indent, to, buf_left, "MyAsn { %d }\n", my_asn);
+        written += _print(indent, to, buf_left, "HoldTimer { %d }\n", hold_time);
+        written += _print(indent, to, buf_left, "FourOctetSupport { %s }\n", use_4b_asn ? "true" : "false");
     }; indent--;
 
-     _print(indent, &to, &buf_left, "}\n");
+    written += _print(indent, to, buf_left, "}\n");
 
-    return buffer_size - buf_left;
+    return written;
 }
 
 }
