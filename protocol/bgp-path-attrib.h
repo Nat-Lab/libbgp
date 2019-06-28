@@ -100,7 +100,8 @@ class BgpPathAttribOrigin : public BgpPathAttrib {
 public:
     BgpPathAttribOrigin();
     uint8_t origin;
-
+    
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -125,6 +126,7 @@ public:
     // is_4b: 4b ASN in AS_PATH?
     BgpPathAttribAsPath(bool is_4b);
 
+    BgpPathAttrib* clone() const;
     std::vector<BgpAsPathSegment> as_paths;
     bool is_4b;
 
@@ -143,6 +145,7 @@ public:
     BgpPathAttribNexthop();
     uint32_t next_hop;
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -152,6 +155,7 @@ public:
     BgpPathAttribMed();
     uint32_t med;
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -161,6 +165,7 @@ public:
     BgpPathAttribLocalPref();
     uint32_t local_pref;
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -169,6 +174,7 @@ class BgpPathAttribAtomicAggregate : public BgpPathAttrib {
 public:
     BgpPathAttribAtomicAggregate();
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -182,6 +188,7 @@ public:
 
     bool is_4b;
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -193,6 +200,7 @@ public:
 
     bool prepend(uint32_t asn);
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 private:
@@ -205,6 +213,7 @@ public:
     uint32_t aggregator;
     uint32_t aggregator_asn4;
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };
@@ -214,6 +223,7 @@ public:
     BgpPathAttribCommunity();
     uint32_t community;
 
+    BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 };

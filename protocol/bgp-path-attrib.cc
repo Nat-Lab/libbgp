@@ -183,6 +183,11 @@ BgpPathAttribOrigin::BgpPathAttribOrigin() {
     type_code = ORIGIN;
 }
 
+BgpPathAttrib* BgpPathAttribOrigin::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribOrigin(*this);
+}
+
 ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
@@ -255,6 +260,11 @@ bool BgpAsPathSegment::prepend(uint32_t asn) {
 
     value.insert(value.begin(), prepend_asn);
     return true;
+}
+
+BgpPathAttrib* BgpPathAttribAsPath::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribAsPath(*this);
 }
 
 ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
@@ -408,6 +418,11 @@ BgpPathAttribNexthop::BgpPathAttribNexthop() {
     transitive = true;
 }
 
+BgpPathAttrib* BgpPathAttribNexthop::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribNexthop(*this);
+}
+
 ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
@@ -461,6 +476,11 @@ BgpPathAttribMed::BgpPathAttribMed() {
     optional = true;
 }
 
+BgpPathAttrib* BgpPathAttribMed::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribMed(*this);
+}
+
 ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
@@ -509,6 +529,11 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
 
 BgpPathAttribLocalPref::BgpPathAttribLocalPref() {
     type_code = LOCAL_PREF;
+}
+
+BgpPathAttrib* BgpPathAttribLocalPref::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribLocalPref(*this);
 }
 
 ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
@@ -561,6 +586,11 @@ BgpPathAttribAtomicAggregate::BgpPathAttribAtomicAggregate() {
     type_code = ATOMIC_AGGREGATE;
 }
 
+BgpPathAttrib* BgpPathAttribAtomicAggregate::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribAtomicAggregate(*this);
+}
+
 ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
@@ -603,6 +633,12 @@ BgpPathAttribAggregator::BgpPathAttribAggregator(bool is_4b) {
     optional = true;
     transitive = true;
 }
+
+BgpPathAttrib* BgpPathAttribAggregator::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribAggregator(*this);
+}
+
 
 ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
@@ -668,6 +704,11 @@ BgpPathAttribAs4Path::BgpPathAttribAs4Path() {
     optional = true;
     transitive = true;
     type_code = AS4_PATH;
+}
+
+BgpPathAttrib* BgpPathAttribAs4Path::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribAs4Path(*this);
 }
 
 ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
@@ -815,6 +856,10 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
     return written_len + 3;
 }
 
+BgpPathAttrib* BgpPathAttribAs4Aggregator::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribAs4Aggregator(*this);
+}
 
 BgpPathAttribAs4Aggregator::BgpPathAttribAs4Aggregator() {
     type_code = AS4_AGGREGATOR;
@@ -871,11 +916,15 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
     return 11;
 }
 
-
 BgpPathAttribCommunity::BgpPathAttribCommunity() {
-    type_code = LOCAL_PREF;
+    type_code = COMMUNITY;
     optional = true;
     transitive = true;
+}
+
+BgpPathAttrib* BgpPathAttribCommunity::clone() const {
+    assert(err_buf_len == 0);
+    return new BgpPathAttribCommunity(*this);
 }
 
 ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
