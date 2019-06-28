@@ -575,7 +575,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     // now, put the length
     putValue<uint16_t>(&withdrawn_routes_len_ptr, htons(written_withdrawn_length));
 
-    tot_written += written_withdrawn_length + 1; // + 1: the length field
+    tot_written += written_withdrawn_length + 2; // + 2: the length field
 
     // keep a pointer to len field to write length to later
     uint8_t *route_attrib_len_ptr = buffer;
@@ -596,7 +596,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     // put the length
     putValue<uint16_t>(&route_attrib_len_ptr, htons(written_attrib_length));
 
-    tot_written += written_attrib_length + 1;
+    tot_written += written_attrib_length + 2;
 
     size_t written_nlri_len = 0;
 
