@@ -38,7 +38,12 @@ BgpPathAttrib::~BgpPathAttrib() {
 
 BgpPathAttrib* BgpPathAttrib::clone() const {
     assert(err_buf_len == 0);
-    return new BgpPathAttrib(value_ptr, value_len);
+    BgpPathAttrib *attr = new BgpPathAttrib(value_ptr, value_len);
+    attr->transitive = transitive;
+    attr->optional = optional;
+    attr->partial = partial;
+    attr->extened = attr->extened;
+    return attr;
 }
 
 ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
