@@ -228,37 +228,21 @@ BgpPathAttribAsPath::BgpPathAttribAsPath(bool is_4b) {
     type_code = AS_PATH;
 }
 
-BgpAsPathSegment2b::BgpAsPathSegment2b(uint8_t type) {
-    is_4b = false;
+BgpAsPathSegment::BgpAsPathSegment(bool is_4b, uint8_t type) {
+    this->is_4b = is_4b;
     this->type = type;
 }
 
-size_t BgpAsPathSegment2b::getCount() const {
+size_t BgpAsPathSegment::getCount() const {
     return value.size();
 }
 
-bool BgpAsPathSegment2b::prepend(uint32_t asn) {
-    if (value.size() >= 255) return false;
-    uint16_t prepend_asn = asn >= 0xffff ? 23456 : asn;
+bool BgpAsPathSegment::prepend(uint32_t asn) {
+    if (value.size() >= (is_4b ? 127 : 255)) return false;
+    uint32_t prepend_asn = is_4b ? asn : (asn >= 0xffff ? 23456 : asn);
 
     value.insert(value.begin(), prepend_asn);
     return true;
-}
-
-size_t BgpAsPathSegment4b::getCount() const {
-    return value.size();
-}
-
-bool BgpAsPathSegment4b::prepend(uint32_t asn) {
-    if (value.size() >= 255) return false;
-
-    value.insert(value.begin(), asn);
-    return true;
-}
-
-BgpAsPathSegment4b::BgpAsPathSegment4b(uint8_t type) {
-    is_4b = true;
-    this->type = type;
 }
 
 ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
@@ -303,15 +287,10 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
             return -1;
         }
 
-        if (is_4b) {
-            BgpAsPathSegment4b path(type);
-            for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
-            as_paths.push_back(path);
-        } else {
-            BgpAsPathSegment2b path(type);
-            for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint16_t>(&buffer));
-            as_paths.push_back(path);
-        }
+        BgpAsPathSegment path(is_4b, type);
+        if (is_4b) for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
+        else for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint16_t>(&buffer));
+        as_paths.push_back(path);
 
         // parsed asns
         parsed_len += asns_length;
@@ -323,16 +302,9 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
 }
 
 void BgpPathAttribAsPath::addSeg(uint32_t asn) {
-    if (is_4b) {
-        BgpAsPathSegment4b segment(AS_SEQUENCE);
-        segment.prepend(asn);
-        as_paths.push_back(segment);
-    } else {
-        uint16_t push_asn = asn > 0xffff ? 23456 : asn;
-        BgpAsPathSegment2b segment(AS_SEQUENCE);
-        segment.prepend(push_asn);
-        as_paths.push_back(segment);
-    }
+    BgpAsPathSegment segment(is_4b, AS_SEQUENCE);
+    segment.prepend(asn);
+    as_paths.push_back(segment);
 }
 
 bool BgpPathAttribAsPath::prepend(uint32_t asn) {
@@ -383,76 +355,32 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
     uint8_t written_len = 0;
 
     for (const BgpAsPathSegment &seg : as_paths) {
-        if (seg.is_4b) {
-            if (!is_4b) {
-                _bgp_error("BgpPathAttribAsPath::write: 4b-segment found in non-4b attrib.\n");
-                return -1;
-            }
-
-            const BgpAsPathSegment4b &seg4 = dynamic_cast<const BgpAsPathSegment4b &>(seg);
-
-            size_t asn_count = seg4.value.size();
-
-            if (asn_count > 127) {
-                _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
-                return -1;
-            }
-
-            // asn list + seg type & asn count
-            size_t bytes_need = asn_count * sizeof(uint32_t) + 2;
-
-            if (written_len + bytes_need > buffer_sz) {
-                _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
-                return -1;
-            }
-
-            // put type
-            putValue<uint8_t>(&buffer, seg4.type);
-
-            // put asn count
-            putValue<uint8_t>(&buffer, asn_count);
-
-            // put asns
-            for (uint32_t asn : seg4.value) {
-                putValue<uint32_t>(&buffer, asn);
-            }
-
-            written_len += bytes_need;
-        } else {
-            if (is_4b) {
-                _bgp_error("BgpPathAttribAsPath::write: 2b-segment found in non-2b attrib.\n");
-                return -1;
-            }
-            const BgpAsPathSegment2b &seg2 = dynamic_cast<const BgpAsPathSegment2b &>(seg);
-
-            size_t asn_count = seg2.value.size();
-
-            if (asn_count > 255) {
-                _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
-                return -1;
-            }
-
-            // asn list + seg type & asn count
-            size_t bytes_need = asn_count * sizeof(uint16_t) + 2;
-
-            if (written_len + bytes_need > buffer_sz) {
-                _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
-                return -1;
-            }
-
-            // put type
-            putValue<uint8_t>(&buffer, seg2.type);
-
-            // put asn count
-            putValue<uint8_t>(&buffer, asn_count);
-
-            // put asns
-            for (uint16_t asn : seg2.value) {
-                putValue<uint16_t>(&buffer, asn);
-            }
-
-            written_len += bytes_need;
+        if (seg.is_4b != !is_4b) { // maybe allow 2b-seg in 4b-mode?
+            _bgp_error("BgpPathAttribAsPath::write: segment 4b-mode and message 4b-mode mismatch.\n");
+            return -1;
         }
+
+        size_t asn_count = seg.value.size();
+
+        if (asn_count > is_4b ? 127 : 255) {
+            _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
+            return -1;
+        }
+
+        size_t bytes_need = asn_count * (is_4b ? sizeof(uint32_t) : sizeof(uint16_t)) + 2;
+
+        if (written_len + bytes_need > buffer_sz) {
+            _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
+            return -1;
+        }
+
+        putValue<uint8_t>(&buffer, seg.type);
+        putValue<uint8_t>(&buffer, asn_count);
+
+        if (seg.is_4b) for (uint32_t asn : seg.value) putValue<uint32_t>(&buffer, asn);
+        else for (uint16_t asn : seg.value) putValue<uint16_t>(&buffer, asn);
+
+        written_len += bytes_need;
     }
 
     // fill in the length.
@@ -772,7 +700,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
             return -1;
         }
 
-        BgpAsPathSegment4b path(type);
+        BgpAsPathSegment path(true, type);
         for (int i = 0; i < n_asn; i++) path.value.push_back(getValue<uint32_t>(&buffer));
         as4_paths.push_back(path);
 
@@ -786,7 +714,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
 }
 
 void BgpPathAttribAs4Path::addSeg(uint32_t asn) {
-    BgpAsPathSegment4b segment(AS_SEQUENCE);
+    BgpAsPathSegment segment(true, AS_SEQUENCE);
     segment.prepend(asn);
     as4_paths.push_back(segment);
 }
@@ -838,7 +766,7 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
 
     uint8_t written_len = 0;
 
-    for (const BgpAsPathSegment4b &seg4 : as4_paths) {
+    for (const BgpAsPathSegment &seg4 : as4_paths) {
         size_t asn_count = seg4.value.size();
 
         if (asn_count > 127) {

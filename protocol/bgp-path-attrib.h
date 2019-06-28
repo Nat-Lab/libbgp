@@ -109,29 +109,13 @@ enum BgpAsPathSegmentType {
     AS_SEQUENCE = 2
 };
 
-// FIXME: AS_PATH SEG related OOP
 class BgpAsPathSegment {
 public:
+    BgpAsPathSegment(bool is_4b, uint8_t type);
     bool is_4b;
     uint8_t type;
-    virtual size_t getCount() const { assert(false); return 0; }
-    virtual bool prepend(uint32_t asn) { assert(false); return false; }
-    virtual ~BgpAsPathSegment() {}
-};
-
-class BgpAsPathSegment2b : public BgpAsPathSegment {
-public:
     size_t getCount() const;
     bool prepend(uint32_t asn);
-    BgpAsPathSegment2b(uint8_t type);
-    std::vector<uint16_t> value;
-};
-
-class BgpAsPathSegment4b : public BgpAsPathSegment {
-public:
-    size_t getCount() const;
-    bool prepend(uint32_t asn);
-    BgpAsPathSegment4b(uint8_t type);
     std::vector<uint32_t> value;
 };
 
@@ -204,7 +188,7 @@ public:
 class BgpPathAttribAs4Path : public BgpPathAttrib {
 public:
     BgpPathAttribAs4Path();
-    std::vector<BgpAsPathSegment4b> as4_paths;
+    std::vector<BgpAsPathSegment> as4_paths;
 
     bool prepend(uint32_t asn);
 
