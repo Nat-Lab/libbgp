@@ -4,7 +4,7 @@
 namespace bgpfsm {
 
 ssize_t Serializable::print(uint8_t *to, size_t buf_sz) const {
-    return print(0, to, buf_sz);
+    return doPrint(0, &to, &buf_sz);
 }
 
 ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, const char* format, ...) {
