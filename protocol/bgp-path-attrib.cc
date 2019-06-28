@@ -4,6 +4,7 @@
 #include "value-op.h"
 #include <stdlib.h>
 #include <assert.h>
+#include <arpa/inet.h>
 
 namespace bgpfsm {
 
@@ -61,15 +62,15 @@ ssize_t BgpPathAttrib::printFlags(size_t indent, uint8_t **to, size_t *buf_sz) c
     return written;
 }
 
-ssize_t BgpPathAttrib::print(size_t indent, uint8_t *to, size_t buf_sz) const {
+ssize_t BgpPathAttrib::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
     size_t written = 0;
 
-    written += _print(indent, &to, &buf_sz, "UnknowAttribute {\n");
+    written += _print(indent, to, buf_sz, "UnknowAttribute {\n");
     indent++; {
-        written += printFlags(indent, &to, &buf_sz);
-        written += _print(indent, &to, &buf_sz, "TypeCode { %d }\n", type_code);
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "TypeCode { %d }\n", type_code);
     }; indent--;
-    written += _print(indent, &to, &buf_sz, "}\n");
+    written += _print(indent, to, buf_sz, "}\n");
 
     return written;
 }
@@ -221,6 +222,28 @@ BgpPathAttrib* BgpPathAttribOrigin::clone() const {
     return new BgpPathAttribOrigin(*this);
 }
 
+ssize_t BgpPathAttribOrigin::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    const char *origin_name = NULL;
+
+    switch(origin) {
+        case 0: origin_name = "IGP";
+        case 1: origin_name= "EGP";
+        case 2: origin_name = "Incomplete";
+        defualt:  origin_name = "Invalid";
+    }
+
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "OriginAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "Origin { %s }\n", origin_name);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
@@ -298,6 +321,38 @@ bool BgpAsPathSegment::prepend(uint32_t asn) {
 BgpPathAttrib* BgpPathAttribAsPath::clone() const {
     assert(err_buf_len == 0);
     return new BgpPathAttribAsPath(*this);
+}
+
+ssize_t BgpPathAttribAsPath::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "AsPathAttribute {\n");
+    indent++; {
+        written += _print(indent, to, buf_sz, "FourOctet { %s }\n", is_4b ? "true" : "false");
+        written += printFlags(indent, to, buf_sz);
+        if (as_paths.size() == 0) written += _print(indent, to, buf_sz, "AsPathSegments { } \n");
+        else {
+            written += _print(indent, to, buf_sz, "AsPathSegments {\n");
+            indent++; {
+                for (const BgpAsPathSegment &seg : as_paths) {
+                    switch (seg.type) {
+                        case 1: written += _print(indent, to, buf_sz, "AsSet {\n"); break;
+                        case 2: written += _print(indent, to, buf_sz, "AsSequence {\n"); break;
+                        default: written += _print(indent, to, buf_sz, "Invalid {\n"); break;   
+                    }
+                    indent++; {
+                        for (uint32_t asn : seg.value) {
+                            written += _print(indent, to, buf_sz, "%d\n", asn);
+                        }
+                    }; indent--;
+                    written += _print(indent, to, buf_sz, "}\n");
+                }
+            }; indent--;
+            written += _print(indent, to, buf_sz, "}\n");
+        }
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
 }
 
 ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
@@ -451,6 +506,19 @@ BgpPathAttribNexthop::BgpPathAttribNexthop() {
     transitive = true;
 }
 
+ssize_t BgpPathAttribNexthop::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "NexthopAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "Nexthop { %s }\n", inet_ntoa(*(struct in_addr*) &next_hop));
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 BgpPathAttrib* BgpPathAttribNexthop::clone() const {
     assert(err_buf_len == 0);
     return new BgpPathAttribNexthop(*this);
@@ -509,6 +577,19 @@ BgpPathAttribMed::BgpPathAttribMed() {
     optional = true;
 }
 
+ssize_t BgpPathAttribMed::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MedAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "Med { %d }\n", med);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 BgpPathAttrib* BgpPathAttribMed::clone() const {
     assert(err_buf_len == 0);
     return new BgpPathAttribMed(*this);
@@ -562,6 +643,19 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
 
 BgpPathAttribLocalPref::BgpPathAttribLocalPref() {
     type_code = LOCAL_PREF;
+}
+
+ssize_t BgpPathAttribLocalPref::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "LocalPrefAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "LocalPref { %d }\n", local_pref);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
 }
 
 BgpPathAttrib* BgpPathAttribLocalPref::clone() const {
@@ -619,6 +713,19 @@ BgpPathAttribAtomicAggregate::BgpPathAttribAtomicAggregate() {
     type_code = ATOMIC_AGGREGATE;
 }
 
+
+ssize_t BgpPathAttribAtomicAggregate::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "AtomicAggregateAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 BgpPathAttrib* BgpPathAttribAtomicAggregate::clone() const {
     assert(err_buf_len == 0);
     return new BgpPathAttribAtomicAggregate(*this);
@@ -667,11 +774,24 @@ BgpPathAttribAggregator::BgpPathAttribAggregator(bool is_4b) {
     transitive = true;
 }
 
+ssize_t BgpPathAttribAggregator::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "AggregatorAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "Aggregator { %s }\n", inet_ntoa(*(struct in_addr*) &aggregator));
+        written += _print(indent, to, buf_sz, "AggregatorAsn { %d }\n", aggregator_asn);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 BgpPathAttrib* BgpPathAttribAggregator::clone() const {
     assert(err_buf_len == 0);
     return new BgpPathAttribAggregator(*this);
 }
-
 
 ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
@@ -737,6 +857,37 @@ BgpPathAttribAs4Path::BgpPathAttribAs4Path() {
     optional = true;
     transitive = true;
     type_code = AS4_PATH;
+}
+
+ssize_t BgpPathAttribAs4Path::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "As4PathAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        if (as4_paths.size() == 0) written += _print(indent, to, buf_sz, "As4PathSegments { } \n");
+        else {
+            written += _print(indent, to, buf_sz, "As4PathSegments {\n");
+            indent++; {
+                for (const BgpAsPathSegment &seg : as4_paths) {
+                    switch (seg.type) {
+                        case 1: written += _print(indent, to, buf_sz, "AsSet {\n"); break;
+                        case 2: written += _print(indent, to, buf_sz, "AsSequence {\n"); break;
+                        default: written += _print(indent, to, buf_sz, "Invalid {\n"); break;   
+                    }
+                    indent++; {
+                        for (uint32_t asn : seg.value) {
+                            written += _print(indent, to, buf_sz, "%d\n", asn);
+                        }
+                    }; indent--;
+                    written += _print(indent, to, buf_sz, "}\n");
+                }
+            }; indent--;
+            written += _print(indent, to, buf_sz, "}\n");
+        }
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
 }
 
 BgpPathAttrib* BgpPathAttribAs4Path::clone() const {
@@ -900,6 +1051,20 @@ BgpPathAttribAs4Aggregator::BgpPathAttribAs4Aggregator() {
     transitive = true;
 }
 
+ssize_t BgpPathAttribAs4Aggregator::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "Aggregator4Attribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "Aggregator { %s }\n", inet_ntoa(*(struct in_addr*) &aggregator));
+        written += _print(indent, to, buf_sz, "AggregatorAsn { %d }\n", aggregator_asn4);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
@@ -953,6 +1118,19 @@ BgpPathAttribCommunity::BgpPathAttribCommunity() {
     type_code = COMMUNITY;
     optional = true;
     transitive = true;
+}
+
+ssize_t BgpPathAttribCommunity::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "CommunityAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "Community { %d:%d }\n", *(uint16_t *) &community, *(uint16_t *) &community + 1);
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
 }
 
 BgpPathAttrib* BgpPathAttribCommunity::clone() const {

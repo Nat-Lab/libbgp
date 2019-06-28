@@ -45,7 +45,7 @@ public:
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
 
     // print the attribute
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz) const;
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 
     // parse attribute 
     ssize_t parse(const uint8_t *buffer, size_t length);
@@ -111,7 +111,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 enum BgpAsPathSegmentType {
@@ -143,7 +143,7 @@ public:
 
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 private:
     // addSeg: add a new AS_SEQUENCE with one ASN to AS_PATH 
     void addSeg(uint32_t asn);
@@ -157,7 +157,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 class BgpPathAttribMed : public BgpPathAttrib {
@@ -168,7 +168,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 class BgpPathAttribLocalPref : public BgpPathAttrib {
@@ -179,7 +179,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 class BgpPathAttribAtomicAggregate : public BgpPathAttrib {
@@ -189,7 +189,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 class BgpPathAttribAggregator : public BgpPathAttrib {
@@ -204,7 +204,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 class BgpPathAttribAs4Path : public BgpPathAttrib {
@@ -217,7 +217,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 private:
     void addSeg(uint32_t asn);
 };
@@ -231,7 +231,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 class BgpPathAttribCommunity : public BgpPathAttrib {
@@ -242,7 +242,7 @@ public:
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
-    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 };
 
 }
