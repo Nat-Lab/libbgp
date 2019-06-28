@@ -41,7 +41,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     version = getValue<uint8_t> (&buffer);
     my_asn = ntohs(getValue<uint16_t> (&buffer));
     hold_time = ntohs(getValue<uint16_t> (&buffer));
-    bgp_id = ntohl(getValue<uint32_t> (&buffer));
+    bgp_id = getValue<uint32_t> (&buffer);
 
     // TODO: bgp-id verify
 
@@ -188,7 +188,7 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
     putValue<uint8_t>(&buffer, version);
     putValue<uint16_t>(&buffer, htons(my_asn >= 0xffff ? 23456 : my_asn));
     putValue<uint16_t>(&buffer, htons(hold_time));
-    putValue<uint32_t>(&buffer, htonl(bgp_id));
+    putValue<uint32_t>(&buffer, bgp_id);
     
     if (!use_4b_asn) {
         // no opt_param

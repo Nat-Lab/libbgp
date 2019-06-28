@@ -43,7 +43,7 @@ typedef struct BgpConfig {
     // peer ASN, MUST be < 65535 if use_4b_asn != 1
     uint32_t peer_asn;
 
-    // BGP ID in host byte order
+    // BGP ID in network byte order
     uint32_t router_id;
 
     // when processing update from the peer, routes with nexthop outside the 
@@ -51,7 +51,7 @@ typedef struct BgpConfig {
     // ignored. These two values also affect the nexthop selection behavior
     // when sending updates to the peer.
 
-    // the prefix of the peering LAN in host-byte order.
+    // the prefix of the peering LAN in network-byte order.
     uint32_t peering_lan_prefix;
 
     // the mask of the peering LAN. (e.g., for /24, peering_lan_length should 

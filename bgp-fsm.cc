@@ -320,7 +320,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 
 int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
     if(is_new) {
-        if (config.router_id > peer_bgp_id) {
+        if (ntohl(config.router_id) > ntohl(peer_bgp_id)) {
             // this is a new connection, and "we" have higer ID, there's 
             // already a connection so THIS fsm should be dispose. since 
             // THIS fsm is created by peer connecting to us.
