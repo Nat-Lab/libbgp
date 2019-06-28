@@ -19,7 +19,7 @@ BgpPathAttrib::BgpPathAttrib() {
     err_buf_len = 0;
     err_code = 0;
     err_subcode = 0;
-    optional = transitive = partial = extened = false;
+    optional = transitive = partial = extended = false;
     err_buf = NULL;
     value_ptr = NULL;
 }
@@ -42,8 +42,36 @@ BgpPathAttrib* BgpPathAttrib::clone() const {
     attr->transitive = transitive;
     attr->optional = optional;
     attr->partial = partial;
-    attr->extened = attr->extened;
+    attr->extended = attr->extended;
     return attr;
+}
+
+ssize_t BgpPathAttrib::printFlags(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+
+    written += _print(indent, to, buf_sz, "Flags {\n");
+    indent++; {
+        if (optional) written += _print(indent, to, buf_sz, "Optional\n");
+        if (transitive) written += _print(indent, to, buf_sz, "Transitive\n");
+        if (partial) written += _print(indent, to, buf_sz, "Partial\n");
+        if (extended) written += _print(indent, to, buf_sz, "Extended\n");
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
+ssize_t BgpPathAttrib::print(size_t indent, uint8_t *to, size_t buf_sz) const {
+    size_t written = 0;
+
+    written += _print(indent, &to, &buf_sz, "UnknowAttribute {\n");
+    indent++; {
+        written += _print(indent, &to, &buf_sz, "TypeCode { %d }\n", type_code);
+        written += printFlags(indent, &to, &buf_sz);
+    }; indent--;
+    written += _print(indent, &to, &buf_sz, "}\n");
+
+    return written;
 }
 
 ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
@@ -87,7 +115,7 @@ ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (!extened && value_len >= 0xffff) {
+    if (!extended && value_len >= 0xffff) {
         _bgp_error("BgpPathAttrib::write: non-extended value has size > 65535: %d\n", value_len);
         return -1;
     }
@@ -95,7 +123,7 @@ ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
     if (writeHeader(to, buffer_sz) < 2) return -1;
 
     uint8_t *buffer = to + 2;
-    if (extened) putValue<uint16_t>(&buffer, value_len);
+    if (extended) putValue<uint16_t>(&buffer, value_len);
     else putValue<uint8_t>(&buffer, value_len);
 
     if (value_len > 0) memcpy(buffer, value_ptr, value_len);
@@ -116,15 +144,15 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     optional = (flags >> 7) & 0x1;
     transitive = (flags >> 6) & 0x1;
     partial = (flags >> 5) & 0x1;
-    extened = (flags >> 4) & 0x1;
+    extended = (flags >> 4) & 0x1;
     type_code = getValue<uint8_t>(&buffer);
-    if (extened && buffer_sz < 4) {
+    if (extended && buffer_sz < 4) {
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
-        _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size (extened but size < 4).\n");
+        _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size (extended but size < 4).\n");
         return -1;
     }
 
-    if (extened) value_len = getValue<uint16_t>(&buffer);
+    if (extended) value_len = getValue<uint16_t>(&buffer);
     else value_len = getValue<uint8_t>(&buffer);
 
     if (value_len > buffer_sz - 3) {
@@ -138,17 +166,17 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
         return -1;
     }
 
-    return extened ? 4 : 3;
+    return extended ? 4 : 3;
 }
 
 ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
-    if (buffer_sz < (extened ? 3 : 4)) {
+    if (buffer_sz < (extended ? 3 : 4)) {
         _bgp_error("BgpPathAttrib::writeHeader: dst buffer too small: %d\n", buffer_sz);
         return -1;
     }
     
     uint8_t *buffer = to;
-    uint8_t flags = (optional << 7) | (transitive << 6)| (partial << 5) | (extened << 4);
+    uint8_t flags = (optional << 7) | (transitive << 6)| (partial << 5) | (extended << 4);
     putValue<uint8_t>(&buffer, flags);
     putValue<uint8_t>(&buffer, type_code);
     return 2;
@@ -213,7 +241,7 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (optional || !transitive || extened || partial) {
+    if (optional || !transitive || extended || partial) {
         _bgp_error("BgpPathAttribOrigin::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -278,7 +306,7 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
 
     assert(type_code == AS_PATH);
 
-    if (optional || !transitive || extened || partial) {
+    if (optional || !transitive || extended || partial) {
         _bgp_error("BgpPathAttribAsPath::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from , value_len + header_length);
         return -1;
@@ -448,7 +476,7 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (optional || !transitive || extened || partial) {
+    if (optional || !transitive || extended || partial) {
         _bgp_error("BgpPathAttribNexthop::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -506,7 +534,7 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (!optional || transitive || extened || partial) {
+    if (!optional || transitive || extended || partial) {
         _bgp_error("BgpPathAttribMed::parse: bad flag bits, must be optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -561,7 +589,7 @@ ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (optional || transitive || extened || partial) {
+    if (optional || transitive || extended || partial) {
         _bgp_error("BgpPathAttribLocalPref::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -608,7 +636,7 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
         return -1;
     }
 
-    if (optional || transitive || extened || partial) {
+    if (optional || transitive || extended || partial) {
         _bgp_error("BgpPathAttribAtomicAggregate::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -666,7 +694,7 @@ ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (!optional || !transitive || extened || partial) {
+    if (!optional || !transitive || extended || partial) {
         _bgp_error("BgpPathAttribAggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -722,7 +750,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
 
     assert(type_code == AS4_PATH);
 
-    if (!optional || !transitive || extened || partial) {
+    if (!optional || !transitive || extended || partial) {
         _bgp_error("BgpPathAttribAs4Path::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from , value_len + header_length);
         return -1;
@@ -892,7 +920,7 @@ ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (!optional || !transitive || extened || partial) {
+    if (!optional || !transitive || extended || partial) {
         _bgp_error("BgpPathAttribAs4Aggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
@@ -952,7 +980,7 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (optional || transitive || extened || partial) {
+    if (optional || transitive || extended || partial) {
         _bgp_error("BgpPathAttribCommunity::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;

@@ -35,7 +35,7 @@ public:
     bool optional;
     bool transitive;
     bool partial;
-    bool extened;
+    bool extended;
     uint8_t type_code;
 
     BgpPathAttrib();
@@ -45,13 +45,13 @@ public:
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
 
     // print the attribute
-    virtual ssize_t print(size_t indent, uint8_t *to, size_t buf_sz);
+    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz) const;
 
     // parse attribute 
-    virtual ssize_t parse(const uint8_t *buffer, size_t length);
+    ssize_t parse(const uint8_t *buffer, size_t length);
 
     // write attribute
-    virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
+    ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 
     // clone the attribute
     virtual BgpPathAttrib* clone() const;
@@ -73,6 +73,9 @@ public:
 protected:
     // utility function to parse header (flags, typecode, length) from buffer
     ssize_t parseHeader(const uint8_t *buffer, size_t length);
+
+    // utility function to print flags
+    ssize_t printFlags(size_t indent, uint8_t **to, size_t *buf_sz) const;
 
     // utility function to write header (flags, type_code) to buffer. notice
     // that length is not write to buffer by this function.
