@@ -1,6 +1,7 @@
 #ifndef BGP_PATH_ATTR_H
 #define BGP_PATH_ATTR_H
 
+#include "serializable.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <assert.h>
@@ -29,7 +30,7 @@ enum BgpPathAttribType {
     // TODO: RFC4760
 };
 
-class BgpPathAttrib {
+class BgpPathAttrib : public Serializable {
 public:
     bool optional;
     bool transitive;
@@ -42,6 +43,9 @@ public:
 
     // get attribute type from buffer, return -1 if failed.
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
+
+    // print the attribute
+    virtual ssize_t print(uint8_t *to, size_t buf_sz) const;
 
     // parse attribute 
     virtual ssize_t parse(const uint8_t *buffer, size_t length);

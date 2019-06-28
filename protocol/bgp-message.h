@@ -2,6 +2,7 @@
 #define BGP_MSG_H_
 #include <stdint.h>
 #include <unistd.h>
+#include "serializable.h"
 
 namespace bgpfsm {
 
@@ -12,19 +13,10 @@ enum BgpMessageType {
     NOTIFICATION = 4
 };
 
-class BgpMessage {
+class BgpMessage : public Serializable {
 public:
     BgpMessage();
     BgpMessageType type;
-
-    // prase BGP message from buffer
-    virtual ssize_t parse(const uint8_t *from, size_t msg_sz) = 0;
-
-    // write BGP message to buffer
-    virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
-
-    // print BGP message as human-readable string
-    virtual ssize_t print(uint8_t *to, size_t buf_sz) const = 0;
 
     // get error code
     virtual uint8_t getErrorCode() const;
