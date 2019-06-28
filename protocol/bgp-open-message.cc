@@ -183,15 +183,10 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
         return -1;
     }
 
-    if (!use_4b_asn && my_asn > 65535) {
-        _bgp_error("BgpOpenMessage::write: my_asn %d is not 2-bytes but use_4b_asn is false.\n", my_asn);
-        return -1;
-    }
-
     uint8_t *buffer = to;
 
     putValue<uint8_t>(&buffer, version);
-    putValue<uint16_t>(&buffer, htons(my_asn > 65535 ? 23456 : my_asn));
+    putValue<uint16_t>(&buffer, htons(my_asn >= 0xffff ? 23456 : my_asn));
     putValue<uint16_t>(&buffer, htons(hold_time));
     putValue<uint32_t>(&buffer, htonl(bgp_id));
     
@@ -226,6 +221,24 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
     putValue<uint32_t>(&buffer, htonl(my_asn));
 
     return 18;
+}
+
+ssize_t BgpOpenMessage::print(size_t indent, uint8_t *buffer, size_t buffer_size) const {
+    uint8_t *to = buffer;
+    size_t buf_left = buffer_size;
+
+    _print(indent, &to, &buf_left, "OpenMessage {\n");
+
+    indent++; {
+        _print(indent, &to, &buf_left, "Version { %d }\n", version);
+        _print(indent, &to, &buf_left, "MyAsn { %d }\n", my_asn);
+        _print(indent, &to, &buf_left, "HoldTimer { %d }\n", hold_time);
+        _print(indent, &to, &buf_left, "FourOctetSupport { %s }\n", use_4b_asn ? "true" : "false");
+    }; indent--;
+
+     _print(indent, &to, &buf_left, "}\n");
+
+    return buffer_size - buf_left;
 }
 
 }
