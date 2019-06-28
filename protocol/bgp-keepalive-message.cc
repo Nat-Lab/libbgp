@@ -23,4 +23,8 @@ ssize_t BgpKeepaliveMessage::write(uint8_t *to, size_t msg_sz) const {
     return 0;
 }
 
+ssize_t BgpKeepaliveMessage::print(size_t indent, uint8_t *to, size_t buf_sz) const {
+    return _print(indent, &to, &buf_sz, "KeepaliveMessage { }\n");
+}
+
 }
