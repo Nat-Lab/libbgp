@@ -163,7 +163,7 @@ bool BgpUpdateMessage::restoreAsPath() {
                 if (asn == 23456) {
                     _bgp_error("BgpUpdateMessage::restoreAsPath: warning: AS_TRANS found but no AS4_PATH.\n");
                 }
-                if(!new_seg.prepend(asn)) return false;
+                new_seg.value.push_back(asn);
             }
 
             new_segs.push_back(new_seg);
@@ -235,7 +235,7 @@ bool BgpUpdateMessage::restoreAsPath() {
                 if (incr_iter) local_iter++;
             }
             
-            if(!new_seg.prepend(new_asn)) return false;
+            new_seg.value.push_back(new_asn);
         }
 
         new_segs.push_back(new_seg);
@@ -265,7 +265,7 @@ bool BgpUpdateMessage::downgradeAsPath() {
         BgpAsPathSegment new_seg (false, seg4.type);
         for (uint32_t asn : seg4.value) {
             uint16_t new_as = asn >= 0xffff ? 23456 : asn;
-            if(!new_seg.prepend(new_as)) return false;
+            new_seg.value.push_back(new_as);
         }
 
         path4.as4_paths.push_back(seg4);
