@@ -56,11 +56,10 @@ ssize_t BgpNotificationMessage::write(uint8_t *to, size_t buf_sz) const {
     return data_len + 2;
 }
 
-ssize_t BgpNotificationMessage::print(size_t indent, uint8_t *buffer, size_t buffer_size) const {
-    uint8_t *to = buffer;
-    size_t buf_sz = buffer_size;
+ssize_t BgpNotificationMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
 
-    _print(indent, &to, &buf_sz, "NotificationMessage {\n");
+    written += _print(indent, to, buf_sz, "NotificationMessage {\n");
     const char *err_msg = bgp_error_code_str[errcode];
     const char *err_sub_msg = bgp_error_code_str[0];
     switch (errcode) {
@@ -72,13 +71,13 @@ ssize_t BgpNotificationMessage::print(size_t indent, uint8_t *buffer, size_t buf
     }
     
     indent++; {
-        _print(indent, &to, &buf_sz, "Error { %s }\n", err_msg);
-        _print(indent, &to, &buf_sz, "SubError { %s }\n", err_sub_msg);
+        written += _print(indent, to, buf_sz, "Error { %s }\n", err_msg);
+        written += _print(indent, to, buf_sz, "SubError { %s }\n", err_sub_msg);
     }; indent--;
 
-    _print(indent, &to, &buf_sz, "}\n");
+    written += _print(indent, to, buf_sz, "}\n");
 
-    return buffer_size - buf_sz;
+    return written;
 }
 
 }
