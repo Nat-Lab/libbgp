@@ -20,7 +20,7 @@ public:
 
 class RouteAddEvent : public RouteEvent {
 public:
-    std::vector<BgpPathAttrib> attribs;
+    std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     std::vector<Route> routes;
 };
 

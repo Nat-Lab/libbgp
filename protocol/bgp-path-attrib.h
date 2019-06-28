@@ -48,6 +48,9 @@ public:
     // write attribute
     virtual ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
 
+    // clone the attribute
+    virtual BgpPathAttrib* clone() const;
+
     // get error code
     virtual uint8_t getErrorCode() const;
 
@@ -106,6 +109,7 @@ enum BgpAsPathSegmentType {
     AS_SEQUENCE = 2
 };
 
+// FIXME: AS_PATH SEG related OOP
 class BgpAsPathSegment {
 public:
     bool is_4b;

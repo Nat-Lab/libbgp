@@ -12,24 +12,24 @@ BgpUpdateMessage::BgpUpdateMessage(bool use_4b_asn) {
 }
 
 BgpPathAttrib& BgpUpdateMessage::getAttrib(uint8_t type) {
-    for (BgpPathAttrib &attrib : path_attribute) {
-        if (attrib.type_code == type) return attrib;
+    for (std::shared_ptr<BgpPathAttrib> attrib : path_attribute) {
+        if (attrib->type_code == type) return *attrib;
     }
 
     throw "no such attribute";
 }
 
 const BgpPathAttrib& BgpUpdateMessage::getAttrib(uint8_t type) const {
-    for (const BgpPathAttrib &attrib : path_attribute) {
-        if (attrib.type_code == type) return attrib;
+    for (const std::shared_ptr<BgpPathAttrib> &attrib : path_attribute) {
+        if (attrib->type_code == type) return *attrib;
     }
 
     throw "no such attribute";
 }
 
 bool BgpUpdateMessage::hasAttrib(uint8_t type) const {
-    for (const BgpPathAttrib &attrib : path_attribute) {
-        if (attrib.type_code == type) return true;
+    for (const std::shared_ptr<BgpPathAttrib> &attrib : path_attribute) {
+        if (attrib->type_code == type) return true;
     }
 
     return false;
@@ -38,18 +38,21 @@ bool BgpUpdateMessage::hasAttrib(uint8_t type) const {
 bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
     if (hasAttrib(attrib.type_code)) return false;
 
-    path_attribute.push_back(attrib);
+    path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib.clone()));
     return true;
 }
 
-bool BgpUpdateMessage::setAttribs(const std::vector<BgpPathAttrib> &attrs) {
-    path_attribute = attrs;
+bool BgpUpdateMessage::setAttribs(const std::vector<std::shared_ptr<BgpPathAttrib>> &attrs) {
+    path_attribute.clear();
+    for (const std::shared_ptr<BgpPathAttrib> &attrib : path_attribute) {
+        path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib->clone()));
+    }
     return true;
 }
 
 bool BgpUpdateMessage::dropAttrib(uint8_t type) {
     for (auto attr = path_attribute.begin(); attr != path_attribute.end(); attr++) {
-        if (attr->type_code == type) {
+        if ((*attr)->type_code == type) {
             path_attribute.erase(attr);
             return true;
         }
@@ -62,7 +65,7 @@ bool BgpUpdateMessage::dropNonTransitive() {
     bool removed = false;
 
     for (auto attr = path_attribute.begin(); attr != path_attribute.end();) {
-        if (!attr->transitive) {
+        if (!(*attr)->transitive) {
             removed = true;
             path_attribute.erase(attr);
         } else attr++;
@@ -94,9 +97,9 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
         }
 
         if (!hasAttrib(AS_PATH)) {
-            BgpPathAttribAsPath path(use_4b_asn);
-            path.prepend(asn);
-            path_attribute.push_back(path);
+            BgpPathAttribAsPath *path = new BgpPathAttribAsPath(use_4b_asn);
+            path->prepend(asn);
+            path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(path));
             return true;
         }
 
@@ -116,9 +119,9 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
         uint16_t prep_asn = asn >= 0xffff ? 23456 : asn;
 
         if (!hasAttrib(AS_PATH)) {
-            BgpPathAttribAsPath path(use_4b_asn);
-            path.prepend(prep_asn);
-            path_attribute.push_back(path);
+            BgpPathAttribAsPath *path = new BgpPathAttribAsPath(use_4b_asn);
+            path->prepend(prep_asn);
+            path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(path));
         } else {
             BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
             if (path.is_4b) {
@@ -357,9 +360,9 @@ bool BgpUpdateMessage::validateAttribs() {
 
     uint32_t typecode_bitsmap = 0;
 
-    for (std::vector<BgpPathAttrib>::const_iterator attr_iter = path_attribute.begin(); 
+    for (std::vector<std::shared_ptr<BgpPathAttrib>>::const_iterator attr_iter = path_attribute.begin(); 
         attr_iter != path_attribute.end(); attr_iter++) {
-        uint8_t type_code = attr_iter->type_code;
+        uint8_t type_code = (*attr_iter)->type_code;
 
         if (type_code == AS_PATH) has_as_path = true;
         else if (type_code == NEXT_HOP) has_nexthop = true;
@@ -489,8 +492,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
         buffer += attrib_parsed;
         parsed_attribute_len += attrib_parsed;
-        path_attribute.push_back(*attrib);
-        delete attrib;
+        path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib));
     }
 
     if (!validateAttribs()) return -1;
@@ -585,11 +587,11 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     size_t written_attrib_length = 0;
 
-    for (const BgpPathAttrib &attr : path_attribute) {
+    for (const std::shared_ptr<BgpPathAttrib> &attr : path_attribute) {
         ssize_t buf_left = buf_sz - written_attrib_length - tot_written;
         assert(buf_left >= 0);
 
-        ssize_t write_ret = attr.write(buffer, buf_left);
+        ssize_t write_ret = attr->write(buffer, buf_left);
 
         if (write_ret < 0) return -1;
         written_attrib_length += write_ret;

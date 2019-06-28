@@ -2,6 +2,7 @@
 #define BGP_UPDATE_MSG_H_
 #include <vector>
 #include <unistd.h>
+#include <memory>
 #include "bgp-message.h"
 #include "bgp-path-attrib.h"
 
@@ -10,7 +11,7 @@ namespace bgpfsm {
 class BgpUpdateMessage : public BgpMessage {
 public:
     std::vector<Route> withdrawn_routes;
-    std::vector<BgpPathAttrib> path_attribute;
+    std::vector<std::shared_ptr<BgpPathAttrib>> path_attribute;
     std::vector<Route> nlri;
 
     BgpUpdateMessage(bool use_4b_asn);
@@ -26,11 +27,11 @@ public:
     // return true if this type of attribute is in the message
     bool hasAttrib(uint8_t type) const;
 
-    // add an attribute, return false if attrib of same type already exists
+    // copy and add an attribute, return false if attrib of same type already exists
     bool addAttrib(const BgpPathAttrib &attrib);
 
-    // replace attribute list with attrs
-    bool setAttribs(const std::vector<BgpPathAttrib> &attrs);
+    // copy and replace attribute list with attrs
+    bool setAttribs(const std::vector<std::shared_ptr<BgpPathAttrib>> &attrs);
 
     // utility function to remove attribute by type
     bool dropAttrib(uint8_t type);
