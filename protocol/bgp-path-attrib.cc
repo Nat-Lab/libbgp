@@ -229,7 +229,7 @@ ssize_t BgpPathAttribOrigin::doPrint(size_t indent, uint8_t **to, size_t *buf_sz
         case 0: origin_name = "IGP";
         case 1: origin_name= "EGP";
         case 2: origin_name = "Incomplete";
-        defualt:  origin_name = "Invalid";
+        default: origin_name = "Invalid";
     }
 
     size_t written = 0;
