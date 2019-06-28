@@ -75,7 +75,7 @@ ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 2) return -1;
 
     uint8_t *buffer = to + 2;
     if (extened) putValue<uint16_t>(&buffer, value_len);
@@ -126,7 +126,7 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
 
 ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < (extened ? 3 : 4)) {
-        _bgp_error("BgpPathAttrib::writeHeader: dst buffer too small.\n");
+        _bgp_error("BgpPathAttrib::writeHeader: dst buffer too small: %d\n", buffer_sz);
         return -1;
     }
     
@@ -214,7 +214,7 @@ ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 1); // length = 1
@@ -371,7 +371,7 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     // keep track of length field so we can write it later
@@ -507,7 +507,7 @@ ssize_t BgpPathAttribNexthop::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 4); // length = 4
@@ -558,7 +558,7 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 4); // length = 4
@@ -608,7 +608,7 @@ ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 4); // length = 4
@@ -648,7 +648,7 @@ ssize_t BgpPathAttribAtomicAggregate::write(uint8_t *to, size_t buffer_sz) const
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 0); // length = 0
@@ -706,7 +706,7 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, write_value_sz);
@@ -827,7 +827,7 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     // keep track of length field so we can write it later
@@ -920,7 +920,7 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 11);
@@ -975,7 +975,7 @@ ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
         return -1;
     }
 
-    if (writeHeader(to, 2) != 2) return -1;
+    if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
     putValue<uint8_t>(&buffer, 4); // length = 4
