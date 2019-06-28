@@ -626,4 +626,46 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     return tot_written;
 }
 
+ssize_t BgpUpdateMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "UpdateMessage {\n");
+    indent++; {
+        if (withdrawn_routes.size() == 0) written += _print(indent, to, buf_sz, "WithdrawnRoutes { }\n");
+        else {
+            written += _print(indent, to, buf_sz, "WithdrawnRoutes {\n");
+            indent++; {
+                for (const Route &route : withdrawn_routes) {
+                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &(route.prefix)), route.length);
+                }
+            }; indent--;
+            written += _print(indent, to, buf_sz, "}\n");
+        }
+
+        if (path_attribute.size() == 0) written += _print(indent, to, buf_sz, "PathAttributes { }\n");
+        else {
+            written += _print(indent, to, buf_sz, "PathAttributes {\n");
+            indent++; {
+                for (const std::shared_ptr<BgpPathAttrib> &attr : path_attribute) {
+                    written += attr->doPrint(indent, to, buf_sz);
+                }
+            }; indent--;
+            written += _print(indent, to, buf_sz, "}\n");
+        }
+
+        if (nlri.size() == 0) written += _print(indent, to, buf_sz, "NLRI { }\n");
+        else {
+            written += _print(indent, to, buf_sz, "NLRI {\n");
+            indent++; {
+                for (const Route &route : nlri) {
+                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &(route.prefix)), route.length);
+                }
+            }; indent--;
+            written += _print(indent, to, buf_sz, "}\n");
+        }
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+    return written;
 }
+
+}
+
