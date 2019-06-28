@@ -66,8 +66,8 @@ ssize_t BgpPathAttrib::print(size_t indent, uint8_t *to, size_t buf_sz) const {
 
     written += _print(indent, &to, &buf_sz, "UnknowAttribute {\n");
     indent++; {
-        written += _print(indent, &to, &buf_sz, "TypeCode { %d }\n", type_code);
         written += printFlags(indent, &to, &buf_sz);
+        written += _print(indent, &to, &buf_sz, "TypeCode { %d }\n", type_code);
     }; indent--;
     written += _print(indent, &to, &buf_sz, "}\n");
 
