@@ -538,4 +538,94 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     return msg_sz;
 }
 
+ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
+    if (buf_sz < 4) {
+        _bgp_error("BgpUpdateMessage::write: destination buffer too small.\n");
+        return -1;
+    }
+
+    size_t tot_written = 0;
+    uint8_t *buffer = to;
+
+    // keep a pointer to len field to write length to later
+    uint8_t *withdrawn_routes_len_ptr = buffer; 
+    buffer++; // skip the length field for now
+
+    size_t written_withdrawn_length = 0;
+
+    for (const Route &route : withdrawn_routes) {
+        if (route.length > 32) {
+            _bgp_error("BgpUpdateMessage::write: invalid route length in withdrawn routes: %d\n", route.length);
+            return -1;
+        }
+
+        size_t pfx_buf_sz = (route.length + 7) / 8;
+
+        // 1: this prefix len field
+        if (1 + written_withdrawn_length + pfx_buf_sz + tot_written > buf_sz) {
+            _bgp_error("BgpUpdateMessage::write: destination buffer too small.\n");
+            return -1;
+        }
+
+        putValue<uint8_t>(&buffer, route.length);
+        memcpy(buffer, &(route.prefix), pfx_buf_sz);
+
+        buffer += pfx_buf_sz;
+        written_withdrawn_length += 1 + pfx_buf_sz;
+    }
+
+    // now, put the length
+    putValue<uint16_t>(&withdrawn_routes_len_ptr, htons(written_withdrawn_length));
+
+    tot_written += written_withdrawn_length + 1; // + 1: the length field
+
+    // keep a pointer to len field to write length to later
+    uint8_t *route_attrib_len_ptr = buffer;
+    buffer++;
+
+    size_t written_attrib_length = 0;
+
+    for (const BgpPathAttrib &attr : path_attribute) {
+        ssize_t buf_left = buf_sz - written_attrib_length - tot_written;
+        assert(buf_left >= 0);
+
+        ssize_t write_ret = attr.write(buffer, buf_left);
+
+        if (write_ret < 0) return -1;
+        written_attrib_length += write_ret;
+    }
+
+    // put the length
+    putValue<uint16_t>(&route_attrib_len_ptr, htons(written_attrib_length));
+
+    tot_written += written_attrib_length + 1;
+
+    size_t written_nlri_len = 0;
+
+    for (const Route &route : nlri) {
+        if (route.length > 32) {
+            _bgp_error("BgpUpdateMessage::write: invalid route length in nlri: %d\n", route.length);
+            return -1;
+        }
+
+        size_t pfx_buf_sz = (route.length + 7) / 8;
+
+        // 1: this prefix len field
+        if (1 + written_nlri_len + pfx_buf_sz + tot_written > buf_sz) {
+            _bgp_error("BgpUpdateMessage::write: destination buffer too small.\n");
+            return -1;
+        }
+
+        putValue<uint8_t>(&buffer, route.length);
+        memcpy(buffer, &(route.prefix), pfx_buf_sz);
+
+        buffer += pfx_buf_sz;
+        written_nlri_len += 1 + pfx_buf_sz;
+    }
+
+    tot_written += written_nlri_len;
+
+    return tot_written;
+}
+
 }
