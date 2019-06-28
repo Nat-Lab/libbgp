@@ -20,7 +20,11 @@ ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, cons
     va_end(args);
 
     if (sz < 0) return sz;
-    if ((size_t) sz > *buf_left) return *buf_left;
+    if ((size_t) sz > *buf_left) {
+        size_t written = *buf_left;
+        *buf_left = 0;
+        return written;
+    }
 
     *buf_left -= sz;
     *to += sz;
