@@ -15,7 +15,7 @@ enum BgpMessageType {
 
 class BgpMessage : public Serializable {
 public:
-    BgpMessageType type;
+    uint8_t type;
 
     virtual ~BgpMessage() {}
 };
