@@ -17,11 +17,7 @@ int8_t BgpPathAttrib::GetTypeFromBuffer(const uint8_t *from, size_t buffer_sz) {
 }
 
 BgpPathAttrib::BgpPathAttrib() {
-    err_buf_len = 0;
-    err_code = 0;
-    err_subcode = 0;
     optional = transitive = partial = extended = false;
-    err_buf = NULL;
     value_ptr = NULL;
 }
 
@@ -33,12 +29,11 @@ BgpPathAttrib::BgpPathAttrib(const uint8_t *value, uint16_t val_len) : BgpPathAt
 }
 
 BgpPathAttrib::~BgpPathAttrib() {
-    if (err_buf_len > 0) free(err_buf);
     if (value_ptr != NULL) free(value_ptr);
 }
 
 BgpPathAttrib* BgpPathAttrib::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     BgpPathAttrib *attr = new BgpPathAttrib(value_ptr, value_len);
     attr->transitive = transitive;
     attr->optional = optional;
@@ -188,42 +183,13 @@ ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     return 2;
 }
 
-void BgpPathAttrib::setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len) {
-    err_code = err;
-    err_subcode = suberr;
-
-    // err_buf_len not 0, setError() when error already there?
-    assert(err_buf_len == 0);
-
-    if (data_len == 0) return;
-    err_buf_len = data_len;
-    err_buf = (uint8_t *) malloc(err_buf_len);
-    memcpy(err_buf, data, data_len);
-}
-
-uint8_t BgpPathAttrib::getErrorCode() const {
-    return err_code;
-}
-
-uint8_t BgpPathAttrib::getErrorSubCode() const {
-    return err_subcode;
-}
-
-const uint8_t* BgpPathAttrib::getError() const {
-    return err_buf;
-}
-
-size_t BgpPathAttrib::getErrorLength() const {
-    return err_buf_len;
-}
-
 BgpPathAttribOrigin::BgpPathAttribOrigin() {
     transitive = true;
     type_code = ORIGIN;
 }
 
 BgpPathAttrib* BgpPathAttribOrigin::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribOrigin(*this);
 }
 
@@ -324,7 +290,7 @@ bool BgpAsPathSegment::prepend(uint32_t asn) {
 }
 
 BgpPathAttrib* BgpPathAttribAsPath::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribAsPath(*this);
 }
 
@@ -525,7 +491,7 @@ ssize_t BgpPathAttribNexthop::doPrint(size_t indent, uint8_t **to, size_t *buf_s
 }
 
 BgpPathAttrib* BgpPathAttribNexthop::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribNexthop(*this);
 }
 
@@ -596,7 +562,7 @@ ssize_t BgpPathAttribMed::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) c
 }
 
 BgpPathAttrib* BgpPathAttribMed::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribMed(*this);
 }
 
@@ -664,7 +630,7 @@ ssize_t BgpPathAttribLocalPref::doPrint(size_t indent, uint8_t **to, size_t *buf
 }
 
 BgpPathAttrib* BgpPathAttribLocalPref::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribLocalPref(*this);
 }
 
@@ -732,7 +698,7 @@ ssize_t BgpPathAttribAtomicAggregate::doPrint(size_t indent, uint8_t **to, size_
 }
 
 BgpPathAttrib* BgpPathAttribAtomicAggregate::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribAtomicAggregate(*this);
 }
 
@@ -794,7 +760,7 @@ ssize_t BgpPathAttribAggregator::doPrint(size_t indent, uint8_t **to, size_t *bu
 }
 
 BgpPathAttrib* BgpPathAttribAggregator::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribAggregator(*this);
 }
 
@@ -896,7 +862,7 @@ ssize_t BgpPathAttribAs4Path::doPrint(size_t indent, uint8_t **to, size_t *buf_s
 }
 
 BgpPathAttrib* BgpPathAttribAs4Path::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribAs4Path(*this);
 }
 
@@ -1046,7 +1012,7 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 BgpPathAttrib* BgpPathAttribAs4Aggregator::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribAs4Aggregator(*this);
 }
 
@@ -1139,7 +1105,7 @@ ssize_t BgpPathAttribCommunity::doPrint(size_t indent, uint8_t **to, size_t *buf
 }
 
 BgpPathAttrib* BgpPathAttribCommunity::clone() const {
-    assert(err_buf_len == 0);
+    assert(!hasError());
     return new BgpPathAttribCommunity(*this);
 }
 

@@ -56,18 +56,6 @@ public:
     // clone the attribute
     virtual BgpPathAttrib* clone() const;
 
-    // get error code
-    virtual uint8_t getErrorCode() const;
-
-    // get error subcode
-    virtual uint8_t getErrorSubCode() const;
-
-    // get error payload (data field of NOTIFICATION message)
-    virtual const uint8_t* getError() const;
-
-    // get length of error payload
-    virtual size_t getErrorLength() const;
-
     virtual ~BgpPathAttrib();
 
 protected:
@@ -81,17 +69,9 @@ protected:
     // that length is not write to buffer by this function.
     ssize_t writeHeader(uint8_t *buffer, size_t buffer_sz) const;
 
-    // utility function to error related values
-    void setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len);
-
     // the length of attribute value, use only when parse. when write(), this
     // value is ignored.
     uint16_t value_len;
-
-    uint8_t err_code;
-    uint8_t err_subcode;
-    size_t err_buf_len;
-    uint8_t *err_buf;
 
 private:
     uint8_t* value_ptr;

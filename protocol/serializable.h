@@ -8,6 +8,9 @@ namespace bgpfsm {
 
 class Serializable {
 public:
+    Serializable();
+    ~Serializable();
+
     // print the Serializable object as human readable string.
     ssize_t print(uint8_t *to, size_t buf_sz) const;
 
@@ -16,7 +19,20 @@ public:
 
     // serialize the Serializable object to buffer.
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
-    virtual ~Serializable() {}
+
+    bool hasError() const;
+
+    // get error code
+    uint8_t getErrorCode() const;
+
+    // get error subcode
+    uint8_t getErrorSubCode() const;
+
+    // get error payload (data field of NOTIFICATION message)
+    const uint8_t* getError() const;
+
+    // get length of error payload
+    size_t getErrorLength() const;
 
 protected:
     // print helper. print string with format to pointer to buffer. will change
@@ -25,6 +41,14 @@ protected:
 
     // print the object, indent it for indent times.
     virtual ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const = 0;
+
+    // utility function to error related values
+    void setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len);
+
+    uint8_t err_code;
+    uint8_t err_subcode;
+    size_t err_len;
+    uint8_t *err_data;
 };
 
 }
