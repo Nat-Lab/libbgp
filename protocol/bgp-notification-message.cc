@@ -17,6 +17,7 @@ BgpNotificationMessage::~BgpNotificationMessage() {
 }
 
 BgpNotificationMessage::BgpNotificationMessage(uint8_t errcode, uint8_t subcode, const uint8_t *data, uint16_t data_len) {
+    type = NOTIFICATION;
     this->errcode = errcode;
     this->subcode = subcode;
     this->data_len = data_len;
