@@ -25,7 +25,6 @@ BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, const char* 
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     inet_pton(AF_INET, bgp_id, &(this->bgp_id));
-    this->bgp_id = ntohl(this->bgp_id);
 }
 
 ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
