@@ -345,10 +345,6 @@ bool BgpUpdateMessage::addNlri(const Route &route) {
     return true;
 }
 
-void BgpUpdateMessage::forwardParseError(const BgpPathAttrib &attrib) {
-    setError(attrib.getErrorCode(), attrib.getErrorSubCode(), attrib.getError(), attrib.getErrorLength());
-}
-
 bool BgpUpdateMessage::validateAttribs() {
     bool has_origin = false;
     bool has_nexthop = false;

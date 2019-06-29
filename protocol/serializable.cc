@@ -50,6 +50,10 @@ size_t Serializable::getErrorLength() const {
     return err_len;
 }
 
+void Serializable::forwardParseError(const Serializable &other) {
+    setError(other.getErrorCode(), other.getErrorSubCode(), other.getError(), other.getErrorLength());
+}
+
 ssize_t Serializable::print(uint8_t *to, size_t buf_sz) const {
     return doPrint(0, &to, &buf_sz);
 }

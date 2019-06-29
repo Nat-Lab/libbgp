@@ -45,6 +45,9 @@ protected:
     // utility function to error related values
     void setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len);
 
+    // utility function to forward attribute parse error to here
+    void forwardParseError(const Serializable &other);
+
     uint8_t err_code;
     uint8_t err_subcode;
     size_t err_len;

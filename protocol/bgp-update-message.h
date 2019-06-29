@@ -85,9 +85,6 @@ public:
     ssize_t write(uint8_t *to, size_t buf_sz) const;
 
 private:
-    // utility function to forward attribute parse error to here
-    void forwardParseError(const BgpPathAttrib &attrib);
-
     // utility function to check if attributes are valid (i.e. no dulipicated, 
     // no missing well-known)
     bool validateAttribs();
