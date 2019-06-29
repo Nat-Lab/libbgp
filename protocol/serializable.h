@@ -14,6 +14,9 @@ public:
     // print the Serializable object as human readable string.
     ssize_t print(uint8_t *to, size_t buf_sz) const;
 
+    // print the Serializable object as human readable string, pre-indented.
+    ssize_t print(size_t indent, uint8_t *to, size_t buf_sz) const;
+
     // deserialize the Serializable object from buffer.
     virtual ssize_t parse(const uint8_t *from, size_t msg_sz) = 0;
 

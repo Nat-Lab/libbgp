@@ -58,6 +58,10 @@ ssize_t Serializable::print(uint8_t *to, size_t buf_sz) const {
     return doPrint(0, &to, &buf_sz);
 }
 
+ssize_t Serializable::print(size_t indent, uint8_t *to, size_t buf_sz) const {
+    return doPrint(indent, &to, &buf_sz);
+}
+
 ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, const char* format, ...) {
     if (*buf_left <= indent * 4) return 0;
     for (size_t i = 0; i < indent; i++) {
