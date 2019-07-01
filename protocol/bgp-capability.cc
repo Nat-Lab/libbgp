@@ -104,6 +104,7 @@ ssize_t BgpCapabilityUnknow::parse(const uint8_t *from, size_t msg_sz) {
     ssize_t hdr_len = parseHeader(from, msg_sz);
 
     if (hdr_len < 0) return hdr_len;
+    if (length == 0) return hdr_len;
 
     value = (uint8_t *) malloc(length);
     memcpy(value, from + hdr_len, length);
