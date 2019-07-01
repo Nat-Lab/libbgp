@@ -29,8 +29,8 @@ BgpPacket::~BgpPacket() {
 ssize_t BgpPacket::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
     ssize_t written = -1;
     
-    if (is_message_owner) m_msg->print(indent, *to, *buf_sz);
-    else msg->print(indent, *to, *buf_sz);
+    if (is_message_owner) written = m_msg->print(indent, *to, *buf_sz);
+    else written = msg->print(indent, *to, *buf_sz);
     if (written < 0) return 0;
 
     *to += written;
@@ -39,7 +39,7 @@ ssize_t BgpPacket::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
 }
 
 ssize_t BgpPacket::parse(const uint8_t *from, size_t buf_sz) {
-    assert(buf_sz > 19 && buf_sz < 4096);
+    assert(buf_sz >= 19 && buf_sz <= 4096);
     assert(m_msg == NULL && msg == NULL);
     assert(is_message_owner);
 
