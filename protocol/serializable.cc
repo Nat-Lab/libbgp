@@ -78,13 +78,13 @@ ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, cons
     if ((size_t) sz > *buf_left) {
         size_t written = *buf_left;
         *buf_left = 0;
-        return written;
+        return written + indent * 4;
     }
 
     *buf_left -= sz;
     *to += sz;
 
-    return sz;
+    return sz + indent * 4;
 }
 
 }
