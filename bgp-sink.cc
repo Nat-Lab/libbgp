@@ -49,14 +49,14 @@ int BgpSink::pour(BgpPacket **pkt) {
     if (offset_end - offset_start < 19) return 0;
     if (memcmp(cur, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0) {
         _bgp_error("BgpSink::pour: invalid BGP marker.\n");
-        return -1;
+        return -2;
     }
 
     uint16_t field_len = ntohs(*(uint16_t *) (cur + 16));
 
     if (field_len < 19 || field_len > 4096) {
         _bgp_error("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
-        return -1;
+        return -2;
     }
 
     ssize_t bytes = getBytesInSink();
@@ -67,10 +67,7 @@ int BgpSink::pour(BgpPacket **pkt) {
     BgpPacket *new_pkt = new BgpPacket(use_4b_asn);
     ssize_t par_ret = new_pkt->parse(cur, field_len);
 
-    if (par_ret < 0) {
-        delete new_pkt;
-        return par_ret;
-    }
+    if (par_ret < 0) return -1;
 
     *pkt = new_pkt;
 
