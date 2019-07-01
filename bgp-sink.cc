@@ -7,9 +7,10 @@
 
 namespace bgpfsm {
 
-BgpSink::BgpSink(size_t buffer_size) {
+BgpSink::BgpSink(bool use_4b_asn, size_t buffer_size) {
     this->buffer_size = buffer_size;
     this->buffer = (uint8_t *) malloc(buffer_size);
+    this->use_4b_asn = use_4b_asn;
     offset_start = offset_end = 0;
 }
 
@@ -39,74 +40,42 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     return len;
 }
 
-BufferPtr BgpSink::pourPtr() {
+int BgpSink::pour(BgpPacket **pkt) {
     std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
 
     uint8_t *cur = this->buffer + offset_start;
 
-    if (offset_end - offset_start < 19) return BufferPtr(NULL, 0);
+    if (offset_end - offset_start < 19) return 0;
     if (memcmp(cur, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0) {
-        _bgp_error("BgpSink::pourPtr: invalid BGP marker.\n");
-        return BufferPtr(NULL, -1);
+        _bgp_error("BgpSink::pour: invalid BGP marker.\n");
+        return -1;
     }
 
     uint16_t field_len = ntohs(*(uint16_t *) (cur + 16));
 
     if (field_len < 19 || field_len > 4096) {
         _bgp_error("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
-        return BufferPtr(NULL, -2);
+        return -1;
     }
 
     ssize_t bytes = getBytesInSink();
-    if (field_len > bytes) return BufferPtr(NULL, 0); // incomplete packet, wait for more.
+    if (field_len > bytes) return 0; // incomplete packet, wait for more.
 
     offset_start += field_len;
 
-    return BufferPtr(cur, field_len);
-}
+    BgpPacket *new_pkt = new BgpPacket(use_4b_asn);
+    ssize_t par_ret = new_pkt->parse(cur, field_len);
 
-BufferPtr BgpSink::pourPtrAll() {
-    std::lock_guard<std::mutex> lock(mutex);
-    assert(offset_end >= offset_start);
-    ssize_t sz = getBytesInSink();
-    uint8_t *cur = buffer + offset_start;
-    offset_start = offset_end = 0;
-    return BufferPtr(cur, sz);
-}
-
-ssize_t BgpSink::pour(uint8_t *buffer, size_t len) {
-    std::lock_guard<std::mutex> lock(mutex);
-    BufferPtr bp = pourPtr();
-    
-    if (bp.buffer_size < 0) return -1;
-    if (bp.buffer_size == 0) return 0;
-
-    if ((size_t) bp.buffer_size > len) {
-        _bgp_error("BgpSink::pour: not enough space in output buffer (%d more needed).", bp.buffer_size - len);
-        offset_start -= bp.buffer_size; // un-pour
-        return -1;
+    if (par_ret < 0) {
+        delete new_pkt;
+        return par_ret;
     }
 
-    memcpy(buffer, bp.buffer, bp.buffer_size);
+    *pkt = new_pkt;
 
-    return bp.buffer_size;
-}
-
-ssize_t BgpSink::pourAll(uint8_t *buffer, size_t len) {
-    std::lock_guard<std::mutex> lock(mutex);
-    assert(offset_end >= offset_start);
-    size_t bytes = getBytesInSink();
-
-    if (bytes == 0) return 0;
-    if (len < bytes) {
-        _bgp_error("BgpSink::pourAll: not enough space in output buffer (%d more needed).", bytes - len);
-        return -1;
-    }
-
-    memcpy(buffer, this->buffer + offset_start, bytes);
-    offset_end = offset_start = 0;
-    return bytes;
+    assert(par_ret == field_len);
+    return par_ret;
 }
 
 void BgpSink::settle() {

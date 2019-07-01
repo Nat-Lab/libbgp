@@ -3,40 +3,36 @@
 #include <mutex>
 #include <stdint.h>
 #include <unistd.h>
+#include "protocol/bgp-packet.h"
 
 namespace bgpfsm {
-
-typedef struct BufferPtr {
-    const uint8_t *buffer;
-    ssize_t buffer_size;
-
-    BufferPtr () {};
-    BufferPtr (const uint8_t *buf, ssize_t sz) {
-        buffer = buf;
-        buffer_size = sz;
-    }
-} BufferPtr;
 
 // a sink for BGP packets
 class BgpSink {
 public:
     // create a new sink
-    BgpSink(size_t buffer_size);
+    BgpSink(bool use_4b_asn, size_t buffer_size);
 
     // feed stream of packets into sink
     ssize_t fill(const uint8_t *buffer, size_t len);
 
     // get a pointer to next packet from sink (might chane if fill())
-    BufferPtr pourPtr();
+    //BufferPtr pourPtr();
 
     // get a pointer to datas in sink (might chane if fill())
-    BufferPtr pourPtrAll();
+    //BufferPtr pourPtrAll();
 
     // get and remove a single BGP packet from sink (max size = 4096)
-    ssize_t pour(uint8_t *buffer, size_t len);
+    //ssize_t pour(uint8_t *buffer, size_t len);
+
+    // get a packet from sink and remove that packet from sink. if no packet
+    // currently avaliable, 0 will be returned. if error, -1 will be returned.
+    // otherwise, pkt is set to point to the new packet, and bytes drained is
+    // returned. (> 0)
+    int pour(BgpPacket **pkt);
 
     // get and remove all packets from sink (max size = sink buffer size)
-    ssize_t pourAll(uint8_t *buffer, size_t len);
+    //ssize_t pourAll(uint8_t *buffer, size_t len);
 
     // get number of bytes currently in sink
     size_t getBytesInSink() const;
@@ -54,6 +50,7 @@ private:
     size_t buffer_size;
     size_t offset_start;
     size_t offset_end;
+    bool use_4b_asn;
     std::mutex mutex;
 };
 
