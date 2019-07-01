@@ -9,7 +9,7 @@ BgpKeepaliveMessage::BgpKeepaliveMessage() {
     type = KEEPALIVE;
 }
 
-ssize_t BgpKeepaliveMessage::parse(const uint8_t *from, size_t msg_sz) {
+ssize_t BgpKeepaliveMessage::parse(__attribute__((unused)) const uint8_t *from, __attribute__((unused)) size_t msg_sz) {
     if (msg_sz != 0) {
         size_t err_len = msg_sz + 19;
         setError(E_HEADER, E_LENGTH, (uint8_t *) &err_len, 1);
@@ -19,7 +19,7 @@ ssize_t BgpKeepaliveMessage::parse(const uint8_t *from, size_t msg_sz) {
     return 0;
 }
 
-ssize_t BgpKeepaliveMessage::write(uint8_t *to, size_t msg_sz) const {
+ssize_t BgpKeepaliveMessage::write(__attribute__((unused)) uint8_t *to, __attribute__((unused)) size_t msg_sz) const {
     return 0;
 }
 
