@@ -47,7 +47,7 @@ ssize_t BgpPacket::parse(const uint8_t *from, size_t buf_sz) {
     uint8_t msg_type = getValue<uint8_t>(&buffer);
 
     switch (msg_type) {
-        case OPEN: m_msg = new BgpOpenMessage(); break;
+        case OPEN: m_msg = new BgpOpenMessage(is_4b); break;
         case UPDATE: m_msg = new BgpUpdateMessage(is_4b); break;
         case KEEPALIVE: m_msg = new BgpKeepaliveMessage(); break;
         case NOTIFICATION: m_msg = new BgpNotificationMessage(); break;

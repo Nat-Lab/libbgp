@@ -8,20 +8,21 @@
 
 namespace bgpfsm {
 
-BgpOpenMessage::BgpOpenMessage() {
+BgpOpenMessage::BgpOpenMessage(bool use_4b_asn) {
     this->type = OPEN;
     this->version = 4;
+    this->use_4b_asn = use_4b_asn;
 }
 
 BgpOpenMessage::~BgpOpenMessage() { }
 
-BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id) : BgpOpenMessage() {
+BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     this->bgp_id = bgp_id;
 }
 
-BgpOpenMessage::BgpOpenMessage(uint32_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage() {
+BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint32_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     inet_pton(AF_INET, bgp_id, &(this->bgp_id));
@@ -103,61 +104,30 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
                 return -1;
             }
 
+            const uint8_t *capa_ptr = buffer;
             uint8_t capa_code = getValue<uint8_t> (&buffer);
             uint8_t capa_len = getValue<uint8_t> (&buffer);
 
-            // capa_code & capa_len
-            parsed_capa_param_len += 2;
+            BgpCapability *cap = NULL;
 
-            // capa value len exceed opt param
-            if (parsed_capa_param_len + capa_len > param_length) {
-                setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-                _bgp_error("BgpOpenMessage::parse: capability length exceed param length.\n");
+            switch(capa_code) {
+                case ASN_4B: cap = new BgpCapability4BytesAsn(); break;
+                default: cap = new BgpCapabilityUnknow(); break;
+            }
+
+            ssize_t capa_parsed_len = cap->parse(capa_ptr, capa_len + 2);
+
+            if (capa_parsed_len < 0) {
+                forwardParseError(*cap);
+                delete cap;
                 return -1;
             }
 
-            if (capa_code == ASN_4B) {
-                use_4b_asn = true;
+            assert(capa_parsed_len == capa_len + 2);
 
-                if (capa_len != 4) {
-                    setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-                    _bgp_error("BgpOpenMessage::parse: capability length invalid (want 4, saw %d).\n", capa_len);
-                    return -1;
-                }
-
-                uint32_t my_4b_asn = ntohl(getValue<uint32_t> (&buffer));
-
-                // value for 4b-asn field
-                parsed_capa_param_len += 4;
-
-                // peer has 4b-asn but my_asn is not AS_TRANS
-                if (my_4b_asn >= 0xffff && my_asn != 23456) {
-                    setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-                    _bgp_error("BgpOpenMessage::parse: peer has 4b-asn but my_asn is not AS_TRANS (%d).\n", my_asn);
-                    return -1;
-                }
-
-                my_asn = my_4b_asn;
-
-                BgpCapability4BytesAsn cap = BgpCapability4BytesAsn ();
-                cap.code = ASN_4B;
-                cap.length = 4;
-                cap.my_asn = my_4b_asn;
-                capabilities.push_back(cap);
-
-                continue;
-            } else {
-                BgpCapabilityUnknow cap (buffer, capa_len);
-                cap.code = capa_code;
-
-                // move buffer pointer
-                buffer += capa_len;
-
-                // count this capa
-                parsed_capa_param_len += capa_len;
-
-                continue;
-            }
+            capabilities.push_back(std::shared_ptr<BgpCapability> (cap));
+            parsed_capa_param_len += capa_parsed_len;
+            buffer += capa_parsed_len - 2;
         }
 
         assert(parsed_capa_param_len == param_length);
@@ -185,41 +155,41 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
     uint8_t *buffer = to;
 
     putValue<uint8_t>(&buffer, version);
-    putValue<uint16_t>(&buffer, htons(my_asn >= 0xffff ? 23456 : my_asn));
+    putValue<uint16_t>(&buffer, htons(my_asn));
     putValue<uint16_t>(&buffer, htons(hold_time));
     putValue<uint32_t>(&buffer, bgp_id);
-    
-    if (!use_4b_asn) {
-        // no opt_param
+
+    if (capabilities.size() == 0) {
         putValue<uint8_t>(&buffer, 0);
         return 10;
     }
 
-    if (buf_sz < 18) {
-        _bgp_error("BgpOpenMessage::write: buffer size too small (need 18, avaliable %d).\n", buf_sz);
+    uint8_t *params_len_ptr = buffer;
+    buffer++;
+
+    // 3: opt_param type, capa_len, capa_code
+    if (buf_sz < 13) {
+        _bgp_error("BgpOpenMessage::write: buffer size too small.\n", buf_sz);
         return -1;
     }
 
-    // opt_param length is always 8 if we generate a open message, sicne we
-    // only support 4b-asn capability for now.
-    putValue<uint8_t>(&buffer, 8);
-    
+    ssize_t opt_params_len = 1;
     // opt_param type 2: capability
     putValue<uint8_t>(&buffer, 2);
 
-    // opt param len: 6
-    putValue<uint8_t>(&buffer, 6);
+    for (const std::shared_ptr<BgpCapability> &capa : capabilities) {
+        ssize_t capa_wrt_ret = capa->write(buffer, buf_sz - opt_params_len - 10);
+        if (capa_wrt_ret < 0) {
+            return capa_wrt_ret;
+        }
 
-    // capability 65: 4b-asn
-    putValue<uint8_t>(&buffer, 65);
+        opt_params_len += capa_wrt_ret;
+        buffer += capa_wrt_ret;
+    }
 
-    // capability length: 4
-    putValue<uint8_t>(&buffer, 4);
+    putValue<uint8_t>(&params_len_ptr, opt_params_len);
 
-    // put my_asn
-    putValue<uint32_t>(&buffer, htonl(my_asn));
-
-    return 18;
+    return opt_params_len + 10;
 }
 
 ssize_t BgpOpenMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_left) const {
@@ -230,12 +200,59 @@ ssize_t BgpOpenMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_left) c
         written += _print(indent, to, buf_left, "Version { %d }\n", version);
         written += _print(indent, to, buf_left, "MyAsn { %d }\n", my_asn);
         written += _print(indent, to, buf_left, "HoldTimer { %d }\n", hold_time);
-        written += _print(indent, to, buf_left, "FourOctetSupport { %s }\n", use_4b_asn ? "true" : "false");
+        if (capabilities.size() == 0) written += _print(indent, to, buf_left, "Capabilities { }\n");
+        else {
+            _print(indent, to, buf_left, "Capabilities {\n");
+            indent++; {
+                for (const std::shared_ptr<BgpCapability> &capa : capabilities) {
+                    ssize_t capa_written = capa->print(indent, *to, *buf_left);
+                    if (capa_written < 0) return capa_written;
+                    *to += capa_written;
+                    *buf_left -= capa_written;
+                    written += capa_written;
+                }
+            }; indent--;
+            _print(indent, to, buf_left, "}\n");
+        }
     }; indent--;
 
     written += _print(indent, to, buf_left, "}\n");
 
     return written;
+}
+
+uint32_t BgpOpenMessage::getAsn() const {
+    if (!use_4b_asn) return my_asn;
+
+    for (const std::shared_ptr<BgpCapability> &capa : capabilities) {
+        if (capa->code == ASN_4B) {
+            const BgpCapability4BytesAsn &as4_cap = dynamic_cast<const BgpCapability4BytesAsn &>(*capa);
+            return as4_cap.my_asn;
+        }
+    }
+
+    return my_asn;
+}
+
+bool BgpOpenMessage::setAsn(uint32_t my_asn) {
+    this->my_asn = my_asn >= 0xffff ? 23456 : my_asn;
+
+    if (!use_4b_asn) return true;
+    
+    for (std::shared_ptr<BgpCapability> &capa : capabilities) {
+        if (capa->code == ASN_4B) {
+            BgpCapability4BytesAsn &as4_cap = dynamic_cast<BgpCapability4BytesAsn &>(*capa);
+            as4_cap.my_asn = my_asn;
+            return true;
+        }
+    }
+
+    BgpCapability4BytesAsn *as4_cap = new BgpCapability4BytesAsn();
+    as4_cap->my_asn = my_asn;
+
+    capabilities.push_back(std::shared_ptr<BgpCapability>(as4_cap));
+
+    return true;
 }
 
 }
