@@ -23,7 +23,7 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
     code = getValue<uint8_t>(&from);
     length = getValue<uint8_t>(&from);
 
-    if (length + 2 > msg_sz) {
+    if ((size_t) (length + 2) > msg_sz) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
         _bgp_error("BgpCapability::parseHeader: capability size exceed capabilities list.\n");
         return -1;
@@ -38,7 +38,7 @@ BgpCapability4BytesAsn::BgpCapability4BytesAsn() {
 }
 
 ssize_t BgpCapability4BytesAsn::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
-    ssize_t written;
+    ssize_t written = 0;
     written += _print(indent, to, buf_sz, "FourOctetAsnCapability {\n");
     indent++; {
         written += _print(indent, to, buf_sz, "Code { %d }\n", code);
@@ -61,7 +61,8 @@ ssize_t BgpCapability4BytesAsn::parse(const uint8_t *from, size_t msg_sz) {
         return -1;
     }
 
-    my_asn = ntohl(getValue<uint32_t>(&from));
+    const uint8_t *buffer = from + hdr_len;
+    my_asn = ntohl(getValue<uint32_t>(&buffer));
 
     return hdr_len + 4;
 }
@@ -89,7 +90,7 @@ BgpCapabilityUnknow::~BgpCapabilityUnknow() {
 }
 
 ssize_t BgpCapabilityUnknow::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
-    ssize_t written;
+    ssize_t written = 0;
     written += _print(indent, to, buf_sz, "UnknowCapability {\n");
     indent++; {
         written += _print(indent, to, buf_sz, "Code { %d }\n", code);
@@ -111,7 +112,7 @@ ssize_t BgpCapabilityUnknow::parse(const uint8_t *from, size_t msg_sz) {
 }
 
 ssize_t BgpCapabilityUnknow::write(uint8_t *to, size_t buf_sz) const {
-    if (buf_sz < length + 2) {
+    if (buf_sz < (size_t) (length + 2)) {
         _bgp_error("BgpCapabilityUnknow::write: dest buffer too small.\n");
         return -1;
     }
