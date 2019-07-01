@@ -98,4 +98,8 @@ ssize_t BgpPacket::write(uint8_t *to, size_t buf_sz) const {
     return pkt_len;
 }
 
+const BgpMessage *BgpPacket::getMessage() const {
+    return is_message_owner ? m_msg : msg;
+}
+
 }

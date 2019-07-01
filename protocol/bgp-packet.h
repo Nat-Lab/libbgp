@@ -17,6 +17,7 @@ public:
     // the length field in message header is valid and bgp marker is correct.
     ssize_t parse(const uint8_t *from, size_t buf_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;
+    const BgpMessage *getMessage() const;
 private:
     BgpMessage *m_msg;
     const BgpMessage *msg;
