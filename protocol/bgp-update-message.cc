@@ -44,7 +44,7 @@ bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
 
 bool BgpUpdateMessage::setAttribs(const std::vector<std::shared_ptr<BgpPathAttrib>> &attrs) {
     path_attribute.clear();
-    for (const std::shared_ptr<BgpPathAttrib> &attrib : path_attribute) {
+    for (const std::shared_ptr<BgpPathAttrib> &attrib : attrs) {
         path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib->clone()));
     }
     return true;
