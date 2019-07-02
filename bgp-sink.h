@@ -26,7 +26,9 @@ public:
     //ssize_t pour(uint8_t *buffer, size_t len);
 
     // get a packet from sink and remove that packet from sink. if no packet
-    // currently avaliable, 0 will be returned. if error, -1 will be returned.
+    // currently avaliable, 0 will be returned. if error, -2 will be returned, 
+    // if error happend during parse but the packet object has already been
+    // created, -1 will be returned.
     // otherwise, pkt is set to point to the new packet, and bytes drained is
     // returned. (> 0)
     int pour(BgpPacket **pkt);
