@@ -9,7 +9,7 @@
 
 namespace bgpfsm {
 
-BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(BGP_FSM_SINK_SIZE) {
+BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SINK_SIZE) {
     this->config = config;
     state = IDLE;
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
@@ -72,7 +72,12 @@ int BgpFsm::start() {
         return 0;
     }
 
-    BgpOpenMessage msg(config.asn, config.hold_timer, config.router_id);
+    uint16_t my_asn_2b = config.asn >= 0xffff ? 23456 : config.asn;
+
+    BgpOpenMessage msg(use_4b_asn, my_asn_2b, config.hold_timer, config.router_id);
+    if (use_4b_asn) {
+        msg.setAsn(config.asn);
+    }
     if(!writeMessage(msg)) return -1;
 
     state = OPEN_SENT;
@@ -117,79 +122,31 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
 
     // keep running untill sink empty
     while (in_sink.getBytesInSink() > 0) {
-        BufferPtr packet = in_sink.pourPtr();
-        if (packet.buffer_size == 0) return 3;
-        if (packet.buffer_size == -1) {
-            _bgp_error("BgpFsm::run: packet sink error.\n");
-            state = BROKEN;
-            return -1;
-        }
+        BgpPacket *packet = NULL;
+        ssize_t poured = in_sink.pour(&packet);
 
-        if (packet.buffer_size == -2) {
-            // FIXME: data field should be length
-            BgpNotificationMessage notify (E_HEADER, E_LENGTH, NULL, 0);
-            if (!writeMessage(notify)) return -1;
+        if (poured <= -2) return poured;
 
-            // we have some invalid data in sink, remove it.
-            in_sink.drain();
-
-            state = IDLE;
-            return 0;
-        }
-
-        const uint8_t *packet_ptr = packet.buffer + 18;
-        uint8_t message_type = getValue<uint8_t> (&packet_ptr);
-        
-        int val_ret = validateState(message_type);
-        if (val_ret <= 0) return val_ret;
-
-        BgpMessage *msg;
-
-        // create message container
-        switch (message_type) {
-            case OPEN: msg = new BgpOpenMessage(); break;
-            case UPDATE: msg = new BgpUpdateMessage(use_4b_asn); break;
-            case KEEPALIVE: msg = new BgpKeepaliveMessage(); break;
-            case NOTIFICATION: msg = new BgpNotificationMessage(); break;
-            default: {
-                // unknow message type
-                BgpNotificationMessage notify (E_HEADER, E_TYPE, &message_type, 1);
-                if(!writeMessage(notify)) return -1;
-                return 0;
-            }
-        }
-
-        // parse the message
-        size_t msg_len = buffer_size - 19;
-        ssize_t parsed_len = msg->parse(packet_ptr, msg_len);
-
+        const BgpMessage *msg = packet->getMessage();
         // parse failed / packet invalid (errors like Unsupported Optional 
         // Parameter falls in this catagory, since those errors are checked by
         // parsers, other errors like FSM error, Bad Peer AS, etc is handled in 
         // fsmEval*)
-        if (parsed_len < 0) {
-            if (message_type == NOTIFICATION) {
+        if (poured == -1) {
+            if (msg->type == NOTIFICATION) {
                 _bgp_error("BgpFsm::run: got invalid NOTIFICATION message.\n");
-                delete msg;
+                delete packet;
                 state = IDLE;
                 return 0;
             }
-
             BgpNotificationMessage notify (msg->getErrorCode(), msg->getErrorSubCode(), msg->getError(), msg->getErrorLength());
             if(!writeMessage(notify)) return -1;
-            delete msg;
+            delete packet;
             state = IDLE;
             return 0;
         }
 
-        if (msg_len != parsed_len) {
-            _bgp_error("BgpFsm::run: parsed length (%d) != message length (%d).\n", parsed_len, msg_len);
-            state = BROKEN;
-            delete msg;
-            return -1;
-        }
-
-        if (message_type == NOTIFICATION) {
+        if (msg->type == NOTIFICATION) {
             const BgpNotificationMessage *notify = dynamic_cast<const BgpNotificationMessage *>(msg);
             const char *err_msg = bgp_error_code_str[notify->errcode];
             const char *err_sub_msg = bgp_error_code_str[0];
@@ -201,7 +158,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
                 case E_CEASE: err_sub_msg = bgp_cease_error_str[notify->subcode]; break;
             }
             _bgp_error("BgpFsm::run: got NOTIFICATION: %s: %s.\n", err_msg, err_sub_msg);
-            delete msg;
+            delete packet;
             state = IDLE;
             return 0;
         }
@@ -215,12 +172,12 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             case ESTABLISHED: retval = fsmEvalEstablished(msg); break;
             default: {
                 _bgp_error("BgpFsm::run: FSM in invalid state: %d.\n", state);
-                delete msg;
+                delete packet;
                 return -1;
             }
         }
 
-        delete msg;
+        delete packet;
         if (retval < 0) return retval;
         if (retval == 0) final_ret_val = 0;
         if (retval == 1 && final_ret_val != 0 && final_ret_val != 2) final_ret_val = 1;
@@ -313,7 +270,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     }
 
     hold_timer = config.hold_timer > open_msg->hold_time ? open_msg->hold_time : config.hold_timer;
-    use_4b_asn = open_msg->use_4b_asn && config.use_4b_asn;
+    use_4b_asn = open_msg->hasCapability(ASN_4B) && config.use_4b_asn;
     
     return 1;
 }
@@ -466,8 +423,11 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     int retval = openRecv(open_msg);
     if (retval != 1) return retval;
 
-    BgpOpenMessage open_reply (config.asn, hold_timer, config.router_id);
-    open_reply.use_4b_asn = use_4b_asn;
+    uint16_t my_asn_2b = config.asn >= 0xffff ? 23456 : config.asn;
+    BgpOpenMessage open_reply (use_4b_asn, my_asn_2b, hold_timer, config.router_id);
+    if (use_4b_asn) {
+        open_reply.setAsn(config.asn);
+    }
     if(!writeMessage(open_reply)) return -1;
 
     state = OPEN_CONFIRM;
@@ -550,18 +510,14 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     std::lock_guard<std::mutex> lock(out_buffer_mutex);
-    ssize_t len = msg.write(out_buffer + 19, BGP_FSM_BUFFER_SIZE - 19);
+    BgpPacket pkt(&msg);
+    ssize_t pkt_len = pkt.write(out_buffer, BGP_FSM_BUFFER_SIZE);
 
-    if (len < 0) {
+    if (pkt_len < 0) {
         _bgp_error("BgpFsm::writeMessage: failed to write message, abort.\n");
         state = BROKEN;
         return false;
     }
-
-    size_t pkt_len = (size_t) len + 19;
-    memset(out_buffer, '\xff', 16);
-    putValue<uint16_t> (&out_buffer, htons(pkt_len));
-    putValue<uint8_t> (&out_buffer, msg.type);
 
     if (config.out_handler && !config.out_handler->handleOut(out_buffer, pkt_len)) {
         _bgp_error("BgpFsm::writeMessage: out_handler failed, abort.\n");
