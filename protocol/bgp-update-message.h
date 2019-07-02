@@ -3,6 +3,7 @@
 #include <vector>
 #include <unistd.h>
 #include <memory>
+#include "route.h"
 #include "bgp-message.h"
 #include "bgp-path-attrib.h"
 

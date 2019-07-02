@@ -315,9 +315,7 @@ bool BgpUpdateMessage::setWithdrawn(const std::vector<Route> &routes) {
 }
 
 bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
-    Route route;
-    route.length = length;
-    route.prefix = prefix;
+    Route route (prefix, length);
     withdrawn_routes.push_back(route);
     return true;
 }
@@ -333,9 +331,7 @@ bool BgpUpdateMessage::setNlri(const std::vector<Route> &routes) {
 }
 
 bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
-    Route route;
-    route.length = length;
-    route.prefix = prefix;
+    Route route(prefix, length);
     nlri.push_back(route);
     return true;
 }
@@ -420,10 +416,9 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        Route route;
-        route.length = route_len;
-        route.prefix = 0;
-        memcpy(&(route.prefix), buffer, route_buffer_len);
+        uint32_t prefix = 0;
+        memcpy(&prefix, buffer, route_buffer_len);
+        Route route(prefix, route_len);
         withdrawn_routes.push_back(route);
 
         buffer += route_buffer_len; // len2: route_buffer_len
@@ -517,10 +512,9 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        Route route;
-        route.length = route_len;
-        route.prefix = 0;
-        memcpy(&(route.prefix), buffer, route_buffer_len);
+        uint32_t prefix = 0;
+        memcpy(&prefix, buffer, route_buffer_len);
+        Route route(prefix, route_len);
         nlri.push_back(route);
 
         buffer += route_buffer_len; // len2: route_buffer_len
@@ -548,12 +542,8 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     size_t written_withdrawn_length = 0;
 
     for (const Route &route : withdrawn_routes) {
-        if (route.length > 32) {
-            _bgp_error("BgpUpdateMessage::write: invalid route length in withdrawn routes: %d\n", route.length);
-            return -1;
-        }
-
-        size_t pfx_buf_sz = (route.length + 7) / 8;
+        uint8_t route_len = route.getLength();
+        size_t pfx_buf_sz = (route_len + 7) / 8;
 
         // 1: this prefix len field
         if (1 + written_withdrawn_length + pfx_buf_sz + tot_written > buf_sz) {
@@ -561,8 +551,8 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
             return -1;
         }
 
-        putValue<uint8_t>(&buffer, route.length);
-        memcpy(buffer, &(route.prefix), pfx_buf_sz);
+        putValue<uint8_t>(&buffer, route_len);
+        memcpy(buffer, &route_len, pfx_buf_sz);
 
         buffer += pfx_buf_sz;
         written_withdrawn_length += 1 + pfx_buf_sz;
@@ -597,12 +587,9 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     size_t written_nlri_len = 0;
 
     for (const Route &route : nlri) {
-        if (route.length > 32) {
-            _bgp_error("BgpUpdateMessage::write: invalid route length in nlri: %d\n", route.length);
-            return -1;
-        }
+        uint8_t route_len = route.getLength();
 
-        size_t pfx_buf_sz = (route.length + 7) / 8;
+        size_t pfx_buf_sz = (route_len + 7) / 8;
 
         // 1: this prefix len field
         if (1 + written_nlri_len + pfx_buf_sz + tot_written > buf_sz) {
@@ -610,8 +597,8 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
             return -1;
         }
 
-        putValue<uint8_t>(&buffer, route.length);
-        memcpy(buffer, &(route.prefix), pfx_buf_sz);
+        putValue<uint8_t>(&buffer, route_len);
+        memcpy(buffer, &route_len, pfx_buf_sz);
 
         buffer += pfx_buf_sz;
         written_nlri_len += 1 + pfx_buf_sz;
@@ -631,7 +618,8 @@ ssize_t BgpUpdateMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) c
             written += _print(indent, to, buf_sz, "WithdrawnRoutes {\n");
             indent++; {
                 for (const Route &route : withdrawn_routes) {
-                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &(route.prefix)), route.length);
+                    uint32_t prefix = route.getPrefix();
+                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &prefix), route.getLength());
                 }
             }; indent--;
             written += _print(indent, to, buf_sz, "}\n");
@@ -653,7 +641,8 @@ ssize_t BgpUpdateMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) c
             written += _print(indent, to, buf_sz, "NLRI {\n");
             indent++; {
                 for (const Route &route : nlri) {
-                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &(route.prefix)), route.length);
+                    uint32_t prefix = route.getPrefix();
+                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &prefix), route.getLength());
                 }
             }; indent--;
             written += _print(indent, to, buf_sz, "}\n");
