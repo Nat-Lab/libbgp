@@ -9,11 +9,6 @@
 
 namespace bgpfsm {
 
-typedef struct Route {
-    uint8_t length;
-    uint32_t prefix;
-} Route;
-
 enum BgpPathAttribType {
     UNKNOW = -1,
     RESERVED = 0,
