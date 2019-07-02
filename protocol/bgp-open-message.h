@@ -11,8 +11,8 @@ namespace bgpfsm {
 class BgpOpenMessage : public BgpMessage {
 public:
     BgpOpenMessage(bool use_4b_asn);
-    BgpOpenMessage(bool use_4b_asn, uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id);
-    BgpOpenMessage(bool use_4b_asn, uint32_t my_asn, uint16_t hold_time, const char* bgp_id);
+    BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, uint32_t bgp_id);
+    BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, const char* bgp_id);
     ~BgpOpenMessage();
 
     uint8_t version;
@@ -28,6 +28,9 @@ public:
 
     // utility function for getting ASN.
     uint32_t getAsn() const;
+
+    // utility function for testing capability
+    bool hasCapability(uint8_t code) const;
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t parse(const uint8_t *from, size_t msg_sz);

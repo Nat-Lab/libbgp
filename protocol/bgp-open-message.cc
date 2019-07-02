@@ -16,13 +16,13 @@ BgpOpenMessage::BgpOpenMessage(bool use_4b_asn) {
 
 BgpOpenMessage::~BgpOpenMessage() { }
 
-BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint32_t my_asn, uint16_t hold_time, uint32_t bgp_id) : BgpOpenMessage(use_4b_asn) {
+BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, uint32_t bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     this->bgp_id = bgp_id;
 }
 
-BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint32_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage(use_4b_asn) {
+BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     inet_pton(AF_INET, bgp_id, &(this->bgp_id));
@@ -253,6 +253,14 @@ bool BgpOpenMessage::setAsn(uint32_t my_asn) {
     capabilities.push_back(std::shared_ptr<BgpCapability>(as4_cap));
 
     return true;
+}
+
+bool BgpOpenMessage::hasCapability(uint8_t code) const {
+    for (const std::shared_ptr<BgpCapability> cap : capabilities) {
+        if (cap->code == code) return true;
+    }
+
+    return false;
 }
 
 }
