@@ -20,10 +20,19 @@ uint32_t BgpRibEntry::getMetric() const {
 }
 
 bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
-    for (const BgpRibEntry &entry : rib) {
-        if (entry.route == route && entry.src_router_id == src_router_id) return false;
+    BgpRibEntry new_entry(route, src_router_id, attrib);
+
+    for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
+        if (entry->route == route && entry->src_router_id == src_router_id) {
+            if (entry->getMetric() > new_entry.getMetric()) {
+                rib.erase(entry);
+                rib.push_back(new_entry);
+                return true;
+            } else return false;
+        }
     }
-    rib.push_back(BgpRibEntry(route, src_router_id, attrib));
+
+    rib.push_back(new_entry);
     return true;
 }
 
