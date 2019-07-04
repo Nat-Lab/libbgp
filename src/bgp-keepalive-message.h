@@ -1,3 +1,13 @@
+/**
+ * @file bgp-keepalive-message.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP keepalive message.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_KEEPALIVE_MSG_H_
 #define BGP_KEEPALIVE_MSG_H_
 
@@ -6,6 +16,10 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BgpKeepaliveMessage class.
+ * 
+ */
 class BgpKeepaliveMessage : public BgpMessage {
 public:
     BgpKeepaliveMessage();

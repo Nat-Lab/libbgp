@@ -1,3 +1,13 @@
+/**
+ * @file bgp-keepalive-message.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP keepalive message.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-keepalive-message.h"
 #include "bgp-errcode.h"
 #include "bgp-error.h"
