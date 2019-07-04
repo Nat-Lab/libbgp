@@ -482,7 +482,12 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         rib->withdraw(peer_bgp_id, route);
     }
 
-    // TODO: verify nexthop w/ peering_lan_*
+    const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
+    
+    if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+        // ignore invalid nexthop
+        return 1;
+    };
 
     std::vector<Route> routes = std::vector<Route> ();
     for (const Route &route : update->nlri) {
