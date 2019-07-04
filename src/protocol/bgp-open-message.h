@@ -6,7 +6,7 @@
 #include "bgp-message.h"
 #include "bgp-capability.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpOpenMessage : public BgpMessage {
 public:

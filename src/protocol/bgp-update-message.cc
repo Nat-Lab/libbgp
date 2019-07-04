@@ -5,7 +5,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpUpdateMessage::BgpUpdateMessage(bool use_4b_asn) {
     this->use_4b_asn = use_4b_asn;

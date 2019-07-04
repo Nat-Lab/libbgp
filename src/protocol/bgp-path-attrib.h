@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <vector>
 
-namespace bgpfsm {
+namespace libbgp {
 
 enum BgpPathAttribType {
     UNKNOW = -1,

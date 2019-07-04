@@ -13,7 +13,7 @@
 #include <unistd.h>
 #include <mutex>
 
-namespace bgpfsm {
+namespace libbgp {
 
 enum BgpState {
     IDLE,

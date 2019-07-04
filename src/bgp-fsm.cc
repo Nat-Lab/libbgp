@@ -6,7 +6,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SINK_SIZE) {
     this->config = config;

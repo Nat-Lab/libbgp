@@ -4,7 +4,7 @@
 #include "bgp-message.h"
 #include <stdint.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpBadMessage : public BgpMessage {
 public:

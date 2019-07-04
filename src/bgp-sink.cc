@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <arpa/inet.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpSink::BgpSink(bool use_4b_asn, size_t buffer_size) {
     this->buffer_size = buffer_size;

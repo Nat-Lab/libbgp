@@ -3,7 +3,7 @@
 #include "serializable.h"
 #include "bgp-message.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpPacket : public Serializable {
 public:

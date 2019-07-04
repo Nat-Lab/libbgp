@@ -4,7 +4,7 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 void _bgp_error (const char *format_str, ...);
 

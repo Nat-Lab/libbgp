@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 Serializable::Serializable() {
     err_code = 0;

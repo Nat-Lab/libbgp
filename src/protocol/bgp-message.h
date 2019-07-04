@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "serializable.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 enum BgpMessageType {
     OPEN = 1,

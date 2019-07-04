@@ -6,7 +6,7 @@
 #include <assert.h>
 #include <arpa/inet.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpOpenMessage::BgpOpenMessage(bool use_4b_asn) {
     this->type = OPEN;

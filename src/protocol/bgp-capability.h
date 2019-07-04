@@ -3,7 +3,7 @@
 #include "serializable.h"
 #include <stdint.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 enum BgpCapabilityCode {
     MP_BGP = 1,

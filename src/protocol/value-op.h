@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 template <typename T> T getValue(const uint8_t **buffer);
 template <typename T> size_t putValue(uint8_t **buffer, T value);

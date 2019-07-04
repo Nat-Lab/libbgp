@@ -2,7 +2,7 @@
 #define ROUTE_EV_RECV_H_
 #include "route-event-bus.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class RouteEventBus;
 

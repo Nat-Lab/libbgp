@@ -3,7 +3,7 @@
 #include "route-event.h"
 #include "route-event-receiver.h"
 #include <vector>
-namespace bgpfsm {
+namespace libbgp {
 
 class RouteEventReceiver;
 

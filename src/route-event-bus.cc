@@ -1,6 +1,6 @@
 #include "route-event-bus.h"
 
-namespace bgpfsm
+namespace libbgp
 {
 
 int RouteEventBus::publish(RouteEventReceiver *recv, const RouteEvent ev) {

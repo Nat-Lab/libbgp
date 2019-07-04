@@ -1,6 +1,6 @@
 #include "bgp-rib.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpRibEntry::BgpRibEntry(Route r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> as) : route(r), attribs(as) {
     src_router_id = src;

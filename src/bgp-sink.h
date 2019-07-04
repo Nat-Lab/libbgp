@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include "protocol/bgp-packet.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 // a sink for BGP packets
 class BgpSink {

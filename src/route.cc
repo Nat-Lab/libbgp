@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <arpa/inet.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 const uint32_t CIDR_MASK_MAP[33] = { 
     0x00000000, 0x00000080, 0x000000c0, 0x000000e0, 0x000000f0, 0x000000f8, 

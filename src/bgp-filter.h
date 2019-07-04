@@ -4,7 +4,7 @@
 #include <vector>
 #include "route.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 enum BgpFilterOP {
     NOP,

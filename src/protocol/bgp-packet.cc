@@ -6,7 +6,7 @@
 #include <arpa/inet.h>
 #include <assert.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpPacket::BgpPacket(bool is_4b) {
     msg = NULL;

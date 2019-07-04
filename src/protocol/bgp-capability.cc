@@ -7,7 +7,7 @@
 #include <assert.h>
 #include <arpa/inet.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpCapability::BgpCapability() {
     length = 0;

@@ -7,7 +7,7 @@
 #include "bgp-message.h"
 #include "bgp-path-attrib.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpUpdateMessage : public BgpMessage {
 public:

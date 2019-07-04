@@ -2,7 +2,7 @@
 #define BGP_OUT_HANDLEER_H_
 #include <stdint.h>
 #include <unistd.h>
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpOutHandler {
 public:

@@ -6,7 +6,7 @@
 #include "route.h"
 #include "protocol/bgp-path-attrib.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpRibEntry {
 public:

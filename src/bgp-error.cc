@@ -1,7 +1,7 @@
 #include "bgp-error.h"
 #include <string.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 char __bgp_error[255];
 uint8_t __bgp_err_offset = 0;

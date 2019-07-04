@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <stdarg.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 class Serializable {
 public:

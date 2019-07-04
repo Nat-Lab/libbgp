@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include "bgp-message.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class BgpNotificationMessage : public BgpMessage {
 public:

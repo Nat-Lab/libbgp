@@ -1,7 +1,7 @@
 #ifndef BGP_ERRCODE_H_
 #define BGP_ERRCODE_H_
 
-namespace bgpfsm {
+namespace libbgp {
 
 extern const char *bgp_error_code_str[];
 extern const char* bgp_header_error_subcode_str[];

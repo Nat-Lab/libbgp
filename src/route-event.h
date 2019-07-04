@@ -4,7 +4,7 @@
 #include "protocol/bgp-path-attrib.h"
 #include "protocol/bgp-update-message.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 enum RouteEventType {
     ADD, 

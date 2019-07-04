@@ -1,6 +1,6 @@
 #include "bgp-errcode.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 const char *bgp_error_code_str[] = {
     "Unspecific"

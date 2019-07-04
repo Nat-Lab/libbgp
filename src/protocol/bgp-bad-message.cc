@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <assert.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpBadMessage::BgpBadMessage(uint8_t type) {
     this->type = type;

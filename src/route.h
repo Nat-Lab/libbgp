@@ -2,7 +2,7 @@
 #define BGP_ROUTE_H_
 #include <stdint.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 uint32_t cidr_to_mask(uint8_t cidr);
 

@@ -1,6 +1,6 @@
 #include "bgp-filter.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpFilterRule::BgpFilterRule(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask) : prefix(prefix, mask) {
     this->type = type;

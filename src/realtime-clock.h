@@ -2,7 +2,7 @@
 #define REALTIME_CLOCK_H_
 #include "clock.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 class RealtimeClock : public Clock {
 public:

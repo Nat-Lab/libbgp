@@ -7,7 +7,7 @@
 #include "bgp-out-handler.h"
 #include "route-event-bus.h"
 
-namespace bgpfsm {
+namespace libbgp {
 
 typedef struct BgpConfig {
     // ingress route filters

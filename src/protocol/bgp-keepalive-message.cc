@@ -3,7 +3,7 @@
 #include "bgp-error.h"
 #include <unistd.h>
 
-namespace bgpfsm {
+namespace libbgp {
 
 BgpKeepaliveMessage::BgpKeepaliveMessage() {
     type = KEEPALIVE;
