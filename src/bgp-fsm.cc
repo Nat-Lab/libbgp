@@ -1,7 +1,7 @@
 #include "bgp-fsm.h"
 #include "bgp-error.h"
 #include "realtime-clock.h"
-#include "protocol/value-op.h"
+#include "value-op.h"
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>

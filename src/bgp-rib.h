@@ -4,7 +4,7 @@
 #include <vector>
 #include <memory>
 #include "route.h"
-#include "protocol/bgp-path-attrib.h"
+#include "bgp-path-attrib.h"
 
 namespace libbgp {
 

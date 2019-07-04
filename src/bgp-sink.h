@@ -3,7 +3,7 @@
 #include <mutex>
 #include <stdint.h>
 #include <unistd.h>
-#include "protocol/bgp-packet.h"
+#include "bgp-packet.h"
 
 namespace libbgp {
 

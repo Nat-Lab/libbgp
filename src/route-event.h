@@ -1,8 +1,8 @@
 #ifndef ROUTE_EV_H_
 #define ROUTE_EV_H_
 #include <vector>
-#include "protocol/bgp-path-attrib.h"
-#include "protocol/bgp-update-message.h"
+#include "bgp-path-attrib.h"
+#include "bgp-update-message.h"
 
 namespace libbgp {
 
