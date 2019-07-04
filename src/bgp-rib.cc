@@ -102,7 +102,6 @@ const BgpRibEntry* BgpRib::lookup(uint32_t dest) const {
 }
 
 const BgpRibEntry* BgpRib::lookup(uint32_t src_router_id, uint32_t dest) const {
-    uint8_t max_length = 0;
     const BgpRibEntry *selected_entry = NULL;
 
     for (const BgpRibEntry &entry : rib) {
