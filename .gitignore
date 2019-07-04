@@ -15,3 +15,9 @@ autom4te.cache
 .libs
 .deps
 Makefile
+dev
+compile
+libtool
+missing
+.dirstamp
+doc
