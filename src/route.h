@@ -1,3 +1,13 @@
+/**
+ * @file route.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief Route/Prefix related utilities.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_ROUTE_H_
 #define BGP_ROUTE_H_
 #include <stdint.h>
@@ -6,6 +16,10 @@ namespace libbgp {
 
 uint32_t cidr_to_mask(uint8_t cidr);
 
+/**
+ * @brief Route/Prefix related utilities.
+ * 
+ */
 class Route {
 public:
     Route(uint32_t prefix, uint8_t length);
