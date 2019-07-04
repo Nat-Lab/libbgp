@@ -115,4 +115,8 @@ const BgpRibEntry* BgpRib::lookup(uint32_t src_router_id, uint32_t dest) const {
     return selected_entry;
 }
 
+const std::vector<BgpRibEntry>& BgpRib::get() const {
+    return rib;
+}
+
 }
