@@ -1,5 +1,5 @@
 AC_INIT(libbgp, 0.1)
-AM_INIT_AUTOMAKE([subdir-objects])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 LT_INIT
 AC_SUBST(LIBTOOL_DEPS)
 AC_CONFIG_FILES([Makefile src/Makefile])
