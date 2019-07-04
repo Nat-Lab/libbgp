@@ -365,7 +365,14 @@ bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
 
 void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     update.dropNonTransitive();
-    update.setNextHop(config.nexthop); // TODO: find real nexthop w/ peering_lan_*
+    if (config.forced_default_nexthop || !update.hasAttrib(NEXT_HOP)) {
+        update.setNextHop(config.nexthop);
+    } else {
+        BgpPathAttribNexthop &nh = dynamic_cast<BgpPathAttribNexthop &> (update.getAttrib(NEXT_HOP));
+        if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+            nh.next_hop = config.nexthop;
+        }
+    }
 
     if (config.use_4b_asn && use_4b_asn) {                
         update.restoreAsPath();
