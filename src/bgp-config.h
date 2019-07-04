@@ -1,3 +1,13 @@
+/**
+ * @file bgp-config.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP FSM configuration object.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_CONFIG_H_
 #define BGP_CONFIG_H_
 #include <stdint.h>
@@ -9,65 +19,141 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BGP FSM configuration object.
+ * 
+ */
 typedef struct BgpConfig {
-    // ingress route filters
+    /**
+     * @brief Ingress route filters.
+     * 
+     * Ingress route filters are applied on the routes received from the peer. 
+     */
     BgpFilterRules in_filters;
 
-    // egress route filters
+    /**
+     * @brief Egress route filters.
+     * 
+     * Egress route filters are applied when sending routes to the peer. 
+     */
     BgpFilterRules out_filters;
 
-    // pointer to output handler
+    /**
+     * @brief The output handler.
+     * 
+     * The output handler is invoked whenever BGP FSM needs to write data.
+     */
     BgpOutHandler *out_handler;
 
-    // pointer to RIB, you can share multiple RIB across different FSM, a local
-    // RIB will be created if NULL
+    /**
+     * @brief Pointer to the Routing Information Base object.
+     * 
+     * BGP FSM will use this RIB object to store routing information. If you 
+     * would like to share RIB across different BGP FSMs, or pre-fill the RIB 
+     * with some routes, you can create the RIB object yourself and pass it as 
+     * configuration parameter here. If you set this to NULL, a new RIB will be 
+     * created by BGP FSM. You can get it by calling `BgpFsm::getRib`.
+     */
     BgpRib *rib;
 
     // pointer to event bus, route add/withdraw events will be sent to other
     // FSM thru event bus, won't use if NULL
+
+    /**
+     * @brief Pointer to the route event bus.
+     * 
+     * The route event bus is used to share information and communicate with 
+     * other BGP FSMs. For example, route add/withdrawn events are sent to other
+     * FSMs with route event bus. Collision resolution also depends on the route
+     * event bus. You will need to create a route event bus object and pass it 
+     * in as the configuration parameter for every FSMs. You may set route event
+     * bus to NULL if you are only using one FSM.
+     */
     RouteEventBus *rev_bus;
 
-    // disable collision detection? collision detection is done by sending 
-    // "collision" event to event bus upon reception of an open message.
+    /**
+     * @brief Disable collision detection.
+     * 
+     * Set this parameter to true will disable collision detection.
+     */
     bool no_collision_detection;
 
-    // use 4 byte ASN?
-    // false: don't send 4B ASN capability.
-    // true: send 4B ASN capability.
-    // this will also change behaviour of updates
+    /**
+     * @brief Enable four octets ASN support (RFC 6793)
+     * 
+     * Set this parameter to true will eable four octets ASN support.
+     */
     bool use_4b_asn;
 
-    // local ASN, MUST be < 65535 if use_4b_asn != 1
+    /**
+     * @brief Local ASN.
+     * 
+     */
     uint32_t asn;
 
-    // peer ASN, MUST be < 65535 if use_4b_asn != 1
+    /**
+     * @brief Peer ASN
+     * 
+     */
     uint32_t peer_asn;
 
-    // BGP ID in network byte order
+    /**
+     * @brief Local BGP ID in network byte order.
+     * 
+     */
     uint32_t router_id;
 
-    // when processing update from the peer, routes with nexthop outside the 
-    // network specified by peering_lan_prefix and peering_lan_length will be
-    // ignored. These two values also affect the nexthop selection behavior
-    // when sending updates to the peer.
-
-    // the prefix of the peering LAN in network-byte order.
+    /**
+     * @brief The prefix of the peering LAN in network-byte order.
+     * 
+     * Peering LAN information is used to check the validity of the nexthop 
+     * attribute of the received routes. Routes received from the peer with a 
+     * nexthop outside the peering LAN will be ignored.
+     */
     uint32_t peering_lan_prefix;
 
-    // the mask of the peering LAN. (e.g., for /24, peering_lan_length should 
-    // be 24)
+    /**
+     * @brief The netmask of the peering LAN in CIDR notation.
+     * 
+     * Peering LAN information is used to check the validity of the nexthop 
+     * attribute of the received routes. Routes received from the peer with a 
+     * nexthop outside the peering LAN will be ignored.
+     */
     uint8_t peering_lan_length;
 
-    // nexthop to use when advertising routes to peers. the peering_lan_prefix 
-    // and peering_lan_length value will be used for nexthop selection. If an 
-    // egress route has a nexthop inside the peering LAN, the nexthop will not
-    // be changed. Otherwise, this value will be used as nexthop.
+    /**
+     * @brief The default nexthop to use.
+     * 
+     * Default nexthop is used when sending routes to the peer. The nexthop 
+     * value will remain unchanged if it is inside peering LAN. Default nexthop 
+     * is used only when the nexthop attribute of an egress route is not in 
+     * peering LAN. 
+     */
     uint32_t nexthop;
 
-    // Hold timer
+    /**
+     * @brief Forced default nexthop.
+     * 
+     * If this is set to true, the `nexthop` configuration parameter will always
+     * be used as nexthop, regardless of the peering LAN.
+     */
+    bool forced_default_nexthop;
+
+    /**
+     * @brief The hold timer.
+     * 
+     */
     uint16_t hold_timer;
 
-    // pointer to clock object, if NULL, real time clock will be used
+    /**
+     * @brief The clock to use for time-based events.
+     * 
+     * Time-based events like hold timer expired needs to refer to the clock. 
+     * Sometime we may not want to use the system clock. For example, if BgpFsm
+     * is used inside a simulator like ns3, we will need to use the simulated
+     * clock instead of the real-time clock. Set this to NULL if you want to use
+     * a real-time clock.
+     */
     Clock *clock;
 } BgpConfig;
 
