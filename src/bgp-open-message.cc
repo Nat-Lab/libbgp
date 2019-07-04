@@ -45,6 +45,8 @@ BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_t
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     this->bgp_id = bgp_id;
+    this->use_4b_asn = use_4b_asn;
+    if (use_4b_asn) setAsn(my_asn);
 }
 
 /**
@@ -60,6 +62,8 @@ BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_t
 BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
+    this->use_4b_asn = use_4b_asn;
+    if (use_4b_asn) setAsn(my_asn);
     inet_pton(AF_INET, bgp_id, &(this->bgp_id));
 }
 
