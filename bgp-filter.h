@@ -2,6 +2,7 @@
 #define BGP_FILTER_H_
 #include <stdint.h>
 #include <vector>
+#include "route.h"
 
 namespace bgpfsm {
 
@@ -18,23 +19,30 @@ enum BgpFilterType {
 
 class BgpFilterRule {
 public:
-    BgpFilterRule();
-    BgpFilterRule(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint32_t mask);
+    BgpFilterRule(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
+    BgpFilterRule(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask);
+    BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route &prefix);
+    BgpFilterOP apply(uint32_t prefix, uint8_t mask) const;
+    BgpFilterOP apply(const Route &prefix) const;
 
+private:
     BgpFilterType type;
     BgpFilterOP op;
-    uint32_t prefix;
-    uint32_t mask;
-
-    BgpFilterOP apply(uint32_t prefix, uint32_t mask) const;
+    Route prefix;
 };
 
 class BgpFilterRules {
 public:
-    std::vector<BgpFilterRule> rules;
+    BgpFilterRules();
+    BgpFilterRules(BgpFilterOP default_op);
 
-    void append(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint32_t mask);
+    void append(const BgpFilterRule &rule);
     BgpFilterOP apply(uint32_t prefix, uint32_t mask) const;
+    BgpFilterOP apply(const Route &prefix) const;
+
+private:
+    BgpFilterOP default_op;
+    std::vector<BgpFilterRule> rules;
 };
 
 }
