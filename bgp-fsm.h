@@ -8,6 +8,7 @@
 #include "bgp-config.h"
 #include "bgp-sink.h"
 #include "route-event-receiver.h"
+#include "protocol/bgp.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <mutex>

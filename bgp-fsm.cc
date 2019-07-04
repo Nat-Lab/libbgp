@@ -1,7 +1,6 @@
 #include "bgp-fsm.h"
 #include "bgp-error.h"
 #include "realtime-clock.h"
-#include "protocol/bgp.h"
 #include "protocol/value-op.h"
 #include <stdlib.h>
 #include <string.h>
@@ -335,7 +334,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     update.setAttribs(ev.attribs);
 
     for (const Route &route : ev.routes) {
-        if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
+        if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             update.addNlri(route);
         } 
     }
@@ -454,9 +453,9 @@ int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
     state = ESTABLISHED;
 
     // feed rib to peer; TODO: feed routes w/ same attrib w/ single message
-    for (const RibEntry &entry : rib->get()) {
+    for (const BgpRibEntry &entry : rib->get()) {
         const Route route = entry.route;
-        if (config.out_filters.apply(route.prefix, route.length) == ACCEPT) {
+        if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             BgpUpdateMessage update (use_4b_asn);
             update.setAttribs(entry.attribs);
             update.addNlri(route);
@@ -481,7 +480,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
     std::vector<Route> routes = std::vector<Route> ();
     for (const Route &route : update->nlri) {
-        if(config.in_filters.apply(route.prefix, route.length) == ACCEPT) {
+        if(config.in_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             routes.push_back(route);
         }
     }
