@@ -9,3 +9,9 @@ config.*
 aclocal.m4
 install-sh
 autom4te.cache
+*.lo
+*.o
+*.la
+.libs
+.deps
+Makefile
