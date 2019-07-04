@@ -164,6 +164,12 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
 
         int retval = -1;
 
+        int vald_ret = validateState(msg->type);
+        if (vald_ret <= 0) {
+            delete packet;
+            return vald_ret;
+        }
+
         switch (state) {
             case IDLE: retval = fsmEvalIdle(msg); break;
             case OPEN_SENT: retval = fsmEvalOpenSent(msg); break;
@@ -446,7 +452,7 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
     return 1;
 }
 
-int BgpFsm::fsmEvalOpenConfirm(const BgpMessage *msg) {
+int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     BgpKeepaliveMessage keep = BgpKeepaliveMessage();
     if(!writeMessage(keep)) return -1;
 
@@ -509,7 +515,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     std::lock_guard<std::mutex> lock(out_buffer_mutex);
-    BgpPacket pkt(&msg);
+    BgpPacket pkt(use_4b_asn, &msg);
     ssize_t pkt_len = pkt.write(out_buffer, BGP_FSM_BUFFER_SIZE);
 
     if (pkt_len < 0) {
