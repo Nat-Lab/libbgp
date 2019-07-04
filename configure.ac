@@ -1,0 +1,8 @@
+AC_INIT(libbgp, 0.1)
+AM_INIT_AUTOMAKE([subdir-objects])
+LT_INIT
+AC_SUBST(LIBTOOL_DEPS)
+AC_CONFIG_FILES([Makefile src/Makefile])
+AC_CONFIG_MACRO_DIRS([m4])
+AC_PROG_CXX
+AC_OUTPUT
