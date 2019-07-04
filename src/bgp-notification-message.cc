@@ -1,3 +1,13 @@
+/**
+ * @file bgp-notification-message.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP notification message.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-notification-message.h"
 #include "bgp-errcode.h"
 #include "value-op.h"
@@ -16,6 +26,14 @@ BgpNotificationMessage::~BgpNotificationMessage() {
     if (data_len > 0) free(data);
 }
 
+/**
+ * @brief Construct a new Bgp Notification Message:: Bgp Notification Message object
+ * 
+ * @param errcode Error code
+ * @param subcode Error subcode
+ * @param data The error buffer pointer
+ * @param data_len Length of error buffer.
+ */
 BgpNotificationMessage::BgpNotificationMessage(uint8_t errcode, uint8_t subcode, const uint8_t *data, uint16_t data_len) {
     type = NOTIFICATION;
     this->errcode = errcode;
