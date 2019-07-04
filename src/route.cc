@@ -24,6 +24,17 @@ Route::Route(uint32_t prefix, uint8_t length) {
     this->length = length;
 }
 
+bool Route::Includes (uint32_t prefix, uint8_t length, uint32_t address) {
+    if (length > 32) return false;
+    return (address & CIDR_MASK_MAP[length]) == prefix;
+}
+
+bool Route::Includes (uint32_t prefix_a, uint8_t length_a, uint32_t prefix_b, uint8_t length_b) {
+    if (length_a > 32 || length_b > 32) return false;
+    if (length_b < length_a) return false;
+    return (prefix_b & CIDR_MASK_MAP[length_a]) == prefix_a;
+}
+
 Route::Route(const char* prefix, uint8_t length) {
     assert(length <= 32);
     this->length = length;

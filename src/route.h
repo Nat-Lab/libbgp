@@ -11,6 +11,10 @@ public:
     Route(uint32_t prefix, uint8_t length);
     Route(const char* prefix, uint8_t length);
 
+    // static utility functions for route include test
+    static bool Includes (uint32_t prefix, uint8_t length, uint32_t address);
+    static bool Includes (uint32_t prefix_a, uint8_t length_a, uint32_t prefix_b, uint8_t length_b);
+
     // test if address in prefix
     bool includes (uint32_t address) const;
     bool includes (const char* address) const;
