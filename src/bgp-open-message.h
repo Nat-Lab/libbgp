@@ -1,3 +1,13 @@
+/**
+ * @file bgp-open-message.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP open message.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_OPEN_MSG_H_
 #define BGP_OPEN_MSG_H_
 #include <vector>
@@ -8,6 +18,10 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BgpOpenMessage class.
+ * 
+ */
 class BgpOpenMessage : public BgpMessage {
 public:
     BgpOpenMessage(bool use_4b_asn);

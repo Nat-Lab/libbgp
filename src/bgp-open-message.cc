@@ -1,3 +1,13 @@
+/**
+ * @file bgp-open-message.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP open message.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-open-message.h"
 #include "bgp-errcode.h"
 #include "bgp-error.h"
@@ -8,6 +18,11 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new Bgp Open Message:: Bgp Open Message object
+ * 
+ * @param use_4b_asn Enable four octets ASN support.
+ */
 BgpOpenMessage::BgpOpenMessage(bool use_4b_asn) {
     this->type = OPEN;
     this->version = 4;
@@ -16,12 +31,32 @@ BgpOpenMessage::BgpOpenMessage(bool use_4b_asn) {
 
 BgpOpenMessage::~BgpOpenMessage() { }
 
+/**
+ * @brief Construct a new Bgp Open Message:: Bgp Open Message object
+ * 
+ * @param use_4b_asn Enable four octets ASN support.
+ * @param my_asn Local ASN (2 octets). If you want to set a four octets ASN, 
+ * make sure `use_4b_asn` is true and use 
+ * `BgpOpenMessage::setAsn(uint32_t my_asn)`
+ * @param hold_time Hold timer.
+ * @param bgp_id Local BGP ID in network byte order
+ */
 BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, uint32_t bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
     this->bgp_id = bgp_id;
 }
 
+/**
+ * @brief Construct a new Bgp Open Message:: Bgp Open Message object
+ * 
+ * @param use_4b_asn Enable four octets ASN support.
+ * @param my_asn Local ASN (2 octets). If you want to set a four octets ASN, 
+ * make sure `use_4b_asn` is true and use 
+ * `BgpOpenMessage::setAsn(uint32_t my_asn)`
+ * @param hold_time Hold timer.
+ * @param bgp_id Local BGP ID in dotted string notation
+ */
 BgpOpenMessage::BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, const char* bgp_id) : BgpOpenMessage(use_4b_asn) {
     this->my_asn = my_asn;
     this->hold_time = hold_time;
@@ -221,6 +256,14 @@ ssize_t BgpOpenMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_left) c
     return written;
 }
 
+/**
+ * @brief Get ASN.
+ * 
+ * Get ASN of the open message. Will check Capabilities for four octets ASN if
+ * four octets ASN support is enabled.
+ * 
+ * @return uint32_t ASN
+ */
 uint32_t BgpOpenMessage::getAsn() const {
     if (!use_4b_asn) return my_asn;
 
@@ -234,6 +277,16 @@ uint32_t BgpOpenMessage::getAsn() const {
     return my_asn;
 }
 
+/**
+ * @brief Set ASN.
+ * 
+ * Set ASN of the open message. Will update/create four octets ASN capability if
+ * four octets ASN support is enabled.
+ * 
+ * @param my_asn ASN
+ * @return true ASN set
+ * @return false Failed to set ASN
+ */
 bool BgpOpenMessage::setAsn(uint32_t my_asn) {
     this->my_asn = my_asn >= 0xffff ? 23456 : my_asn;
 
@@ -255,6 +308,13 @@ bool BgpOpenMessage::setAsn(uint32_t my_asn) {
     return true;
 }
 
+/**
+ * @brief Check if open message has a capability.
+ * 
+ * @param code Capability code
+ * @return true open message  has capability
+ * @return false open message does not have capability.
+ */
 bool BgpOpenMessage::hasCapability(uint8_t code) const {
     for (const std::shared_ptr<BgpCapability> cap : capabilities) {
         if (cap->code == code) return true;
