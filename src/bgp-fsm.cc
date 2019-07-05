@@ -491,7 +491,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
     const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
     
-    if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+    if (!config.no_nexthop_check && !Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
         // ignore invalid nexthop
         return 1;
     };

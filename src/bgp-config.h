@@ -122,6 +122,14 @@ typedef struct BgpConfig {
     uint8_t peering_lan_length;
 
     /**
+     * @brief Disable ingress nexthop validation.
+     * 
+     * If true, BGP FSM will accept route with any nexthop, regardless of the 
+     * peering LAN.
+     */
+    bool no_nexthop_check;
+
+    /**
      * @brief The default nexthop to use.
      * 
      * Default nexthop is used when sending routes to the peer. The nexthop 
