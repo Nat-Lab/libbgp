@@ -1,3 +1,13 @@
+/**
+ * @file bgp-update-message.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP update message
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_UPDATE_MSG_H_
 #define BGP_UPDATE_MSG_H_
 #include <vector>
@@ -9,6 +19,10 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BgpUpdateMessage class.
+ * 
+ */
 class BgpUpdateMessage : public BgpMessage {
 public:
     std::vector<Route> withdrawn_routes;

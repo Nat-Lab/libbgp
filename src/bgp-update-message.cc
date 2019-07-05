@@ -1,3 +1,13 @@
+/**
+ * @file bgp-update-message.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP update message
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-update-message.h"
 #include "bgp-error.h"
 #include "bgp-errcode.h"
@@ -7,10 +17,22 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new Bgp Update Message:: Bgp Update Message object
+ * 
+ * @param use_4b_asn Enable four octets ASN support.
+ */
 BgpUpdateMessage::BgpUpdateMessage(bool use_4b_asn) {
     this->use_4b_asn = use_4b_asn;
 }
 
+/**
+ * @brief Get mutable reference to attribute by typecode.
+ * 
+ * @param type Attribute typecode.
+ * @return BgpPathAttrib& The attribute.
+ * @throws "no such attribute" if attribute does not exist.
+ */
 BgpPathAttrib& BgpUpdateMessage::getAttrib(uint8_t type) {
     for (std::shared_ptr<BgpPathAttrib> attrib : path_attribute) {
         if (attrib->type_code == type) return *attrib;
@@ -19,6 +41,13 @@ BgpPathAttrib& BgpUpdateMessage::getAttrib(uint8_t type) {
     throw "no such attribute";
 }
 
+/**
+ * @brief Get const reference to attribute by typecode.
+ * 
+ * @param type Attribute typecode.
+ * @return const BgpPathAttrib& The attribute.
+ * @throws "no such attribute" if attribute does not exist.
+ */
 const BgpPathAttrib& BgpUpdateMessage::getAttrib(uint8_t type) const {
     for (const std::shared_ptr<BgpPathAttrib> &attrib : path_attribute) {
         if (attrib->type_code == type) return *attrib;
@@ -27,6 +56,13 @@ const BgpPathAttrib& BgpUpdateMessage::getAttrib(uint8_t type) const {
     throw "no such attribute";
 }
 
+/**
+ * @brief Test if update message has an attribute.
+ * 
+ * @param type Attribute typecode.
+ * @return true Attribute avaliable.
+ * @return false Attribute not avaliable.
+ */
 bool BgpUpdateMessage::hasAttrib(uint8_t type) const {
     for (const std::shared_ptr<BgpPathAttrib> &attrib : path_attribute) {
         if (attrib->type_code == type) return true;
@@ -35,6 +71,14 @@ bool BgpUpdateMessage::hasAttrib(uint8_t type) const {
     return false;
 }
 
+/**
+ * @brief Add an attribute to the update message.
+ * 
+ * @param attrib The attribute.
+ * @return true Attribute added.
+ * @return false Failed to add attribute. Likely because another attribute with
+ * same type code already exists.
+ */
 bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
     if (hasAttrib(attrib.type_code)) return false;
 
@@ -42,6 +86,13 @@ bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
     return true;
 }
 
+/**
+ * @brief Replace the attributes list with another attribute list.
+ * 
+ * @param attrs List of attributes.
+ * @return true List replaced.
+ * @return false Failed to replace list.
+ */
 bool BgpUpdateMessage::setAttribs(const std::vector<std::shared_ptr<BgpPathAttrib>> &attrs) {
     path_attribute.clear();
     for (const std::shared_ptr<BgpPathAttrib> &attrib : attrs) {
@@ -50,6 +101,14 @@ bool BgpUpdateMessage::setAttribs(const std::vector<std::shared_ptr<BgpPathAttri
     return true;
 }
 
+/**
+ * @brief Drop (remove) an attribute from the update message.
+ * 
+ * @param type The attribute typecode.
+ * @return true Attribute removed.
+ * @return false Failed to remove attribute. Likely becuase such attribute does
+ * not exist.
+ */
 bool BgpUpdateMessage::dropAttrib(uint8_t type) {
     for (auto attr = path_attribute.begin(); attr != path_attribute.end(); attr++) {
         if ((*attr)->type_code == type) {
@@ -61,6 +120,12 @@ bool BgpUpdateMessage::dropAttrib(uint8_t type) {
     return false;
 }
 
+/**
+ * @brief Drop all non-transitive attributes from the update message.
+ * 
+ * @return true Some attributes dropped.
+ * @return false No attribute dropped.
+ */
 bool BgpUpdateMessage::dropNonTransitive() {
     bool removed = false;
 
@@ -74,17 +139,42 @@ bool BgpUpdateMessage::dropNonTransitive() {
     return removed;
 }
 
+/**
+ * @brief Add/Update an attribute.
+ * 
+ * @param attrib The attribute.
+ * @return true attribute added/updated.
+ * @return false Failed to update attribute.
+ */
 bool BgpUpdateMessage::updateAttribute(const BgpPathAttrib &attrib) {
     dropAttrib(attrib.type_code);
     return addAttrib(attrib);
 }
 
+/**
+ * @brief Set/Create nexthop attribtue.
+ * 
+ * @param nexthop Nexthop in network byte order.
+ * @return true Nexthop set.
+ * @return false Failed to set nexthop.
+ */
 bool BgpUpdateMessage::setNextHop(uint32_t nexthop) {
     BgpPathAttribNexthop nh = BgpPathAttribNexthop();
     nh.next_hop = nexthop;
     return updateAttribute(nh);
 }
 
+/**
+ * @brief Prepend ASN to AS_PATH and AS4_PATH (if in 2b-mode ans AS4_PATH 
+ * exists)
+ * 
+ * Prepend an ASN to AS_PATH. Depends on the setup, the given ASN may be 
+ * prepended to AS4_PATH too. 
+ * 
+ * @param asn Thr ASN.
+ * @return true ASN appended.
+ * @return false Failed to append ASN. errbuf may have details. (see bgp-error.h)
+ */
 bool BgpUpdateMessage::prepend(uint32_t asn) {
     if (use_4b_asn) {
         // in 4b mode, prepend 4b asn to AS_PATH directly.
@@ -141,7 +231,15 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
     }
 }
 
-
+/**
+ * @brief Restore the AS_PATH attribute to four octets ASN flavor.
+ * 
+ * Try to restore AS_TRANS in AS_PATH attribute with AS4_PATH.
+ * 
+ * @return true Path restored.
+ * @return false Failed to restore path. errbuf may have details. (see 
+ * bgp-error.h)
+ */
 bool BgpUpdateMessage::restoreAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
 
@@ -247,6 +345,15 @@ bool BgpUpdateMessage::restoreAsPath() {
     
 }
 
+/**
+ * @brief Downgrade the AS_PATH to two octets flavor.
+ * 
+ * Create/Update AS_PATH and make four octets ASNs in AS_PATH AS_TRANS. 
+ * 
+ * @return true AS_PATH downgraded.
+ * @return false Failed to downgrade AS_PATH. errbuf may have details. (see 
+ * bgp-error.h)
+ */
 bool BgpUpdateMessage::downgradeAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
 
@@ -278,6 +385,12 @@ bool BgpUpdateMessage::downgradeAsPath() {
     return true;
 }
 
+/**
+ * @brief Restore aggregator attribute from as4_aggregator
+ * 
+ * @return true Aggregator restored.
+ * @return false Failed to restore aggregator.
+ */
 bool BgpUpdateMessage::restoreAggregator() {
     if (!hasAttrib(AGGREATOR)) return true;
 
@@ -293,6 +406,12 @@ bool BgpUpdateMessage::restoreAggregator() {
     return true;
 }
 
+/**
+ * @brief Downgrade aggregator to two octets
+ * 
+ * @return true Aggregator downgraded.
+ * @return false Failed to downgrade aggregator.
+ */
 bool BgpUpdateMessage::downgradeAggregator() {
     if (!hasAttrib(AGGREATOR)) return true;
     
@@ -309,33 +428,77 @@ bool BgpUpdateMessage::downgradeAggregator() {
     return true;
 }
 
+/**
+ * @brief Set withdrawn routes.
+ * 
+ * @param routes Withdrawn routes.
+ * @return true Withdrawn routes set.
+ * @return false Failed to set withdrawn routes.
+ */
 bool BgpUpdateMessage::setWithdrawn(const std::vector<Route> &routes) {
     withdrawn_routes = routes;
     return true;
 }
 
+/**
+ * @brief Add withdrawn route.
+ * 
+ * @param prefix Withdrawn route prefix in network byte order.
+ * @param length Withdrawn route netmask in CIDR notation.
+ * @return true Withdrawn route added.
+ * @return false Failed to add withdrawn route.
+ */
 bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
     Route route (prefix, length);
     withdrawn_routes.push_back(route);
     return true;
 }
 
+/**
+ * @brief Add withdrawn route.
+ * 
+ * @param route The withdrawn route.
+ * @return true Withdrawn route added.
+ * @return false Failed to add withdrawn route.
+ */
 bool BgpUpdateMessage::addWithdrawn(const Route &route) {
     withdrawn_routes.push_back(route);
     return true;
 }
 
+/**
+ * @brief Set NLRIs.
+ * 
+ * @param routes Routes.
+ * @return true Routes set.
+ * @return false Failed to set routes.
+ */
 bool BgpUpdateMessage::setNlri(const std::vector<Route> &routes) {
     nlri = routes;
     return true;
 }
 
+/**
+ * @brief Add NLRI route.
+ * 
+ * @param prefix Route prefix in network byte order.
+ * @param length Route netmask in CIDR notation.
+ * @return true Route added.
+ * @return false Failed to add route.
+ */
 bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
     Route route(prefix, length);
     nlri.push_back(route);
     return true;
 }
 
+/**
+ * @brief Add NLRI route.
+ * 
+ * @param route The route.
+ * @return true Route added.
+ * @return false Failed to add route.
+ */
 bool BgpUpdateMessage::addNlri(const Route &route) {
     nlri.push_back(route);
     return true;
