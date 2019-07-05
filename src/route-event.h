@@ -20,17 +20,20 @@ public:
 
 class RouteAddEvent : public RouteEvent {
 public:
+    RouteAddEvent () { type = ADD; }
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     std::vector<Route> routes;
 };
 
 class RouteWithdrawEvent : public RouteEvent {
 public:
+    RouteWithdrawEvent () { type = WITHDRAW; }
     std::vector<Route> routes;
 };
 
 class RouteCollisionEvent : public RouteEvent {
 public:
+    RouteCollisionEvent () { type = COLLISION; }
     uint32_t peer_bgp_id;
 };
 

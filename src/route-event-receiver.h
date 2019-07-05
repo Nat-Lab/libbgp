@@ -9,6 +9,9 @@ class RouteEventBus;
 class RouteEventReceiver {
     friend class RouteEventBus;
 
+public:
+    RouteEventReceiver() { subscription_id = 0; }
+
 protected:
 
     // handle a route event
@@ -18,6 +21,8 @@ protected:
     virtual bool handleRouteEvent(const RouteEvent &ev) = 0;
     
     virtual ~RouteEventReceiver() {};
+private:
+    int subscription_id;
 };
 
 }

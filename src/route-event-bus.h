@@ -9,9 +9,11 @@ class RouteEventReceiver;
 
 class RouteEventBus {
 public:
+    RouteEventBus();
+
     // publish a route event. For non FSM (administratively/other proto), use fsm = NULL
     // return number of subscriber reached, or -1 on error
-    int publish(RouteEventReceiver *recv, const RouteEvent ev);
+    int publish(RouteEventReceiver *recv, const RouteEvent &ev);
 
     // subscribe to event bus, return true if success
     bool subscribe(RouteEventReceiver *recv);
@@ -20,6 +22,7 @@ public:
     bool unsubscribe(RouteEventReceiver *recv);
 private:
     std::vector<RouteEventReceiver *> subscribers;
+    int subscription_id;
 };
 
 }
