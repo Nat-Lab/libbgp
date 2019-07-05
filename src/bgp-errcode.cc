@@ -1,7 +1,21 @@
+/**
+ * @file bgp-errcode.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief BGP error codes.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-errcode.h"
 
 namespace libbgp {
 
+/**
+ * @brief Error strings for BGP error codes.
+ * 
+ */
 const char *bgp_error_code_str[] = {
     "Unspecific"
     "Message Header Error",
@@ -12,6 +26,10 @@ const char *bgp_error_code_str[] = {
     "Cease"
 };
 
+/**
+ * @brief Error strings for BGP header error subcodes.
+ * 
+ */
 const char* bgp_header_error_subcode_str[] = {
     "Unspecific",
     "Connection Not Synchronized",
@@ -19,6 +37,10 @@ const char* bgp_header_error_subcode_str[] = {
     "Bad Message Type"
 };
 
+/**
+ * @brief Error strings for BGP open message error subcodes.
+ * 
+ */
 const char *bgp_open_error_subcode_str[] = {
     "Unspecific",
     "Unsupported Version Number",
@@ -30,6 +52,10 @@ const char *bgp_open_error_subcode_str[] = {
     "Unsupported Capability"
 };
 
+/**
+ * @brief Error strings for BGP update message error subcodes.
+ * 
+ */
 const char *bgp_update_error_str[] = {
     "Unspecific",
     "Malformed Attribute List",
@@ -44,6 +70,10 @@ const char *bgp_update_error_str[] = {
     "Malformed AS_PATH"
 };
 
+/**
+ * @brief Error strings for BGP FSM error subcodes.
+ * 
+ */
 const char *bgp_fsm_error_str[] = {
     "Unspecific",
     "Receive Unexpected Message in OpenSent State",
@@ -51,6 +81,10 @@ const char *bgp_fsm_error_str[] = {
     "Receive Unexpected Message in Established State"
 };
 
+/**
+ * @brief Error strings for BGP cease error subcodes.
+ * 
+ */
 const char *bgp_cease_error_str[] = {
     "Unspecific",
     "Maximum Number of Prefixes Reached",
