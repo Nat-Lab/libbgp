@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include "bgp-packet.h"
+#include "bgp-log-handler.h"
 
 namespace libbgp {
 
@@ -11,7 +12,7 @@ namespace libbgp {
 class BgpSink {
 public:
     // create a new sink
-    BgpSink(bool use_4b_asn, size_t buffer_size);
+    BgpSink(BgpLogHandler *logger, bool use_4b_asn, size_t buffer_size);
 
     // feed stream of packets into sink
     ssize_t fill(const uint8_t *buffer, size_t len);
@@ -54,6 +55,7 @@ private:
     size_t offset_end;
     bool use_4b_asn;
     std::mutex mutex;
+    BgpLogHandler *logger;
 };
 
 }

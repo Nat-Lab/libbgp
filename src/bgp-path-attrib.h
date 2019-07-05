@@ -76,8 +76,8 @@ public:
      */
     uint8_t type_code;
 
-    BgpPathAttrib();
-    BgpPathAttrib(const uint8_t *value, uint16_t val_len);
+    BgpPathAttrib(BgpLogHandler *logger);
+    BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16_t val_len);
 
     // get attribute type from buffer, return -1 if failed.
     static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
@@ -140,7 +140,7 @@ enum BgpPathAttribOrigins {
  */
 class BgpPathAttribOrigin : public BgpPathAttrib {
 public:
-    BgpPathAttribOrigin();
+    BgpPathAttribOrigin(BgpLogHandler *logger);
     uint8_t origin;
     
     BgpPathAttrib* clone() const;
@@ -194,7 +194,7 @@ public:
 class BgpPathAttribAsPath : public BgpPathAttrib {
 public:
     // is_4b: 4b ASN in AS_PATH?
-    BgpPathAttribAsPath(bool is_4b);
+    BgpPathAttribAsPath(BgpLogHandler *logger, bool is_4b);
 
     BgpPathAttrib* clone() const;
 
@@ -227,7 +227,7 @@ private:
  */
 class BgpPathAttribNexthop : public BgpPathAttrib {
 public:
-    BgpPathAttribNexthop();
+    BgpPathAttribNexthop(BgpLogHandler *logger);
 
     /**
      * @brief The nexthop in network byte order.
@@ -247,7 +247,7 @@ public:
  */
 class BgpPathAttribMed : public BgpPathAttrib {
 public:
-    BgpPathAttribMed();
+    BgpPathAttribMed(BgpLogHandler *logger);
 
     /**
      * @brief MED.
@@ -267,7 +267,7 @@ public:
  */
 class BgpPathAttribLocalPref : public BgpPathAttrib {
 public:
-    BgpPathAttribLocalPref();
+    BgpPathAttribLocalPref(BgpLogHandler *logger);
 
     /**
      * @brief Local Pref.
@@ -287,7 +287,7 @@ public:
  */
 class BgpPathAttribAtomicAggregate : public BgpPathAttrib {
 public:
-    BgpPathAttribAtomicAggregate();
+    BgpPathAttribAtomicAggregate(BgpLogHandler *logger);
 
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
@@ -302,7 +302,7 @@ public:
 class BgpPathAttribAggregator : public BgpPathAttrib {
 public:
     // is_4b: 4b asn in aggregator?
-    BgpPathAttribAggregator(bool is_4b);
+    BgpPathAttribAggregator(BgpLogHandler *logger, bool is_4b);
 
     /**
      * @brief Aggregator in network byte order.
@@ -334,7 +334,7 @@ public:
  */
 class BgpPathAttribAs4Path : public BgpPathAttrib {
 public:
-    BgpPathAttribAs4Path();
+    BgpPathAttribAs4Path(BgpLogHandler *logger);
 
     /**
      * @brief The AS4_PATH segments.
@@ -358,7 +358,7 @@ private:
  */
 class BgpPathAttribAs4Aggregator : public BgpPathAttrib {
 public:
-    BgpPathAttribAs4Aggregator();
+    BgpPathAttribAs4Aggregator(BgpLogHandler *logger);
 
     /**
      * @brief Aggregator in network byte order.
@@ -384,7 +384,7 @@ public:
  */
 class BgpPathAttribCommunity : public BgpPathAttrib {
 public:
-    BgpPathAttribCommunity();
+    BgpPathAttribCommunity(BgpLogHandler *logger);
 
     /**
      * @brief Raw community attribute in network byte order.

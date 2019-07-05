@@ -1,5 +1,4 @@
 #include "bgp-sink.h"
-#include "bgp-error.h"
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
@@ -7,10 +6,11 @@
 
 namespace libbgp {
 
-BgpSink::BgpSink(bool use_4b_asn, size_t buffer_size) {
+BgpSink::BgpSink(BgpLogHandler *logger, bool use_4b_asn, size_t buffer_size) {
     this->buffer_size = buffer_size;
     this->buffer = (uint8_t *) malloc(buffer_size);
     this->use_4b_asn = use_4b_asn;
+    this->logger = logger;
     offset_start = offset_end = 0;
 }
 
@@ -22,14 +22,14 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
     if (len > buffer_size) {
-        _bgp_error("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
+        logger->stderr("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
         return -1;
     }
 
     if (offset_end + len > buffer_size) {
         settle(); 
         if (offset_end + len > buffer_size) {
-            _bgp_error("BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
+            logger->stderr("BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
             return -1;
         }
     }
@@ -48,14 +48,14 @@ int BgpSink::pour(BgpPacket **pkt) {
 
     if (offset_end - offset_start < 19) return 0;
     if (memcmp(cur, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0) {
-        _bgp_error("BgpSink::pour: invalid BGP marker.\n");
+        logger->stderr("BgpSink::pour: invalid BGP marker.\n");
         return -2;
     }
 
     uint16_t field_len = ntohs(*(uint16_t *) (cur + 16));
 
     if (field_len < 19 || field_len > 4096) {
-        _bgp_error("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
+        logger->stderr("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
         return -2;
     }
 
@@ -64,7 +64,7 @@ int BgpSink::pour(BgpPacket **pkt) {
 
     offset_start += field_len;
 
-    BgpPacket *new_pkt = new BgpPacket(use_4b_asn);
+    BgpPacket *new_pkt = new BgpPacket(logger, use_4b_asn);
     ssize_t par_ret = new_pkt->parse(cur, field_len);
 
     *pkt = new_pkt;

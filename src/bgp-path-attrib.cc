@@ -1,5 +1,4 @@
 #include "bgp-path-attrib.h"
-#include "bgp-error.h"
 #include "bgp-errcode.h"
 #include "value-op.h"
 #include <stdlib.h>
@@ -9,19 +8,16 @@
 namespace libbgp {
 
 int8_t BgpPathAttrib::GetTypeFromBuffer(const uint8_t *from, size_t buffer_sz) {
-    if (buffer_sz < 3) {
-        _bgp_error("BgpPathAttrib::GetTypeFromBuffer: buffer too small.\n");
-        return -1;
-    }
+    if (buffer_sz < 3) return -1;
     return *((uint8_t *) (from + 1));
 }
 
-BgpPathAttrib::BgpPathAttrib() {
+BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger) : Serializable(logger) {
     optional = transitive = partial = extended = false;
     value_ptr = NULL;
 }
 
-BgpPathAttrib::BgpPathAttrib(const uint8_t *value, uint16_t val_len) : BgpPathAttrib() {
+BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16_t val_len) : BgpPathAttrib(logger) {
     if (value_len > 0) assert(value != NULL);
 
     value_ptr = (uint8_t *) malloc(val_len);
@@ -34,7 +30,7 @@ BgpPathAttrib::~BgpPathAttrib() {
 
 BgpPathAttrib* BgpPathAttrib::clone() const {
     assert(!hasError());
-    BgpPathAttrib *attr = new BgpPathAttrib(value_ptr, value_len);
+    BgpPathAttrib *attr = new BgpPathAttrib(logger, value_ptr, value_len);
     attr->transitive = transitive;
     attr->optional = optional;
     attr->partial = partial;
@@ -89,7 +85,7 @@ ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
     if (!optional && transitive) {
         // well-known mandatory, but not recognized
         setError(E_UPDATE, E_BAD_WELL_KNOWN, from, value_len + header_len);
-        _bgp_error("BgpPathAttrib::parse: flag indicates well-known, mandatory but this attribute is unknown.\n");
+        logger->stderr("BgpPathAttrib::parse: flag indicates well-known, mandatory but this attribute is unknown.\n");
         // set value_len = 0, so we won't free() nullptr when destruct.
         value_len = 0; 
         return -1;
@@ -98,7 +94,7 @@ ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
     if (optional && !transitive && partial) {
         // optional non-transitive must not be partial
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_len);
-        _bgp_error("BgpPathAttrib::parse: optional non-transitive must not be partial.\n");
+        logger->stderr("BgpPathAttrib::parse: optional non-transitive must not be partial.\n");
         // set value_len = 0, so we won't free() nullptr when destruct.
         value_len = 0; 
         return -1;
@@ -112,12 +108,12 @@ ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < (size_t) (value_len + 3)) {
-        _bgp_error("BgpPathAttrib::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttrib::write: destination buffer size too small.\n");
         return -1;
     }
 
     if (!extended && value_len >= 0xffff) {
-        _bgp_error("BgpPathAttrib::write: non-extended value has size > 65535: %d\n", value_len);
+        logger->stderr("BgpPathAttrib::write: non-extended value has size > 65535: %d\n", value_len);
         return -1;
     }
 
@@ -135,7 +131,7 @@ ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
 ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     if (buffer_sz < 3) {
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
-        _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size.\n");
+        logger->stderr("BgpPathAttrib::parseHeader: invalid attribute header size.\n");
         return -1;
     }
     const uint8_t *buffer = from;
@@ -149,7 +145,7 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     type_code = getValue<uint8_t>(&buffer);
     if (extended && buffer_sz < 4) {
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
-        _bgp_error("BgpPathAttrib::parseHeader: invalid attribute header size (extended but size < 4).\n");
+        logger->stderr("BgpPathAttrib::parseHeader: invalid attribute header size (extended but size < 4).\n");
         return -1;
     }
 
@@ -163,7 +159,7 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
         // (based on the attribute type code)." This is not based on type code,
         // but it is buffer overflow, so we set subcode to E_UNSPEC,
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
-        _bgp_error("BgpPathAttrib::parseHeader: value_length (%d) < buffer left (%d).\n", value_len, buffer_sz - 3);
+        logger->stderr("BgpPathAttrib::parseHeader: value_length (%d) < buffer left (%d).\n", value_len, buffer_sz - 3);
         return -1;
     }
 
@@ -172,7 +168,7 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
 
 ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < (extended ? 3 : 4)) {
-        _bgp_error("BgpPathAttrib::writeHeader: dst buffer too small: %d\n", buffer_sz);
+        logger->stderr("BgpPathAttrib::writeHeader: dst buffer too small: %d\n", buffer_sz);
         return -1;
     }
     
@@ -183,7 +179,7 @@ ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     return 2;
 }
 
-BgpPathAttribOrigin::BgpPathAttribOrigin() {
+BgpPathAttribOrigin::BgpPathAttribOrigin(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     transitive = true;
     type_code = ORIGIN;
 }
@@ -224,19 +220,19 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     const uint8_t *buffer = from + 3;
 
     if (value_len < 1) {
-        _bgp_error("BgpPathAttribOrigin::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribOrigin::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != 1) {
-        _bgp_error("BgpPathAttribOrigin::parse: bad length, want 1, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribOrigin::parse: bad length, want 1, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (optional || !transitive || extended || partial) {
-        _bgp_error("BgpPathAttribOrigin::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
+        logger->stderr("BgpPathAttribOrigin::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -245,7 +241,7 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
 
     if (origin > 2) {
         setError(E_UPDATE, E_ORIGIN, from, 4);
-        _bgp_error("BgpPathAttribOrigin::parse: Bad Origin Value: %d.\n", origin);
+        logger->stderr("BgpPathAttribOrigin::parse: Bad Origin Value: %d.\n", origin);
         return -1;
     }
 
@@ -254,7 +250,7 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 4) {
-        _bgp_error("BgpPathAttribOrigin::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribOrigin::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -266,7 +262,7 @@ ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
     return 4;
 }
 
-BgpPathAttribAsPath::BgpPathAttribAsPath(bool is_4b) {
+BgpPathAttribAsPath::BgpPathAttribAsPath(BgpLogHandler *logger, bool is_4b) : BgpPathAttrib(logger) {
     this->is_4b = is_4b;
     transitive = true;
     type_code = AS_PATH;
@@ -333,7 +329,7 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     assert(type_code == AS_PATH);
 
     if (optional || !transitive || extended || partial) {
-        _bgp_error("BgpPathAttribAsPath::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
+        logger->stderr("BgpPathAttribAsPath::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from , value_len + header_length);
         return -1;
     }
@@ -348,7 +344,7 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     while (parsed_len < value_len) {
         // bad as_path
         if (value_len - parsed_len < 3) {
-            _bgp_error("BgpPathAttribAsPath::parse: incomplete as_path segment.\n");
+            logger->stderr("BgpPathAttribAsPath::parse: incomplete as_path segment.\n");
             setError(E_UPDATE, E_AS_PATH, NULL, 0);
             return -1;
         }
@@ -363,7 +359,7 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
 
         // overflow
         if (parsed_len + asns_length > value_len) {
-            _bgp_error("BgpPathAttribAsPath::parse: as_path overflow attribute length.\n");
+            logger->stderr("BgpPathAttribAsPath::parse: as_path overflow attribute length.\n");
             setError(E_UPDATE, E_AS_PATH, NULL, 0);
             return -1;
         }
@@ -414,13 +410,13 @@ bool BgpPathAttribAsPath::prepend(uint32_t asn) {
         }
     }
 
-    _bgp_error("BgpPathAttribAsPath::prepend: unknow first segment type: %d, can't append.\n", segment->type);
+    logger->stderr("BgpPathAttribAsPath::prepend: unknow first segment type: %d, can't append.\n", segment->type);
     return false;
 }
 
 ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 3) {
-        _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribAsPath::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -437,21 +433,21 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
 
     for (const BgpAsPathSegment &seg : as_paths) {
         if (seg.is_4b != is_4b) { // maybe allow 2b-seg in 4b-mode?
-            _bgp_error("BgpPathAttribAsPath::write: segment 4b-mode and message 4b-mode mismatch.\n");
+            logger->stderr("BgpPathAttribAsPath::write: segment 4b-mode and message 4b-mode mismatch.\n");
             return -1;
         }
 
         size_t asn_count = seg.value.size();
 
         if (asn_count >= (is_4b ? 127 : 255)) {
-            _bgp_error("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
+            logger->stderr("BgpPathAttribAsPath::write: segment size too big: %d\n", asn_count);
             return -1;
         }
 
         size_t bytes_need = asn_count * (is_4b ? sizeof(uint32_t) : sizeof(uint16_t)) + 2;
 
         if (written_len + bytes_need > buffer_sz) {
-            _bgp_error("BgpPathAttribAsPath::write: destination buffer size too small.\n");
+            logger->stderr("BgpPathAttribAsPath::write: destination buffer size too small.\n");
             return -1;
         }
 
@@ -472,7 +468,7 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
-BgpPathAttribNexthop::BgpPathAttribNexthop() {
+BgpPathAttribNexthop::BgpPathAttribNexthop(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = NEXT_HOP;
     transitive = true;
 }
@@ -504,19 +500,19 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
     const uint8_t *buffer = from + 3;
 
     if (value_len < 4) {
-        _bgp_error("BgpPathAttribNexthop::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribNexthop::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribNexthop::parse: bad length, want 4, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribNexthop::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (optional || !transitive || extended || partial) {
-        _bgp_error("BgpPathAttribNexthop::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
+        logger->stderr("BgpPathAttribNexthop::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -530,7 +526,7 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttribNexthop::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 7) {
-        _bgp_error("BgpPathAttribNexthop::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribNexthop::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -543,7 +539,7 @@ ssize_t BgpPathAttribNexthop::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
-BgpPathAttribMed::BgpPathAttribMed() {
+BgpPathAttribMed::BgpPathAttribMed(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = MULTI_EXIT_DISC;
     optional = true;
 }
@@ -575,19 +571,19 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
     const uint8_t *buffer = from + 3;
 
     if (value_len < 4) {
-        _bgp_error("BgpPathAttribMed::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribMed::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribMed::parse: bad length, want 4, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribMed::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (!optional || transitive || extended || partial) {
-        _bgp_error("BgpPathAttribMed::parse: bad flag bits, must be optional, !extended, !partial, !transitive.\n");
+        logger->stderr("BgpPathAttribMed::parse: bad flag bits, must be optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -599,7 +595,7 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 7) {
-        _bgp_error("BgpPathAttribMed::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribMed::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -612,7 +608,7 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
-BgpPathAttribLocalPref::BgpPathAttribLocalPref() {
+BgpPathAttribLocalPref::BgpPathAttribLocalPref(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = LOCAL_PREF;
 }
 
@@ -643,19 +639,19 @@ ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
     const uint8_t *buffer = from + 3;
 
     if (value_len < 4) {
-        _bgp_error("BgpPathAttribLocalPref::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribLocalPref::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribLocalPref::parse: bad length, want 4, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribLocalPref::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (optional || transitive || extended || partial) {
-        _bgp_error("BgpPathAttribLocalPref::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+        logger->stderr("BgpPathAttribLocalPref::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -667,7 +663,7 @@ ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 7) {
-        _bgp_error("BgpPathAttribLocalPref::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribLocalPref::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -680,7 +676,7 @@ ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
-BgpPathAttribAtomicAggregate::BgpPathAttribAtomicAggregate() {
+BgpPathAttribAtomicAggregate::BgpPathAttribAtomicAggregate(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = ATOMIC_AGGREGATE;
 }
 
@@ -709,13 +705,13 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
     assert(type_code == ATOMIC_AGGREGATE);
 
     if (value_len != 0) {
-        _bgp_error("BgpPathAttribAtomicAggregate::parse: bad length, want 0, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribAtomicAggregate::parse: bad length, want 0, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (optional || transitive || extended || partial) {
-        _bgp_error("BgpPathAttribAtomicAggregate::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+        logger->stderr("BgpPathAttribAtomicAggregate::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -725,7 +721,7 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
 
 ssize_t BgpPathAttribAtomicAggregate::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 3) {
-        _bgp_error("BgpPathAttribAtomicAggregate::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribAtomicAggregate::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -738,7 +734,7 @@ ssize_t BgpPathAttribAtomicAggregate::write(uint8_t *to, size_t buffer_sz) const
 }
 
 
-BgpPathAttribAggregator::BgpPathAttribAggregator(bool is_4b) {
+BgpPathAttribAggregator::BgpPathAttribAggregator(BgpLogHandler *logger, bool is_4b) : BgpPathAttrib(logger) {
     this->is_4b = is_4b;
     type_code = AGGREATOR;
     optional = true;
@@ -774,19 +770,19 @@ ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
     const uint8_t want_len = (is_4b ? 8 : 6);
 
     if (value_len < want_len) {
-        _bgp_error("BgpPathAttribAggregator::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribAggregator::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != want_len) {
-        _bgp_error("BgpPathAttribAggregator::parse: bad length, want %d, saw %d.\n", want_len, value_len);
+        logger->stderr("BgpPathAttribAggregator::parse: bad length, want %d, saw %d.\n", want_len, value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (!optional || !transitive || extended || partial) {
-        _bgp_error("BgpPathAttribAggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
+        logger->stderr("BgpPathAttribAggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -802,7 +798,7 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
     uint8_t write_value_sz = (is_4b ? 6 : 8);
 
     if (buffer_sz < (size_t) (write_value_sz + 3)) {
-        _bgp_error("BgpPathAttribAggregator::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribAggregator::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -812,7 +808,7 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
     putValue<uint8_t>(&buffer, write_value_sz);
     
     if (!is_4b && aggregator_asn >= 0xffff) {
-        _bgp_error("BgpPathAttribAggregator::write: bad asn. not 4b but asn is %d.\n", aggregator_asn);
+        logger->stderr("BgpPathAttribAggregator::write: bad asn. not 4b but asn is %d.\n", aggregator_asn);
         return -1;
     }
 
@@ -824,7 +820,7 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
-BgpPathAttribAs4Path::BgpPathAttribAs4Path() {
+BgpPathAttribAs4Path::BgpPathAttribAs4Path(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     optional = true;
     transitive = true;
     type_code = AS4_PATH;
@@ -873,7 +869,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
     assert(type_code == AS4_PATH);
 
     if (!optional || !transitive || extended || partial) {
-        _bgp_error("BgpPathAttribAs4Path::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
+        logger->stderr("BgpPathAttribAs4Path::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from , value_len + header_length);
         return -1;
     }
@@ -888,7 +884,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
     while (parsed_len < value_len) {
         // bad as_path
         if (value_len - parsed_len < 3) {
-            _bgp_error("BgpPathAttribAs4Path::parse: incomplete as_path segment.\n");
+            logger->stderr("BgpPathAttribAs4Path::parse: incomplete as_path segment.\n");
             setError(E_UPDATE, E_AS_PATH, NULL, 0);
             return -1;
         }
@@ -903,7 +899,7 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
 
         // overflow
         if (parsed_len + asns_length > value_len) {
-            _bgp_error("BgpPathAttribAs4Path::parse: as_path overflow attribute length.\n");
+            logger->stderr("BgpPathAttribAs4Path::parse: as_path overflow attribute length.\n");
             setError(E_UPDATE, E_AS_PATH, NULL, 0);
             return -1;
         }
@@ -953,13 +949,13 @@ bool BgpPathAttribAs4Path::prepend(uint32_t asn) {
         }
     }
 
-    _bgp_error("BgpPathAttribAs4Path::prepend: unknow first segment type: %d, can't append.\n", segment->type);
+    logger->stderr("BgpPathAttribAs4Path::prepend: unknow first segment type: %d, can't append.\n", segment->type);
     return false;
 }
 
 ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 3) {
-        _bgp_error("BgpPathAttribAs4Path::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribAs4Path::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -978,7 +974,7 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
         size_t asn_count = seg4.value.size();
 
         if (asn_count > 127) {
-            _bgp_error("BgpPathAttribAs4Path::write: segment size too big: %d\n", asn_count);
+            logger->stderr("BgpPathAttribAs4Path::write: segment size too big: %d\n", asn_count);
             return -1;
         }
 
@@ -986,7 +982,7 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
         size_t bytes_need = asn_count * sizeof(uint32_t) + 2;
 
         if (written_len + bytes_need > buffer_sz) {
-            _bgp_error("BgpPathAttribAs4Path::write: destination buffer size too small.\n");
+            logger->stderr("BgpPathAttribAs4Path::write: destination buffer size too small.\n");
             return -1;
         }
 
@@ -1016,7 +1012,7 @@ BgpPathAttrib* BgpPathAttribAs4Aggregator::clone() const {
     return new BgpPathAttribAs4Aggregator(*this);
 }
 
-BgpPathAttribAs4Aggregator::BgpPathAttribAs4Aggregator() {
+BgpPathAttribAs4Aggregator::BgpPathAttribAs4Aggregator(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = AS4_AGGREGATOR;
     optional = true;
     transitive = true;
@@ -1045,19 +1041,19 @@ ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
     const uint8_t *buffer = from + 3;
 
     if (value_len < 8) {
-        _bgp_error("BgpPathAttribAs4Aggregator::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribAs4Aggregator::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != 8) {
-        _bgp_error("BgpPathAttribAs4Aggregator::parse: bad length, want 8, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribAs4Aggregator::parse: bad length, want 8, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (!optional || !transitive || extended || partial) {
-        _bgp_error("BgpPathAttribAs4Aggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
+        logger->stderr("BgpPathAttribAs4Aggregator::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -1070,7 +1066,7 @@ ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 11) {
-        _bgp_error("BgpPathAttribAs4Aggregator::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribAs4Aggregator::write: destination buffer size too small.\n");
         return -1;
     }
 
@@ -1085,7 +1081,7 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
     return 11;
 }
 
-BgpPathAttribCommunity::BgpPathAttribCommunity() {
+BgpPathAttribCommunity::BgpPathAttribCommunity(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = COMMUNITY;
     optional = true;
     transitive = true;
@@ -1118,19 +1114,19 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
     const uint8_t *buffer = from + 3;
 
     if (value_len < 4) {
-        _bgp_error("BgpPathAttribCommunity::parse: incomplete attrib.\n");
+        logger->stderr("BgpPathAttribCommunity::parse: incomplete attrib.\n");
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
         return -1;
     }
 
     if (value_len != 4) {
-        _bgp_error("BgpPathAttribCommunity::parse: bad length, want 4, saw %d.\n", value_len);
+        logger->stderr("BgpPathAttribCommunity::parse: bad length, want 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
 
     if (optional || transitive || extended || partial) {
-        _bgp_error("BgpPathAttribCommunity::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+        logger->stderr("BgpPathAttribCommunity::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
@@ -1142,7 +1138,7 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
 
 ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < 7) {
-        _bgp_error("BgpPathAttribCommunity::write: destination buffer size too small.\n");
+        logger->stderr("BgpPathAttribCommunity::write: destination buffer size too small.\n");
         return -1;
     }
 

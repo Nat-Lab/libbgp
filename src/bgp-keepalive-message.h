@@ -12,6 +12,7 @@
 #define BGP_KEEPALIVE_MSG_H_
 
 #include "bgp-message.h"
+#include "bgp-log-handler.h"
 #include <stdint.h>
 
 namespace libbgp {
@@ -22,7 +23,7 @@ namespace libbgp {
  */
 class BgpKeepaliveMessage : public BgpMessage {
 public:
-    BgpKeepaliveMessage();
+    BgpKeepaliveMessage(BgpLogHandler *logger);
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t parse(const uint8_t *from, size_t msg_sz);

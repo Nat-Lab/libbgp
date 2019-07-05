@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include "serializable.h"
+#include "bgp-log-handler.h"
 
 namespace libbgp {
 
@@ -33,6 +34,8 @@ enum BgpMessageType {
  */
 class BgpMessage : public Serializable {
 public:
+    BgpMessage(BgpLogHandler *logger) : Serializable(logger) {}
+
     uint8_t type;
 
     virtual ~BgpMessage() {}

@@ -19,12 +19,14 @@ namespace libbgp {
 /**
  * @brief Construct a new Serializable:: Serializable object
  * 
+ * @param logger Logger for serializer/deserializer errors.
  */
-Serializable::Serializable() {
+Serializable::Serializable(BgpLogHandler *logger) {
     err_code = 0;
     err_subcode = 0;
     err_data = NULL;
     err_len = 0;
+    this->logger = logger;
 }
 
 /**

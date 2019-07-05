@@ -7,8 +7,8 @@ namespace libbgp {
 
 class BgpPacket : public Serializable {
 public:
-    BgpPacket(bool is_4b, const BgpMessage *msg);
-    BgpPacket(bool is_4b);
+    BgpPacket(BgpLogHandler *logger, bool is_4b, const BgpMessage *msg);
+    BgpPacket(BgpLogHandler *logger, bool is_4b);
     virtual ~BgpPacket();
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 

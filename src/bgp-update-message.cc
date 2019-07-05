@@ -9,7 +9,6 @@
  * 
  */
 #include "bgp-update-message.h"
-#include "bgp-error.h"
 #include "bgp-errcode.h"
 #include "value-op.h"
 #include <arpa/inet.h>
@@ -22,7 +21,7 @@ namespace libbgp {
  * 
  * @param use_4b_asn Enable four octets ASN support.
  */
-BgpUpdateMessage::BgpUpdateMessage(bool use_4b_asn) {
+BgpUpdateMessage::BgpUpdateMessage(BgpLogHandler *logger, bool use_4b_asn) : BgpMessage(logger) {
     type = UPDATE;
     this->use_4b_asn = use_4b_asn;
 }
@@ -160,7 +159,7 @@ bool BgpUpdateMessage::updateAttribute(const BgpPathAttrib &attrib) {
  * @return false Failed to set nexthop.
  */
 bool BgpUpdateMessage::setNextHop(uint32_t nexthop) {
-    BgpPathAttribNexthop nh = BgpPathAttribNexthop();
+    BgpPathAttribNexthop nh = BgpPathAttribNexthop(logger);
     nh.next_hop = nexthop;
     return updateAttribute(nh);
 }
@@ -182,13 +181,13 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
 
         // AS4_PATH can't exist in 4b mode
         if (hasAttrib(AS4_PATH)) {
-            _bgp_error("BgpUpdateMessage::prepend: we have AS4_PATH attribute but we are running in 4b mode. " 
+            logger->stderr("BgpUpdateMessage::prepend: we have AS4_PATH attribute but we are running in 4b mode. " 
                        "consider restoreAsPath().\n");
             return false;
         }
 
         if (!hasAttrib(AS_PATH)) {
-            BgpPathAttribAsPath *path = new BgpPathAttribAsPath(use_4b_asn);
+            BgpPathAttribAsPath *path = new BgpPathAttribAsPath(logger, use_4b_asn);
             path->prepend(asn);
             path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(path));
             return true;
@@ -196,7 +195,7 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
 
         BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
         if (!path.is_4b) {
-            _bgp_error("BgpUpdateMessage::prepend: existing AS_PATH is 2b but we are running in 4b mode. " 
+            logger->stderr("BgpUpdateMessage::prepend: existing AS_PATH is 2b but we are running in 4b mode. " 
                        "consider restoreAsPath().\n");
             return false;
         }
@@ -210,13 +209,13 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
         uint16_t prep_asn = asn >= 0xffff ? 23456 : asn;
 
         if (!hasAttrib(AS_PATH)) {
-            BgpPathAttribAsPath *path = new BgpPathAttribAsPath(use_4b_asn);
+            BgpPathAttribAsPath *path = new BgpPathAttribAsPath(logger, use_4b_asn);
             path->prepend(prep_asn);
             path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(path));
         } else {
             BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
             if (path.is_4b) {
-                _bgp_error("BgpUpdateMessage::prepend: existing AS_PATH is 4b but we are running in 2b mode. " 
+                logger->stderr("BgpUpdateMessage::prepend: existing AS_PATH is 4b but we are running in 2b mode. " 
                            "consider downgradeAsPath().\n");
                 return false;
             }
@@ -253,14 +252,14 @@ bool BgpUpdateMessage::restoreAsPath() {
 
         for (const BgpAsPathSegment &seg2 : path.as_paths) {
             if (seg2.is_4b) {
-                _bgp_error("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
+                logger->stderr("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
                 return false;
             }
 
             BgpAsPathSegment new_seg (true, seg2.type);
             for (uint16_t asn : seg2.value) {
                 if (asn == 23456) {
-                    _bgp_error("BgpUpdateMessage::restoreAsPath: warning: AS_TRANS found but no AS4_PATH.\n");
+                    logger->stderr("BgpUpdateMessage::restoreAsPath: warning: AS_TRANS found but no AS4_PATH.\n");
                 }
                 new_seg.value.push_back(asn);
             }
@@ -278,7 +277,7 @@ bool BgpUpdateMessage::restoreAsPath() {
     const BgpPathAttribAs4Path &as4_path = dynamic_cast<const BgpPathAttribAs4Path &>(getAttrib(AS4_PATH));
     for (const BgpAsPathSegment &seg4 : as4_path.as4_paths) {
         if (!seg4.is_4b) {
-            _bgp_error("BgpUpdateMessage::restoreAsPath: bad as4_path: found 2b seg.\n");
+            logger->stderr("BgpUpdateMessage::restoreAsPath: bad as4_path: found 2b seg.\n");
             return false;
         }
         
@@ -306,7 +305,7 @@ bool BgpUpdateMessage::restoreAsPath() {
     for (const BgpAsPathSegment &seg2 : path.as_paths) {
         std::vector<uint32_t>::const_iterator local_iter = iter_4b;
         if (seg2.is_4b) {
-            _bgp_error("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
+            logger->stderr("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
             return false;
         }
 
@@ -328,7 +327,7 @@ bool BgpUpdateMessage::restoreAsPath() {
                     incr_iter = true;
                     new_asn = *local_iter;
                 } else if (new_asn != *local_iter) {
-                    _bgp_error("BgpUpdateMessage::restoreAsPath: warning: AS_PATH and AS4_PATH does not match.\n");
+                    logger->stderr("BgpUpdateMessage::restoreAsPath: warning: AS_PATH and AS4_PATH does not match.\n");
                 }
 
                 if (incr_iter) local_iter++;
@@ -362,11 +361,11 @@ bool BgpUpdateMessage::downgradeAsPath() {
     if (!path.is_4b) return true;
 
     std::vector<BgpAsPathSegment> new_segs;
-    BgpPathAttribAs4Path path4;
+    BgpPathAttribAs4Path path4 = BgpPathAttribAs4Path(logger);
 
     for (const BgpAsPathSegment &seg4 : path.as_paths) {
         if (!seg4.is_4b) {
-            _bgp_error("BgpUpdateMessage::downgradeAsPath: 2b seg found in 4b attrib.\n");
+            logger->stderr("BgpUpdateMessage::downgradeAsPath: 2b seg found in 4b attrib.\n");
             return false;
         }
 
@@ -419,7 +418,7 @@ bool BgpUpdateMessage::downgradeAggregator() {
     BgpPathAttribAggregator &aggr = dynamic_cast<BgpPathAttribAggregator &>(getAttrib(AGGREATOR));
     aggr.is_4b = false;
 
-    BgpPathAttribAs4Aggregator aggr4;
+    BgpPathAttribAs4Aggregator aggr4 = BgpPathAttribAs4Aggregator(logger);
     aggr4.aggregator = aggr.aggregator;
     aggr4.aggregator_asn4 = aggr.aggregator_asn;
     updateAttribute(aggr4);
@@ -521,7 +520,7 @@ bool BgpUpdateMessage::validateAttribs() {
         else if (type_code == ORIGIN) has_origin = true;
 
         if ((typecode_bitsmap >> type_code) & 1U) {
-            _bgp_error("BgpUpdateMessage::validateAttribs:: duplicated attribute type in list: %d\n", type_code);
+            logger->stderr("BgpUpdateMessage::validateAttribs:: duplicated attribute type in list: %d\n", type_code);
             setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
             return false;
         }
@@ -530,7 +529,7 @@ bool BgpUpdateMessage::validateAttribs() {
     }
 
     if (!(has_as_path && has_nexthop && has_origin)) {
-        _bgp_error("BgpUpdateMessage::validateAttribs: mandatory attribute(s) missing.\n");
+        logger->stderr("BgpUpdateMessage::validateAttribs: mandatory attribute(s) missing.\n");
         setError(E_UPDATE, E_MISS_WELL_KNOWN, NULL, 0);
         return false;
     }
@@ -542,7 +541,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 4) {
         uint8_t _err_data = msg_sz;
         setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
-        _bgp_error("BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
+        logger->stderr("BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
         return -1;
     }
 
@@ -551,7 +550,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     uint16_t withdrawn_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
 
     if (withdrawn_len > msg_sz - 4) { // -4: two length fields (withdrawn len + attrib len)
-        _bgp_error("BgpUpdateMessage::parse: withdrawn routes length overflows message.\n");
+        logger->stderr("BgpUpdateMessage::parse: withdrawn routes length overflows message.\n");
         setError(E_UPDATE, E_UNSPEC, NULL, 0);
         return -1;
     }
@@ -560,7 +559,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     
     while (parsed_withdrawn_len < withdrawn_len) {
         if (withdrawn_len - parsed_withdrawn_len < 1) {
-            _bgp_error("BgpUpdateMessage::parse: unexpected end of withdrawn routes list.\n");
+            logger->stderr("BgpUpdateMessage::parse: unexpected end of withdrawn routes list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -568,14 +567,14 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
         parsed_withdrawn_len++;
         if (route_len > 32) {
-            _bgp_error("BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
+            logger->stderr("BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
 
         size_t route_buffer_len = (route_len + 7) / 8;
         if (parsed_withdrawn_len + route_buffer_len > withdrawn_len) {
-            _bgp_error("BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
+            logger->stderr("BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -593,7 +592,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     uint16_t attribute_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
     if ((size_t) (attribute_len + withdrawn_len + 4) > msg_sz) {
-        _bgp_error("BgpUpdateMessage::parse: attribute list length overflows message buffer.\n");
+        logger->stderr("BgpUpdateMessage::parse: attribute list length overflows message buffer.\n");
         setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
         return -1;
     }
@@ -602,7 +601,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     while (parsed_attribute_len < attribute_len) {
         if (attribute_len - parsed_attribute_len < 3) {
-            _bgp_error("BgpUpdateMessage::parse: unexpected end of attribute list.\n");
+            logger->stderr("BgpUpdateMessage::parse: unexpected end of attribute list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -610,7 +609,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         int8_t attr_type = BgpPathAttrib::GetTypeFromBuffer(buffer, attribute_len - parsed_attribute_len);
 
         if (attr_type < 0) {
-            _bgp_error("BgpUpdateMessage::parse: failed to parse attribute type.\n");
+            logger->stderr("BgpUpdateMessage::parse: failed to parse attribute type.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -618,17 +617,17 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         BgpPathAttrib *attrib = NULL;
 
         switch(attr_type) {
-            case ORIGIN: attrib = new BgpPathAttribOrigin(); break;
-            case AS_PATH: attrib = new BgpPathAttribAsPath(use_4b_asn); break;
-            case NEXT_HOP: attrib = new BgpPathAttribNexthop(); break;
-            case MULTI_EXIT_DISC: attrib = new BgpPathAttribMed(); break;
-            case LOCAL_PREF: attrib = new BgpPathAttribLocalPref(); break;
-            case ATOMIC_AGGREGATE: attrib =  new BgpPathAttribAtomicAggregate(); break;
-            case AGGREATOR: attrib = new BgpPathAttribAggregator(use_4b_asn); break;
-            case COMMUNITY: attrib = new BgpPathAttribCommunity(); break;
-            case AS4_PATH: attrib = new BgpPathAttribAs4Path(); break;
-            case AS4_AGGREGATOR: attrib = new BgpPathAttribAs4Aggregator(); break;
-            default: attrib = new BgpPathAttrib(); break;
+            case ORIGIN: attrib = new BgpPathAttribOrigin(logger); break;
+            case AS_PATH: attrib = new BgpPathAttribAsPath(logger, use_4b_asn); break;
+            case NEXT_HOP: attrib = new BgpPathAttribNexthop(logger); break;
+            case MULTI_EXIT_DISC: attrib = new BgpPathAttribMed(logger); break;
+            case LOCAL_PREF: attrib = new BgpPathAttribLocalPref(logger); break;
+            case ATOMIC_AGGREGATE: attrib =  new BgpPathAttribAtomicAggregate(logger); break;
+            case AGGREATOR: attrib = new BgpPathAttribAggregator(logger, use_4b_asn); break;
+            case COMMUNITY: attrib = new BgpPathAttribCommunity(logger); break;
+            case AS4_PATH: attrib = new BgpPathAttribAs4Path(logger); break;
+            case AS4_AGGREGATOR: attrib = new BgpPathAttribAs4Aggregator(logger); break;
+            default: attrib = new BgpPathAttrib(logger); break;
         }
 
         assert(attrib != NULL);
@@ -654,7 +653,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     while (parsed_nlri_len < nlri_len) {
         if (nlri_len - parsed_nlri_len < 1) {
-            _bgp_error("BgpOpenMessage::parse: unexpected end of nlri.\n");
+            logger->stderr("BgpOpenMessage::parse: unexpected end of nlri.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -662,14 +661,14 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
         parsed_nlri_len++;
         if (route_len > 32) {
-            _bgp_error("BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
+            logger->stderr("BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
 
         size_t route_buffer_len = (route_len + 7) / 8;
         if (parsed_nlri_len + route_buffer_len > nlri_len) {
-            _bgp_error("BgpUpdateMessage::parse: nlri route overflows routes list.\n");
+            logger->stderr("BgpUpdateMessage::parse: nlri route overflows routes list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -692,7 +691,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < 4) {
-        _bgp_error("BgpUpdateMessage::write: destination buffer too small.\n");
+        logger->stderr("BgpUpdateMessage::write: destination buffer too small.\n");
         return -1;
     }
 
@@ -712,7 +711,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
         // 1: this prefix len field
         if (1 + written_withdrawn_length + pfx_buf_sz + tot_written > buf_sz) {
-            _bgp_error("BgpUpdateMessage::write: destination buffer too small.\n");
+            logger->stderr("BgpUpdateMessage::write: destination buffer too small.\n");
             return -1;
         }
 
@@ -758,7 +757,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
         // 1: this prefix len field
         if (1 + written_nlri_len + pfx_buf_sz + tot_written > buf_sz) {
-            _bgp_error("BgpUpdateMessage::write: destination buffer too small.\n");
+            logger->stderr("BgpUpdateMessage::write: destination buffer too small.\n");
             return -1;
         }
 

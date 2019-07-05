@@ -24,9 +24,9 @@ namespace libbgp {
  */
 class BgpOpenMessage : public BgpMessage {
 public:
-    BgpOpenMessage(bool use_4b_asn);
-    BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, uint32_t bgp_id);
-    BgpOpenMessage(bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, const char* bgp_id);
+    BgpOpenMessage(BgpLogHandler *logger, bool use_4b_asn);
+    BgpOpenMessage(BgpLogHandler *logger, bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, uint32_t bgp_id);
+    BgpOpenMessage(BgpLogHandler *logger, bool use_4b_asn, uint16_t my_asn, uint16_t hold_time, const char* bgp_id);
     ~BgpOpenMessage();
 
     uint8_t version;

@@ -29,7 +29,7 @@ public:
     std::vector<std::shared_ptr<BgpPathAttrib>> path_attribute;
     std::vector<Route> nlri;
 
-    BgpUpdateMessage(bool use_4b_asn);
+    BgpUpdateMessage(BgpLogHandler *logger, bool use_4b_asn);
 
     // get attribute by type, if attrib of that type does not exist, exception
     // will be thrown

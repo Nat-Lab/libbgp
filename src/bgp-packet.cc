@@ -1,6 +1,5 @@
 #include "bgp-packet.h"
 #include "bgp.h"
-#include "bgp-error.h"
 #include "value-op.h"
 #include <string.h>
 #include <arpa/inet.h>
@@ -8,14 +7,14 @@
 
 namespace libbgp {
 
-BgpPacket::BgpPacket(bool is_4b) {
+BgpPacket::BgpPacket(BgpLogHandler *logger, bool is_4b) : Serializable(logger) {
     msg = NULL;
     m_msg = NULL;
     is_message_owner = true;
     this->is_4b = is_4b;
 }
 
-BgpPacket::BgpPacket(bool is_4b, const BgpMessage *msg) {
+BgpPacket::BgpPacket(BgpLogHandler *logger, bool is_4b, const BgpMessage *msg) : Serializable(logger) {
     this->msg = msg;
     m_msg = NULL;
     this->is_4b = is_4b;
@@ -47,11 +46,11 @@ ssize_t BgpPacket::parse(const uint8_t *from, size_t buf_sz) {
     uint8_t msg_type = getValue<uint8_t>(&buffer);
 
     switch (msg_type) {
-        case OPEN: m_msg = new BgpOpenMessage(is_4b); break;
-        case UPDATE: m_msg = new BgpUpdateMessage(is_4b); break;
-        case KEEPALIVE: m_msg = new BgpKeepaliveMessage(); break;
-        case NOTIFICATION: m_msg = new BgpNotificationMessage(); break;
-        default: m_msg = new BgpBadMessage(msg_type); break;
+        case OPEN: m_msg = new BgpOpenMessage(logger, is_4b); break;
+        case UPDATE: m_msg = new BgpUpdateMessage(logger, is_4b); break;
+        case KEEPALIVE: m_msg = new BgpKeepaliveMessage(logger); break;
+        case NOTIFICATION: m_msg = new BgpNotificationMessage(logger); break;
+        default: m_msg = new BgpBadMessage(logger, msg_type); break;
     }
 
     size_t msg_sz = buf_sz - 19;
@@ -71,7 +70,7 @@ ssize_t BgpPacket::write(uint8_t *to, size_t buf_sz) const {
     else assert(msg != NULL);
 
     if (buf_sz < 19) {
-        _bgp_error("BgpPacket::write: dst buffer too small.\n");
+        logger->stderr("BgpPacket::write: dst buffer too small.\n");
         return -1;
     }
 

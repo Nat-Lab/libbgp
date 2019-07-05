@@ -10,12 +10,11 @@
  */
 #include "bgp-keepalive-message.h"
 #include "bgp-errcode.h"
-#include "bgp-error.h"
 #include <unistd.h>
 
 namespace libbgp {
 
-BgpKeepaliveMessage::BgpKeepaliveMessage() {
+BgpKeepaliveMessage::BgpKeepaliveMessage(BgpLogHandler *loggger) : BgpMessage(logger) {
     type = KEEPALIVE;
 }
 

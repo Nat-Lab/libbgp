@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include "bgp-log-handler.h"
 
 namespace libbgp {
 
@@ -22,7 +23,7 @@ namespace libbgp {
  */
 class Serializable {
 public:
-    Serializable();
+    Serializable(BgpLogHandler *logger);
     ~Serializable();
 
     // print the Serializable object as human readable string.
@@ -97,6 +98,7 @@ protected:
     uint8_t err_subcode;
     size_t err_len;
     uint8_t *err_data;
+    BgpLogHandler *logger;
 };
 
 }

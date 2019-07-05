@@ -38,7 +38,7 @@ enum BgpCapabilityCode {
  */
 class BgpCapability : public Serializable {
 public:
-    BgpCapability();
+    BgpCapability(BgpLogHandler *logger);
 
     uint8_t code;
     virtual ~BgpCapability() {}
@@ -65,7 +65,7 @@ protected:
  */
 class BgpCapability4BytesAsn : public BgpCapability {
 public:
-    BgpCapability4BytesAsn();
+    BgpCapability4BytesAsn(BgpLogHandler *logger);
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t parse(const uint8_t *from, size_t msg_sz);
@@ -84,7 +84,7 @@ public:
  */
 class BgpCapabilityUnknow : public BgpCapability {
 public:
-    BgpCapabilityUnknow();
+    BgpCapabilityUnknow(BgpLogHandler *logger);
     ~BgpCapabilityUnknow();
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;

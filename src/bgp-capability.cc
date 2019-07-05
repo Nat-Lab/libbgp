@@ -10,7 +10,6 @@
  */
 #include "bgp-capability.h"
 #include "bgp-errcode.h"
-#include "bgp-error.h"
 #include "value-op.h"
 #include <stdlib.h>
 #include <string.h>
@@ -19,7 +18,7 @@
 
 namespace libbgp {
 
-BgpCapability::BgpCapability() {
+BgpCapability::BgpCapability(BgpLogHandler *logger) : Serializable(logger) {
     length = 0;
 }
 
@@ -36,7 +35,7 @@ BgpCapability::BgpCapability() {
 ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 2) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-        _bgp_error("BgpCapability::parseHeader: unexpected end of capability.\n");
+        logger->stderr("BgpCapability::parseHeader: unexpected end of capability.\n");
         return -1;
     }
 
@@ -45,7 +44,7 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
 
     if ((size_t) (length + 2) > msg_sz) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-        _bgp_error("BgpCapability::parseHeader: capability size exceed capabilities list.\n");
+        logger->stderr("BgpCapability::parseHeader: capability size exceed capabilities list.\n");
         return -1;
     }
 
@@ -56,7 +55,7 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
  * @brief Construct a new Bgp Capability 4 Bytes Asn:: Bgp Capability 4 Bytes Asn object
  * 
  */
-BgpCapability4BytesAsn::BgpCapability4BytesAsn() {
+BgpCapability4BytesAsn::BgpCapability4BytesAsn(BgpLogHandler *logger) : BgpCapability(logger) {
     my_asn = 0;
     code = ASN_4B;
 }
@@ -81,7 +80,7 @@ ssize_t BgpCapability4BytesAsn::parse(const uint8_t *from, size_t msg_sz) {
     if (hdr_len < 0) return hdr_len;
     if (length != 4) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-        _bgp_error("BgpCapability4BytesAsn::parse: bad length field (saw %d, want 4).\n", length);
+        logger->stderr("BgpCapability4BytesAsn::parse: bad length field (saw %d, want 4).\n", length);
         return -1;
     }
 
@@ -93,7 +92,7 @@ ssize_t BgpCapability4BytesAsn::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpCapability4BytesAsn::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < 6) {
-        _bgp_error("BgpCapability4BytesAsn::write: dest buffer too small.\n");
+        logger->stderr("BgpCapability4BytesAsn::write: dest buffer too small.\n");
         return -1;
     }
 
@@ -109,7 +108,7 @@ ssize_t BgpCapability4BytesAsn::write(uint8_t *to, size_t buf_sz) const {
  * @brief Construct a new Bgp Capability Unknow:: Bgp Capability Unknow object
  * 
  */
-BgpCapabilityUnknow::BgpCapabilityUnknow() {
+BgpCapabilityUnknow::BgpCapabilityUnknow(BgpLogHandler *logger) : BgpCapability(logger) {
     value = NULL;
 }
 
@@ -146,7 +145,7 @@ ssize_t BgpCapabilityUnknow::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpCapabilityUnknow::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < (size_t) (length + 2)) {
-        _bgp_error("BgpCapabilityUnknow::write: dest buffer too small.\n");
+        logger->stderr("BgpCapabilityUnknow::write: dest buffer too small.\n");
         return -1;
     }
 
@@ -155,7 +154,7 @@ ssize_t BgpCapabilityUnknow::write(uint8_t *to, size_t buf_sz) const {
     putValue<uint8_t>(&buffer, length);
     if (length == 0) return 2;
     if (value == NULL) {
-        _bgp_error("BgpCapabilityUnknow: missing value pointer.\n");
+        logger->stderr("BgpCapabilityUnknow: missing value pointer.\n");
         return -1;
     }
     memcpy(buffer, value, length);

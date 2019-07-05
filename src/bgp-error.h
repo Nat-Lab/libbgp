@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
+#warning "bgp_error is deprecated. use bgp_log_handler."
 
 namespace libbgp {
 
