@@ -212,20 +212,27 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
         return -1;
     }
 
-    ssize_t opt_params_len = 1;
+    size_t opt_params_len = 2; // type & length
     // opt_param type 2: capability
     putValue<uint8_t>(&buffer, 2);
 
+    uint8_t *param_len_ptr = buffer;
+    buffer++;
+
+    size_t opt_param_len = 0;
     for (const std::shared_ptr<BgpCapability> &capa : capabilities) {
         ssize_t capa_wrt_ret = capa->write(buffer, buf_sz - opt_params_len - 10);
         if (capa_wrt_ret < 0) {
             return capa_wrt_ret;
         }
 
-        opt_params_len += capa_wrt_ret;
+        opt_param_len += capa_wrt_ret;
         buffer += capa_wrt_ret;
     }
 
+    putValue<uint8_t>(&param_len_ptr, opt_param_len);
+
+    opt_params_len += opt_param_len;
     putValue<uint8_t>(&params_len_ptr, opt_params_len);
 
     return opt_params_len + 10;
