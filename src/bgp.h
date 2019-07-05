@@ -1,3 +1,13 @@
+/**
+ * @file bgp.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief BGP protocol serializers/deserializers
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_H_
 #define BGP_H_
 #include "bgp-message.h"
