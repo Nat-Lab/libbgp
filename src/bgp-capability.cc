@@ -1,3 +1,13 @@
+/**
+ * @file bgp-capability.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief BGP Capabilities.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-capability.h"
 #include "bgp-errcode.h"
 #include "bgp-error.h"
@@ -13,6 +23,16 @@ BgpCapability::BgpCapability() {
     length = 0;
 }
 
+/**
+ * @brief Parse the capability header (code, length).
+ * 
+ * @param from Pointer to buffer.
+ * @param msg_sz Max read size.
+ * @return ssize_t Bytes read.
+ * @retval -1 Failed to deserialize header. errbuf may have details. (see 
+ * bgp-error.h)
+ * @retval >=0 Bytes read.
+ */
 ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 2) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
@@ -32,6 +52,10 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
     return 2;
 }
 
+/**
+ * @brief Construct a new Bgp Capability 4 Bytes Asn:: Bgp Capability 4 Bytes Asn object
+ * 
+ */
 BgpCapability4BytesAsn::BgpCapability4BytesAsn() {
     my_asn = 0;
     code = ASN_4B;
@@ -81,10 +105,18 @@ ssize_t BgpCapability4BytesAsn::write(uint8_t *to, size_t buf_sz) const {
     return 6;
 }
 
+/**
+ * @brief Construct a new Bgp Capability Unknow:: Bgp Capability Unknow object
+ * 
+ */
 BgpCapabilityUnknow::BgpCapabilityUnknow() {
     value = NULL;
 }
 
+/**
+ * @brief Destroy the Bgp Capability Unknow:: Bgp Capability Unknow object
+ * 
+ */
 BgpCapabilityUnknow::~BgpCapabilityUnknow() {
     if (length > 0 && value != NULL) free(value);
 }
@@ -130,8 +162,5 @@ ssize_t BgpCapabilityUnknow::write(uint8_t *to, size_t buf_sz) const {
 
     return length + 2;
 }
-
-
-
 
 }
