@@ -24,6 +24,12 @@ class BgpLogHandler {
 public:
     void stdout(const char* format_str, ...);
     void stderr(const char* format_str, ...);
+
+    /**
+     * @brief Destroy the Bgp Log Handler object
+     * 
+     */
+    virtual ~BgpLogHandler() {}
 protected:
 
     /**
