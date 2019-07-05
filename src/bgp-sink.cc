@@ -67,9 +67,9 @@ int BgpSink::pour(BgpPacket **pkt) {
     BgpPacket *new_pkt = new BgpPacket(use_4b_asn);
     ssize_t par_ret = new_pkt->parse(cur, field_len);
 
-    if (par_ret < 0) return -1;
-
     *pkt = new_pkt;
+
+    if (par_ret < 0) return -1;
 
     assert(par_ret == field_len);
     return par_ret;
