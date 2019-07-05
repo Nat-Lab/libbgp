@@ -1,3 +1,13 @@
+/**
+ * @file bgp-rib.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP Routing Information Base.
+ * @version 0.1
+ * @date 2019-07-04
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef RIB_H_
 #define RIB_H_
 #include <stdint.h>
@@ -8,18 +18,40 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BgpRibEntry class.
+ * 
+ */
 class BgpRibEntry {
 public:
     BgpRibEntry (Route r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
+
+    /**
+     * @brief The prefix of this entry.
+     * 
+     */
     Route route;
+
+    /**
+     * @brief The originating BGP speaker's ID of this entry. (network bytes order)
+     * 
+     */
     uint32_t src_router_id;
 
+    /**
+     * @brief Path attributes for this entry.
+     * 
+     */
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
 
     // compute metric based on path attribute. (currently based on AS_PATH only)
     uint32_t getMetric() const;
 };
 
+/**
+ * @brief The BgpRib (BGP Routing Information Base) class.
+ * 
+ */
 class BgpRib {
 public:
     // insert a new route into RIB, return true if success.
