@@ -46,4 +46,4 @@ private:
 
 }
 
-#endif BGP_LOG_H_
+#endif // BGP_LOG_H_
