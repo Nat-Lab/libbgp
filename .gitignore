@@ -20,4 +20,4 @@ compile
 libtool
 missing
 .dirstamp
-doc
+docs
