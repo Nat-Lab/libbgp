@@ -16,17 +16,23 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SIN
     if (!config.rib) {
         rib = new BgpRib();
         rib_local = true;
-    } else rib = config.rib;
+    } else {
+        rib = config.rib;
+        rib_local = false;
+    }
 
     if (config.rev_bus) {
         rev_bus_exist = true;
         config.rev_bus->subscribe(this);
-    }
+    } else rev_bus_exist = false;
 
     if (!config.clock) {
         clock = new RealtimeClock();
         clock_local = true;
-    } else clock = config.clock;
+    } else {
+        clock = config.clock;
+        clock_local = false;
+    }
 }
 
 BgpFsm::~BgpFsm() {
@@ -414,8 +420,8 @@ int BgpFsm::validateState(uint8_t type) {
             }
             return 1;
         case ESTABLISHED:
-            if (type != UPDATE) {
-                _bgp_error("BgpFsm::validateState: got invalid message in ESTABLISHED state.\n");
+            if (type != UPDATE && type != KEEPALIVE) {
+                _bgp_error("BgpFsm::validateState: got invalid message (type %d) in ESTABLISHED state.\n", type);
                 BgpNotificationMessage notify (E_FSM, E_ESTABLISHED, NULL, 0);
                 if(!writeMessage(notify)) return -1;
 
@@ -489,12 +495,15 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         rib->withdraw(peer_bgp_id, route);
     }
 
-    const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
+    if (update->nlri.size() > 0) {
+        const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
     
-    if (!config.no_nexthop_check && !Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
-        // ignore invalid nexthop
-        return 1;
-    };
+        if (!config.no_nexthop_check && !Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+            // ignore invalid nexthop
+            return 1;
+        };
+    }
+    
 
     std::vector<Route> routes = std::vector<Route> ();
     for (const Route &route : update->nlri) {
