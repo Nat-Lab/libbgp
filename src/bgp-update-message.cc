@@ -23,6 +23,7 @@ namespace libbgp {
  * @param use_4b_asn Enable four octets ASN support.
  */
 BgpUpdateMessage::BgpUpdateMessage(bool use_4b_asn) {
+    type = UPDATE;
     this->use_4b_asn = use_4b_asn;
 }
 
@@ -645,8 +646,6 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib));
     }
 
-    if (!validateAttribs()) return -1;
-
     assert(parsed_attribute_len == attribute_len);
 
     // 4: len fields (withdrawn len & attrib len)
@@ -686,6 +685,8 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     assert(parsed_nlri_len + parsed_attribute_len + parsed_withdrawn_len + 4 == msg_sz);
 
+    if (nlri.size() > 0 && !validateAttribs()) return -1;
+
     return msg_sz;
 }
 
@@ -700,12 +701,13 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     // keep a pointer to len field to write length to later
     uint8_t *withdrawn_routes_len_ptr = buffer; 
-    buffer++; // skip the length field for now
+    buffer += 2; // skip the length field for now
 
     size_t written_withdrawn_length = 0;
 
     for (const Route &route : withdrawn_routes) {
         uint8_t route_len = route.getLength();
+        uint32_t route_prefix = route.getPrefix();
         size_t pfx_buf_sz = (route_len + 7) / 8;
 
         // 1: this prefix len field
@@ -715,7 +717,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
         }
 
         putValue<uint8_t>(&buffer, route_len);
-        memcpy(buffer, &route_len, pfx_buf_sz);
+        memcpy(buffer, &route_prefix, pfx_buf_sz);
 
         buffer += pfx_buf_sz;
         written_withdrawn_length += 1 + pfx_buf_sz;
@@ -728,7 +730,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     // keep a pointer to len field to write length to later
     uint8_t *route_attrib_len_ptr = buffer;
-    buffer++;
+    buffer += 2;
 
     size_t written_attrib_length = 0;
 
