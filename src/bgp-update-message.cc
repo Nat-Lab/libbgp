@@ -752,6 +752,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     for (const Route &route : nlri) {
         uint8_t route_len = route.getLength();
+        uint32_t route_prefix = route.getPrefix();
 
         size_t pfx_buf_sz = (route_len + 7) / 8;
 
@@ -762,7 +763,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
         }
 
         putValue<uint8_t>(&buffer, route_len);
-        memcpy(buffer, &route_len, pfx_buf_sz);
+        memcpy(buffer, &route_prefix, pfx_buf_sz);
 
         buffer += pfx_buf_sz;
         written_nlri_len += 1 + pfx_buf_sz;
