@@ -11,7 +11,7 @@ int RouteEventBus::publish(RouteEventReceiver *recv, const RouteEvent &ev) {
 
     for (RouteEventReceiver* &subscriber : subscribers) {
         if (subscriber->subscription_id != recv->subscription_id) {
-            if (recv->handleRouteEvent(ev)) n++;
+            if (subscriber->handleRouteEvent(ev)) n++;
         }
     }
 
@@ -19,10 +19,6 @@ int RouteEventBus::publish(RouteEventReceiver *recv, const RouteEvent &ev) {
 }
 
 bool RouteEventBus::subscribe(RouteEventReceiver *recv) {
-    for (RouteEventReceiver* &subscriber : subscribers) {
-        if (recv->subscription_id == subscriber->subscription_id) return false;
-    }
-
     recv->subscription_id = ++subscription_id;
     subscribers.push_back(recv);
     return true;
