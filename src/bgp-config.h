@@ -92,7 +92,7 @@ typedef struct BgpConfig {
     uint32_t asn;
 
     /**
-     * @brief Peer ASN
+     * @brief Peer ASN. Set to 0 will make BGP FSM accept peer with any ASN.
      * 
      */
     uint32_t peer_asn;
