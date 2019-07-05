@@ -73,6 +73,7 @@ public:
 private:
     bool rib_local;
     bool clock_local;
+    bool log_local;
     bool rev_bus_exist;
 
     bool handleRouteEvent(const RouteEvent &ev);
@@ -108,6 +109,7 @@ private:
     BgpConfig config;
     BgpRib *rib;
     Clock *clock;
+    BgpLogHandler *logger;
 
     std::mutex out_buffer_mutex;
     std::mutex in_sink_mutex;

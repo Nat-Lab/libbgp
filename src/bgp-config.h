@@ -15,6 +15,7 @@
 #include "bgp-rib.h"
 #include "bgp-filter.h"
 #include "bgp-out-handler.h"
+#include "bgp-log-handler.h"
 #include "route-event-bus.h"
 
 namespace libbgp {
@@ -44,6 +45,15 @@ typedef struct BgpConfig {
      * The output handler is invoked whenever BGP FSM needs to write data.
      */
     BgpOutHandler *out_handler;
+
+    /**
+     * @brief The log handler.
+     * 
+     * The log handler is invoked whenever BGP FSM needs to write message to
+     * stdout/stderr. If you set this to null, FSM will output to the real
+     * stdout/stderr.
+     */
+    BgpLogHandler *log_handler;
 
     /**
      * @brief Pointer to the Routing Information Base object.
@@ -163,6 +173,14 @@ typedef struct BgpConfig {
      * a real-time clock.
      */
     Clock *clock;
+
+    /**
+     * @brief Enable verbose output.
+     * 
+     * Enabling verbose output will make BGP FSM print all incoming/outgoing 
+     * message along with other useful information.
+     */
+    bool verbose;
 } BgpConfig;
 
 }
