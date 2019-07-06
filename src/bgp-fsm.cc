@@ -201,7 +201,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
                 case E_FSM: err_sub_msg = bgp_fsm_error_str[notify->subcode]; break;
                 case E_CEASE: err_sub_msg = bgp_cease_error_str[notify->subcode]; break;
             }
-            logger->stderr("BgpFsm::run: got NOTIFICATION: %s: %s.\n", err_msg, err_sub_msg);
+            logger->stderr("BgpFsm::run: got NOTIFICATION: %s (%d): %s (%d).\n", err_msg, notify->errcode, err_sub_msg, notify->subcode);
             delete packet;
             state = IDLE;
             return 0;
