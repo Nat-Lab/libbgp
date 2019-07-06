@@ -6,11 +6,37 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <condition_variable>
+#include <thread>
+#include <chrono>
 
+// configurations
 #define ROUTER_ID "172.30.0.1"
 #define BIND_ADDR INADDR_ANY
 #define BIND_PORT 179
 #define MY_ASN 65000
+
+// for terminating the "ticker" thread. see comment below.
+bool running = false;
+std::condition_variable cv;
+std::mutex ticker_mtx;
+
+// a simple "ticker" to tick the FSM's clock for checking time-based events.
+// (For example, peer hold timer expired, sending keepalives) If you are brave, 
+// you might be okay with omitting the ticker, since BGP FSM tick the clock 
+// itself when it receives any messages. (so if peer sends KEEPALIVE message, 
+// the clock will tick, and the time-based events will be checked and handled)
+void ticker(libbgp::BgpFsm &fsm) {
+    fprintf(stderr, "ticker(): ticker started.\n");
+    while (true) {
+        if (!running) break;
+        std::unique_lock<std::mutex> lock(ticker_mtx);
+        if (cv.wait_for(lock, std::chrono::seconds(1)) == std::cv_status::timeout) {
+            fsm.tick();
+        } else break;
+    }
+    fprintf(stderr, "ticker(): ticker stopped.\n");
+}
 
 int main(void) {
     /* socket related stuff... */
@@ -82,6 +108,7 @@ int main(void) {
     config.hold_timer = 120; // hold timer
     config.no_nexthop_check = true; // don't validate nexthop.
     config.out_handler = &out_handler; // handle output with FdOutHandler
+    config.no_collision_detection = true; // we are the only one
 
     // for this example, we don't need event bus or pre-defined rib. see router 
     // server example for how those are used.
@@ -96,6 +123,10 @@ int main(void) {
     inet_pton(AF_INET, ROUTER_ID, &config.nexthop); // nexthop
 
     libbgp::BgpFsm fsm(config); // create the FSM
+    
+    // start the "ticker" thread
+    running = true;
+    std::thread ticker_thread(ticker, std::ref(fsm));
 
     uint8_t *read_buffer = (uint8_t *) malloc(65536);
 
@@ -121,6 +152,13 @@ int main(void) {
 
     }
 
+    running = false;
+    cv.notify_all();
+    if (ticker_thread.joinable()) {
+        fprintf(stderr, "waiting for the ticker thread to stop...\n");
+        ticker_thread.join();
+    }
+    
     fprintf(stderr, "closing socket & clean up...\n");
     free(read_buffer);
     close(fd_sock);
