@@ -17,7 +17,7 @@ namespace libbgp {
  * 
  */
 const char *bgp_error_code_str[] = {
-    "Unspecific"
+    "Unspecific",
     "Message Header Error",
     "OPEN Message Error",
     "UPDATE Message Error",
