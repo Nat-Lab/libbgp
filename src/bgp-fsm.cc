@@ -21,14 +21,6 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(logger, config.use_4b_asn, BGP
     this->config = config;
     state = IDLE;
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
-    
-    if (!config.rib) {
-        rib = new BgpRib();
-        rib_local = true;
-    } else {
-        rib = config.rib;
-        rib_local = false;
-    }
 
     if (config.rev_bus) {
         rev_bus_exist = true;
@@ -49,6 +41,14 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(logger, config.use_4b_asn, BGP
     } else {
         logger = config.log_handler;
         log_local = false;
+    }
+
+    if (!config.rib) {
+        rib = config.verbose ? new BgpRib(logger) : new BgpRib();
+        rib_local = true;
+    } else {
+        rib = config.rib;
+        rib_local = false;
     }
 
     hold_timer = 0;

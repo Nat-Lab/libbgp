@@ -54,6 +54,9 @@ public:
  */
 class BgpRib {
 public:
+    BgpRib();
+    BgpRib(BgpLogHandler *logger);
+
     // insert a new route into RIB, return true if success.
     bool insert(uint32_t src_router_id, const Route &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
@@ -80,6 +83,7 @@ private:
 
     static const BgpRibEntry* selectEntry(const BgpRibEntry *a, const BgpRibEntry *b);
     std::vector<BgpRibEntry> rib;
+    BgpLogHandler *logger;
 };
 
 }

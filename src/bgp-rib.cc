@@ -9,6 +9,7 @@
  * 
  */
 #include "bgp-rib.h"
+#include <arpa/inet.h>
 
 namespace libbgp {
 
@@ -44,6 +45,23 @@ uint32_t BgpRibEntry::getMetric() const {
 }
 
 /**
+ * @brief Construct a new BgpRib object without logging.
+ * 
+ */
+BgpRib::BgpRib() {
+    logger = NULL;
+}
+
+/**
+ * @brief Construct a new BgpRib object with logging.
+ * 
+ * @param logger Log handler to use.
+ */
+BgpRib::BgpRib(BgpLogHandler *logger) {
+    this->logger = logger;
+}
+
+/**
  * @brief Insert a new entry into RIB.
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
@@ -60,9 +78,22 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
             if (entry->getMetric() > new_entry.getMetric()) {
                 rib.erase(entry);
                 rib.push_back(new_entry);
+
+                if (logger) {
+                    uint32_t prefix = route.getPrefix();
+                    logger->stdout("BgpRib::insert: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
+                    logger->stdout("updated entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+                }
+
                 return true;
             } else return false;
         }
+    }
+
+    if (logger) {
+        uint32_t prefix = route.getPrefix();
+        logger->stdout("BgpRib::insert: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
+        logger->stdout("new entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
     }
 
     rib.push_back(new_entry);
@@ -98,6 +129,11 @@ ssize_t BgpRib::insert(uint32_t src_router_id, const std::vector<Route> &routes,
 bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
     for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
+            if (logger) {
+                uint32_t prefix = route.getPrefix();
+                logger->stdout("BgpRib::withdraw: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
+                logger->stdout("dropped entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+            }
             rib.erase(entry);
             return true;
         }
@@ -120,6 +156,12 @@ ssize_t BgpRib::discard(uint32_t src_router_id) {
         if (entry->src_router_id == src_router_id) {
             rib.erase(entry);
             n_erased++;
+            if (logger) {
+                const Route &route = entry->route;
+                uint32_t prefix = route.getPrefix();
+                logger->stdout("BgpRib::discard: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
+                logger->stdout("dropped entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+            }
         } else entry++;
     }
 
