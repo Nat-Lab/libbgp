@@ -18,6 +18,11 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new Bgp Capability:: Bgp Capability object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpCapability::BgpCapability(BgpLogHandler *logger) : Serializable(logger) {
     length = 0;
 }
@@ -107,6 +112,7 @@ ssize_t BgpCapability4BytesAsn::write(uint8_t *to, size_t buf_sz) const {
 /**
  * @brief Construct a new Bgp Capability Unknow:: Bgp Capability Unknow object
  * 
+ * @param logger Pointer to logger object for error logging.
  */
 BgpCapabilityUnknow::BgpCapabilityUnknow(BgpLogHandler *logger) : BgpCapability(logger) {
     value = NULL;

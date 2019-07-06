@@ -20,6 +20,7 @@ namespace libbgp {
 /**
  * @brief Construct a new Bgp Open Message:: Bgp Open Message object
  * 
+ * @param logger Pointer to logger object for error logging.
  * @param use_4b_asn Enable four octets ASN support.
  */
 BgpOpenMessage::BgpOpenMessage(BgpLogHandler *logger, bool use_4b_asn) : BgpMessage(logger) {

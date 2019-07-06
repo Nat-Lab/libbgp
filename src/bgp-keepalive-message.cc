@@ -14,6 +14,11 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new Bgp Keepalive Message:: Bgp Keepalive Message object
+ * 
+ * @param loggger Pointer to logger object for error logging.
+ */
 BgpKeepaliveMessage::BgpKeepaliveMessage(BgpLogHandler *loggger) : BgpMessage(logger) {
     type = KEEPALIVE;
 }

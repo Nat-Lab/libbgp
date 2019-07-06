@@ -16,6 +16,11 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new Bgp Notification Message:: Bgp Notification Message object
+ * 
+ * @param loggger Pointer to logger object for error logging.
+ */
 BgpNotificationMessage::BgpNotificationMessage(BgpLogHandler *loggger) : BgpMessage(logger) {
     type = NOTIFICATION;
     err_data = 0;

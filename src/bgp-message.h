@@ -34,6 +34,11 @@ enum BgpMessageType {
  */
 class BgpMessage : public Serializable {
 public:
+    /**
+     * @brief Construct a new Bgp Message object
+     * 
+     * @param logger Pointer to logger object for error logging.
+     */
     BgpMessage(BgpLogHandler *logger) : Serializable(logger) {}
 
     uint8_t type;

@@ -1,3 +1,13 @@
+/**
+ * @file bgp-bad-message.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief Container for invalid BGP message.
+ * @version 0.1
+ * @date 2019-07-05
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_BAD_MSG_H_
 #define BGP_BAD_MSG_H_
 
@@ -6,6 +16,11 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BgpBadMessage class.
+ * 
+ * Container class for invalid BGP message.
+ */
 class BgpBadMessage : public BgpMessage {
 public:
     BgpBadMessage(BgpLogHandler *logger, uint8_t type);
