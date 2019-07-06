@@ -52,6 +52,8 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(logger, config.use_4b_asn, BGP
     }
 
     hold_timer = 0;
+    peer_bgp_id = 0;
+    peer_asn = 0;
 }
 
 BgpFsm::~BgpFsm() {
@@ -63,7 +65,7 @@ BgpFsm::~BgpFsm() {
 }
 
 uint32_t BgpFsm::getAsn() const {
-    return config.asn;
+    return (config.asn != 0) ? config.asn : peer_asn;
 }
 
 uint32_t BgpFsm::getBgpId() const {
@@ -83,7 +85,7 @@ uint16_t BgpFsm::getHoldTimer() const {
 }
 
 const BgpRib& BgpFsm::getRib() const {
-    return *(config.rib);
+    return rib_local ? *rib : *(config.rib);
 }
 
 BgpState BgpFsm::getState() const {
@@ -317,6 +319,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 
     hold_timer = config.hold_timer > open_msg->hold_time ? open_msg->hold_time : config.hold_timer;
     peer_bgp_id = open_msg->bgp_id;
+    peer_asn = open_msg->my_asn;
     use_4b_asn = open_msg->hasCapability(ASN_4B) && config.use_4b_asn;
     
     return 1;

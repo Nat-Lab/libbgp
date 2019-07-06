@@ -64,6 +64,8 @@ public:
      * @brief Get peer ASN.
      * 
      * @return uint32_t peer ASN.
+     * @retval 0 Peer ASN unknow at this time.
+     * @retval >=0 Peer ASN.
      */
     uint32_t getPeerAsn() const;
 
@@ -71,6 +73,8 @@ public:
      * @brief Get peer BGP ID.
      * 
      * @return uint32_t peer BGP ID in network btyes order.
+     * @retval 0 Peer BGP ID unknow at this time.
+     * @retval >=0 Peer BGP ID.
      */
     uint32_t getPeerBgpId() const;
 
@@ -236,6 +240,8 @@ private:
 
     // true if both peer & local support 4B ASN
     bool use_4b_asn;
+
+    uint32_t peer_asn;
 
 };
 
