@@ -1,3 +1,13 @@
+/**
+ * @file bgp-sink.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP sink.
+ * @version 0.1
+ * @date 2019-07-05
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_SINK_H_
 #define BGP_SINK_H_
 #include <mutex>
@@ -8,7 +18,14 @@
 
 namespace libbgp {
 
-// a sink for BGP packets
+/**
+ * @brief The BgpSink class.
+ * 
+ * BGP sink is a packet buffering utility for BGP. It consumes binary buffer to
+ * fill the sink (buffer) and allows users to get full BGP packet from the sink
+ * (buffer). This is useful since BGP uses TCP, and TCP streams the data. (so we
+ * might not get a full BGP packet in buffer every time)
+ */
 class BgpSink {
 public:
     // create a new sink
@@ -32,7 +49,7 @@ public:
     // created, -1 will be returned.
     // otherwise, pkt is set to point to the new packet, and bytes drained is
     // returned. (> 0)
-    int pour(BgpPacket **pkt);
+    ssize_t pour(BgpPacket **pkt);
 
     // get and remove all packets from sink (max size = sink buffer size)
     //ssize_t pourAll(uint8_t *buffer, size_t len);

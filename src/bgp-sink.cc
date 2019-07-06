@@ -1,3 +1,13 @@
+/**
+ * @file bgp-sink.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP sink.
+ * @version 0.1
+ * @date 2019-07-05
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-sink.h"
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +16,13 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new Bgp Sink:: Bgp Sink object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ * @param use_4b_asn Enable four octets ASN support.
+ * @param buffer_size Size of the sink buffer.
+ */
 BgpSink::BgpSink(BgpLogHandler *logger, bool use_4b_asn, size_t buffer_size) {
     this->buffer_size = buffer_size;
     this->buffer = (uint8_t *) malloc(buffer_size);
@@ -14,10 +31,24 @@ BgpSink::BgpSink(BgpLogHandler *logger, bool use_4b_asn, size_t buffer_size) {
     offset_start = offset_end = 0;
 }
 
+/**
+ * @brief Destroy the Bgp Sink:: Bgp Sink object
+ * 
+ */
 BgpSink::~BgpSink() {
     free(buffer);
 }
 
+/**
+ * @brief Fill the sink with data.
+ * 
+ * @param buffer The pointer to data buffer.
+ * @param len The length of data.
+ * @return ssize_t Bytes consumed.
+ * @retval -1 Failed to fill sink. error may be written to stderr with log
+ * handler.
+ * @retval >=0 Bytes consumed.
+ */
 ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
@@ -40,7 +71,21 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     return len;
 }
 
-int BgpSink::pour(BgpPacket **pkt) {
+/**
+ * @brief Pour BGP packet out from sink.
+ * 
+ * Get a packet from sink and remove that packet from sink.
+ * 
+ * @param pkt Pointer to BgpPacket pointer.
+ * @return ssize_t Bytes poured.
+ * @retval -2 Failed to pour packet. error may be written to stderr with log
+ * handler.
+ * @retval -1 Packet poured, but parse error occured. error may be written to 
+ * stderr with log handler, notification message data that needs to be sent to
+ * peer may be avaliable.
+ * @retval >=0 Bytes poured.
+ */
+ssize_t BgpSink::pour(BgpPacket **pkt) {
     std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
 
@@ -82,11 +127,20 @@ void BgpSink::settle() {
     }
 }
 
+/**
+ * @brief Drain the sink. (Remove all data from sink buffer)
+ * 
+ */
 void BgpSink::drain() {
     std::lock_guard<std::mutex> lock(mutex);
     offset_end = offset_start = 0;
 }
 
+/**
+ * @brief Get amount to data in sink.
+ * 
+ * @return size_t Data size in bytes.
+ */
 size_t BgpSink::getBytesInSink() const {
     return offset_end - offset_start;
 }
