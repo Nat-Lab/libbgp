@@ -38,9 +38,8 @@ public:
      * @param from The pointer to buffer.
      * @param msg_sz The max read length of deserializer.
      * @return ssize_t Bytes read.
-     * @retval -1 Deserialization failed. Error information might be avaliable 
-     * in errbuf (see bgp-error.h) and peer should be notified with 
-     * `getError*()`.
+     * @retval -1 Deserialization failed. error may be written to stderr with 
+     * log handler.
      * @retval >=0 Bytes read.
      */
     virtual ssize_t parse(const uint8_t *from, size_t msg_sz) = 0;
@@ -51,8 +50,8 @@ public:
      * @param to The pointer to buffer.
      * @param buf_sz The max write size of serializer.
      * @return ssize_t Btyes written.
-     * @retval -1 Serialization failed. Error information might be avaliable in 
-     * errbuf (see bgp-error.h)
+     * @retval -1 Serialization failed. error may be written to stderr with log
+     * handler.
      * @retval >=0 Bytes written.
      */
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
