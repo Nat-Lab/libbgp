@@ -51,8 +51,13 @@ int main (void) {
     inet_pton(AF_INET, "172.30.0.1", &bgp_id);
 
     // create an open message object to be serialized.
-    // true: enable four octets ASN support, 23456: AS_TRANS, 120: hold timer.
-    libbgp::BgpOpenMessage open(&logger, true, 23456, 120, bgp_id);
+    // true: enable four octets ASN support, 0: local ASN, 120: hold timer.
+    // BgpOpenMessage constructer does not accept four octects ASN, you should 
+    // set four octets ASN with BgpOpenMessage::setAsn.
+    libbgp::BgpOpenMessage open(&logger, true, 0, 120, bgp_id);
+
+    // set the actual four octects ASN. 
+    open.setAsn(396303);
 
     // create a BGP packet object to wrap the open message. You don't use the
     // write/parse method on BgpMessage class directly. They only 
@@ -66,6 +71,10 @@ int main (void) {
         fprintf(stderr, "failed to serialize.\n");
         return 1;
     }
+
+    // print the message
+    serializer.print((uint8_t *) message_visualized, 4096);
+    printf("%s", message_visualized);
 
     return 0;
 }
