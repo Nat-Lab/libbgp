@@ -13,7 +13,7 @@ Some examples require you to link `pthread` too. Add `-lpthread` after `-lbgp` t
 $ c++ peer-and-print.cc -lbgp -lpthread -o peer-and-print
 ```
 
-Then you can run the example with `./peer-and-print`. (you may need root for this specific example since example open a TCP socket listening on a well-known port)
+Then you can run the example with `./peer-and-print`. (you may need root for this specific example since this example open a TCP socket listening on a well-known port)
 
 The following examples are avaliable: 
 
