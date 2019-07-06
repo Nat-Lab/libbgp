@@ -742,6 +742,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
         ssize_t write_ret = attr->write(buffer, buf_left);
 
         if (write_ret < 0) return -1;
+        buffer += write_ret;
         written_attrib_length += write_ret;
     }
 
