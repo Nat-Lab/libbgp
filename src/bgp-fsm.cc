@@ -17,7 +17,7 @@
 
 namespace libbgp {
 
-BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(logger, config.use_4b_asn, BGP_FSM_SINK_SIZE) {
+BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SINK_SIZE) {
     this->config = config;
     state = IDLE;
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
@@ -42,6 +42,8 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(logger, config.use_4b_asn, BGP
         logger = config.log_handler;
         log_local = false;
     }
+
+    in_sink.setLogger(logger);
 
     if (!config.rib) {
         rib = config.verbose ? new BgpRib(logger) : new BgpRib();
@@ -165,7 +167,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         if (config.verbose) {
             out_buffer_mutex.lock();
             packet->print(out_buffer, BGP_FSM_BUFFER_SIZE);
-            logger->stdout("BgpFsm::run: got message:\n%s", out_buffer);
+            logger->stdout("BgpFsm::run: got message (s=%d):\n%s", state, out_buffer);
             out_buffer_mutex.unlock();
         }
 
@@ -576,7 +578,14 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     std::lock_guard<std::mutex> lock(out_buffer_mutex);
     BgpPacket pkt(logger, use_4b_asn, &msg);
+
+    if (config.verbose) {
+        pkt.print(out_buffer, BGP_FSM_BUFFER_SIZE);
+        logger->stdout("BgpFsm::writeMessage: write (s=%d):\n%s", state, out_buffer);
+    }
+
     ssize_t pkt_len = pkt.write(out_buffer, BGP_FSM_BUFFER_SIZE);
+    last_sent = clock->getTime();
 
     if (pkt_len < 0) {
         logger->stderr("BgpFsm::writeMessage: failed to write message, abort.\n");
@@ -590,12 +599,6 @@ bool BgpFsm::writeMessage(const BgpMessage &msg) {
         return false;
     }
 
-    if (config.verbose) {
-        pkt.print(out_buffer, BGP_FSM_BUFFER_SIZE);
-        logger->stdout("BgpFsm::writeMessage: wrote:\n%s", out_buffer);
-    }
-
-    last_sent = clock->getTime();
     return true;
 }
 
