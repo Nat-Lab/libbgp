@@ -1,3 +1,13 @@
+/**
+ * @file bgp-filter.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The Route filtering engine.
+ * @version 0.1
+ * @date 2019-07-06
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_FILTER_H_
 #define BGP_FILTER_H_
 #include <stdint.h>
@@ -6,17 +16,31 @@
 
 namespace libbgp {
 
+/**
+ * @brief The filter operation.
+ * 
+ */
 enum BgpFilterOP {
-    NOP,
-    ACCEPT,
-    REJECT
+    NOP, /*!< No Operation (Prefix does not match) */
+    ACCEPT, /*!< Accept */
+    REJECT /*!< Reject */
 };
 
+/**
+ * @brief The types of filter.
+ * 
+ */
 enum BgpFilterType {
-    STRICT,
-    LOOSE
+    STRICT, /*!< Only match if the target subnet is an exact match */
+    LOOSE /*!< Match if the taeget subnet is a sub-prefix */
 };
 
+/**
+ * @brief The BgpFilterRule class.
+ * 
+ * A BGP route filtering rule.
+ * 
+ */
 class BgpFilterRule {
 public:
     BgpFilterRule(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
@@ -31,6 +55,12 @@ private:
     Route prefix;
 };
 
+/**
+ * @brief The BgpFilterRules class.
+ * 
+ * A list of BGP route filtering rules.
+ * 
+ */
 class BgpFilterRules {
 public:
     BgpFilterRules();
