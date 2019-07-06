@@ -1,3 +1,13 @@
+/**
+ * @file bgp-fsm.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP Finite State Machine.
+ * @version 0.1
+ * @date 2019-07-05
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_FSM_H_
 #define BGP_FSM_H_
 #define BGP_FSM_SINK_SIZE 8192
@@ -15,6 +25,10 @@
 
 namespace libbgp {
 
+/**
+ * @brief BGP Finite State Machine status.
+ * 
+ */
 enum BgpState {
     IDLE,
     OPEN_SENT,
@@ -23,51 +37,133 @@ enum BgpState {
     BROKEN
 };
 
+/**
+ * @brief The BgpFsm class.
+ * 
+ */
 class BgpFsm : public RouteEventReceiver {
 public:
     BgpFsm(const BgpConfig &config);
     ~BgpFsm();
 
+    /**
+     * @brief Get local ASN.
+     * 
+     * @return uint32_t local ASN.
+     */
     uint32_t getAsn() const;
+
+    /**
+     * @brief Get local BGP ID.
+     * 
+     * @return uint32_t local BGP ID in network btyes order.
+     */
     uint32_t getBgpId() const;
+
+    /**
+     * @brief Get peer ASN.
+     * 
+     * @return uint32_t peer ASN.
+     */
     uint32_t getPeerAsn() const;
+
+    /**
+     * @brief Get peer BGP ID.
+     * 
+     * @return uint32_t peer BGP ID in network btyes order.
+     */
     uint32_t getPeerBgpId() const;
+
+    /**
+     * @brief Get the Routing Information Base.
+     * 
+     * @return const BgpRib& const reference to RIB.
+     */
     const BgpRib& getRib() const;
+
+    /**
+     * @brief Get current FSM state.
+     * 
+     * @return BgpState Current state.
+     */
     BgpState getState() const;
 
-    // start BGP (Idle -> Open Sent)
-    // return value: 0: error, check errbuf, 1: success
+    /**
+     * @brief send OPEN message to peer. (IDLE -> OpenSent)
+     * 
+     * @retval 0 Failed to start. error may be written to stderr with log
+     * handler.
+     * @retval 1 open message sent.
+     */
     int start();
 
-    // stop BGP (Any -> Idle)
-    // return value: 0: error, check errbuf, 1: success
+    /**
+     * @brief Stop the FSM. (Any -> Idle)
+     * 
+     * @retval 0 Failed to stop. error may be written to stderr with log
+     * handler.
+     */
     int stop();
 
-    // run FSM on buffer
-    // return value: 
-    // -1: fatal_error, FSM now BROKEN, check errbuf.
-    // 0: error: NOTIFY sent, FSM now IDLE, errbuf might has details.
-    // 1: success
-    // 2: FSM reseted (NOTIFY received / FSM error), errbuf might has details.
-    // 3: success, incomplete packet in sink
+    /**
+     * @brief Run the FSM on buffer.
+     * 
+     * @param buffer Pointer to buffer.
+     * @param buffer_size Size of buffer.
+     * @retval -1 Fatal error occured. FSM is now in BROKEN state and needs to 
+     * be reset. error may be written to stderr with log handler.
+     * @retval 0 Protocol error occurred on the other side. Notification message
+     * was sent to peer and FSM is now IDLE state. error may be written to 
+     * stderr with log handler.
+     * @retval 1 Success.
+     * @retval 2 Protocol error occurred on the local side. Got Notification 
+     * message from peer and FSM is now IDLE state. error may be written to 
+     * stderr with log handler.
+     * @retval 3 The packet passed in was incomplete. FSM will wait for more
+     * data.
+     */
     int run(const uint8_t *buffer, const size_t buffer_size);
 
-    // tick the clock (check for time-based event e.g. hold timer)
-    // return value:
-    // -1: fatal_error, FSM now BROKEN, check errbuf.
-    // 0: error: NOTIFY sent, FSM now IDLE, errbuf might has details. (likely 
-    // hold timer exipred)
-    // 1: success
-    // 2: success, keepalive sent
+    /**
+     * @brief Tick the clock (Check for time-based events)
+     * 
+     * tick() should be called regularly to check for time-based events like 
+     * hold timer checks and keepalive message sending. BGP FSM will tick itself
+     * when run() is called but you should call tink() regularly to ensure the 
+     * hold timer on the other side won't expire.
+     * 
+     * @retval 0 Hold timer expired. Notification message was sent to the peer.
+     * FSM is now in IDLE state. error may be written to stderr with log 
+     * handler.
+     * @retval 1 Success.
+     * @retval 2 Success, KEEPALIVE message sent to peer.
+     */
     int tick();
 
     // soft reset: send Administrative Reset and go to idle
     // return value:
     // -1: fatal_error, FSM now BROKEN, check errbuf.
     // 0: success, NOTIFY sent, FSM not IDLE
+
+    /**
+     * @brief Perform a soft reset.
+     * 
+     * An Administrative Reset Notification will be sent to peer and FSM will
+     * go IDLE. This will also clear the BGP packet buffer.
+     * 
+     * @retval -1 Fatal Error. FSM is now in BROKEN state. error may be written
+     * to stderr with log handler.
+     * @retval 0 Success. Notification sent. FSM is now IDLE.
+     */
     int resetSoft();
 
     // hard reset: go to idle
+    /**
+     * @brief Perform a hard reset.
+     * 
+     * Set FSM state to IDLE and clear the packet buffer.
+     * 
+     */
     void resetHard();
 
 private:

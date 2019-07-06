@@ -1,3 +1,13 @@
+/**
+ * @file bgp-fsm.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The BGP Finite State Machine.
+ * @version 0.1
+ * @date 2019-07-05
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-fsm.h"
 #include "realtime-clock.h"
 #include "value-op.h"
@@ -138,7 +148,11 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         BgpPacket *packet = NULL;
         ssize_t poured = in_sink.pour(&packet);
 
-        if (poured <= -2) return poured;
+        if (poured <= -2) {
+            logger->stderr("BgpFsm::run: sink seems to be broken, please reset.\n");
+            state = BROKEN;
+            return -1;
+        }
 
         if (config.verbose) {
             out_buffer_mutex.lock();
