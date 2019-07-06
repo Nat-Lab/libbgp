@@ -105,13 +105,13 @@ int BgpFsm::start() {
 
     uint16_t my_asn_2b = config.asn >= 0xffff ? 23456 : config.asn;
 
-    BgpOpenMessage msg(logger, use_4b_asn, my_asn_2b, config.hold_timer, config.router_id);
-    if (use_4b_asn) {
+    BgpOpenMessage msg(logger, config.use_4b_asn, my_asn_2b, config.hold_timer, config.router_id);
+    if (config.use_4b_asn) {
         msg.setAsn(config.asn);
     }
-    if(!writeMessage(msg)) return -1;
 
     state = OPEN_SENT;
+    if(!writeMessage(msg)) return -1;
     return 1;
 }
 
@@ -128,9 +128,9 @@ int BgpFsm::stop() {
     }
 
     BgpNotificationMessage notify (logger, E_CEASE, E_SHUTDOWN, NULL, 0);
-    if(!writeMessage(notify)) return -1;
 
     state = IDLE;
+    if(!writeMessage(notify)) return -1;
     return 1;
 }
 
@@ -182,9 +182,9 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
                 return 0;
             }
             BgpNotificationMessage notify (logger, msg->getErrorCode(), msg->getErrorSubCode(), msg->getError(), msg->getErrorLength());
+            state = IDLE;
             if(!writeMessage(notify)) return -1;
             delete packet;
-            state = IDLE;
             return 0;
         }
 
@@ -242,8 +242,8 @@ int BgpFsm::tick() {
     if (clock->getTime() - last_recv > hold_timer) {
         logger->stderr("BgpFsm::tick: peer hold timer timeout.\n");
         BgpNotificationMessage notify (logger, E_HOLD, 0, NULL, 0);
-        if(!writeMessage(notify)) return -1;
         state = IDLE;
+        if(!writeMessage(notify)) return -1;
         return 0;
     }
 
@@ -442,9 +442,9 @@ int BgpFsm::validateState(uint8_t type) {
             if (type != OPEN) {
                 logger->stderr("BgpFsm::validateState: got non-OPEN message in OPEN_SENT state.\n");
                 BgpNotificationMessage notify (logger, E_FSM, E_OPEN_SENT, NULL, 0);
+                state = IDLE;
                 if(!writeMessage(notify)) return -1;
 
-                state = IDLE;
                 return 0;
             }
             return 1;
@@ -452,9 +452,9 @@ int BgpFsm::validateState(uint8_t type) {
             if (type != KEEPALIVE) {
                 logger->stderr("BgpFsm::validateState: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
                 BgpNotificationMessage notify (logger, E_FSM, E_OPEN_CONFIRM, NULL, 0);
+                state = IDLE;
                 if(!writeMessage(notify)) return -1;
 
-                state = IDLE;
                 return 0;
             }
             return 1;
@@ -462,9 +462,9 @@ int BgpFsm::validateState(uint8_t type) {
             if (type != UPDATE && type != KEEPALIVE) {
                 logger->stderr("BgpFsm::validateState: got invalid message (type %d) in ESTABLISHED state.\n", type);
                 BgpNotificationMessage notify (logger, E_FSM, E_ESTABLISHED, NULL, 0);
+                state = IDLE;
                 if(!writeMessage(notify)) return -1;
 
-                state = IDLE;
                 return 0;
             }
             return 1;
@@ -485,9 +485,10 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     if (use_4b_asn) {
         open_reply.setAsn(config.asn);
     }
-    if(!writeMessage(open_reply)) return -1;
 
     state = OPEN_CONFIRM;
+    if(!writeMessage(open_reply)) return -1;
+
     return 1;
 }
 
@@ -498,17 +499,16 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
     if (retval != 1) return retval;
 
     BgpKeepaliveMessage keep = BgpKeepaliveMessage(logger);
+    state = OPEN_CONFIRM;
     if(!writeMessage(keep)) return -1;
 
-    state = OPEN_CONFIRM;
     return 1;
 }
 
 int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     BgpKeepaliveMessage keep = BgpKeepaliveMessage(logger);
-    if(!writeMessage(keep)) return -1;
-
     state = ESTABLISHED;
+    if(!writeMessage(keep)) return -1;
 
     // feed rib to peer; TODO: feed routes w/ same attrib w/ single message
     for (const BgpRibEntry &entry : rib->get()) {
