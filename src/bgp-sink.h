@@ -29,7 +29,7 @@ namespace libbgp {
 class BgpSink {
 public:
     // create a new sink
-    BgpSink(BgpLogHandler *logger, bool use_4b_asn, size_t buffer_size);
+    BgpSink(bool use_4b_asn, size_t buffer_size);
 
     // feed stream of packets into sink
     ssize_t fill(const uint8_t *buffer, size_t len);
@@ -59,6 +59,8 @@ public:
 
     // discard packets in sink
     void drain();
+
+    void setLogger(BgpLogHandler *logger);
 
     ~BgpSink();
 

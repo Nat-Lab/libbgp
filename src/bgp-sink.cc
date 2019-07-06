@@ -19,15 +19,14 @@ namespace libbgp {
 /**
  * @brief Construct a new Bgp Sink:: Bgp Sink object
  * 
- * @param logger Pointer to logger object for error logging.
  * @param use_4b_asn Enable four octets ASN support.
  * @param buffer_size Size of the sink buffer.
  */
-BgpSink::BgpSink(BgpLogHandler *logger, bool use_4b_asn, size_t buffer_size) {
+BgpSink::BgpSink(bool use_4b_asn, size_t buffer_size) {
     this->buffer_size = buffer_size;
     this->buffer = (uint8_t *) malloc(buffer_size);
     this->use_4b_asn = use_4b_asn;
-    this->logger = logger;
+    this->logger = NULL;
     offset_start = offset_end = 0;
 }
 
@@ -53,14 +52,14 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     std::lock_guard<std::mutex> lock(mutex);
     assert(offset_end >= offset_start);
     if (len > buffer_size) {
-        logger->stderr("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
+        if (logger) logger->stderr("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
         return -1;
     }
 
     if (offset_end + len > buffer_size) {
         settle(); 
         if (offset_end + len > buffer_size) {
-            logger->stderr("BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
+            if (logger) logger->stderr("BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
             return -1;
         }
     }
@@ -93,14 +92,14 @@ ssize_t BgpSink::pour(BgpPacket **pkt) {
 
     if (offset_end - offset_start < 19) return 0;
     if (memcmp(cur, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0) {
-        logger->stderr("BgpSink::pour: invalid BGP marker.\n");
+        if (logger) logger->stderr("BgpSink::pour: invalid BGP marker.\n");
         return -2;
     }
 
     uint16_t field_len = ntohs(*(uint16_t *) (cur + 16));
 
     if (field_len < 19 || field_len > 4096) {
-        logger->stderr("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
+        if (logger) logger->stderr("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
         return -2;
     }
 
@@ -143,6 +142,15 @@ void BgpSink::drain() {
  */
 size_t BgpSink::getBytesInSink() const {
     return offset_end - offset_start;
+}
+
+/**
+ * @brief Set the logger to use. If NULL or not set, nothing will be logger.
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
+void BgpSink::setLogger(BgpLogHandler *logger) {
+    this->logger = logger;
 }
 
 }
