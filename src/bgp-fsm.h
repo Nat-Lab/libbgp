@@ -75,6 +75,15 @@ public:
     uint32_t getPeerBgpId() const;
 
     /**
+     * @brief Get the negotiated hold timer.
+     * 
+     * @return uint16_t negotiated hold timer.
+     * @retval 0 Hold timer was not negotiated yet.
+     * @retval >0 negotiated hold timer.
+     */
+    uint16_t getHoldTimer() const;
+
+    /**
      * @brief Get the Routing Information Base.
      * 
      * @return const BgpRib& const reference to RIB.

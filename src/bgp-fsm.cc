@@ -50,6 +50,8 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(logger, config.use_4b_asn, BGP
         logger = config.log_handler;
         log_local = false;
     }
+
+    hold_timer = 0;
 }
 
 BgpFsm::~BgpFsm() {
@@ -74,6 +76,10 @@ uint32_t BgpFsm::getPeerAsn() const {
 
 uint32_t BgpFsm::getPeerBgpId() const {
     return peer_bgp_id;
+}
+
+uint16_t BgpFsm::getHoldTimer() const {
+    return hold_timer;
 }
 
 const BgpRib& BgpFsm::getRib() const {
