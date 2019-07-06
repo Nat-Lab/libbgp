@@ -2,11 +2,11 @@ libbgp
 ---
 `libbgp` is a BGP (Border Gateway Protocol) library written in C++. It comes with BGP message serializer/deserializer and a BGP Finite State Machine which has all the infrastructures needed (BGP RIB, Packet Sink, Route filtering) to build a BGP speaker.
 
-`bgp-fsm` is a finite state machine that handles a single BGP session. Multiple `bgp-fsm`s can be created to handle multiple sessions with different peers. BGP FSM will uses `route-event-bus` to communicate with other FSMs. `bgp-fsm` holds no information about the underlying transport protocol (for BGP, the standard is to use TCP), and it is only an FSM that take streams of binary data and output, a stream of binary data.
+`BgpPacket` ([document](https://lab.nat.moe/libbgp-doc/classlibbgp_1_1BgpPacket.html)) is a BGP message  deserialization/serialization tool.
+
+`BgpFsm` ([document](https://lab.nat.moe/libbgp-doc/classlibbgp_1_1BgpFsm.html)) is a finite state machine that handles a single BGP session. Multiple `BgpFsm`s can be created to handle multiple sessions with different peers. BGP FSM will uses `RouteEventBus` to communicate with other FSMs. `BgpFsm` holds no information about the underlying transport protocol (for BGP, the standard is to use TCP), and it is only an FSM that take streams of binary data and output, a stream of binary data.
 
 For simple usage and quick start, refer to examples. For detailed API usages, refer to document.
-
-`bgp-fsm` is currently under development.
 
 ### Install
 
@@ -31,5 +31,16 @@ $ ./autogen.sh && ./configure && make
 
 ### Document
 
+libbgp document is available online at <https://lab.nat.moe/libbgp-doc>. You may also build the document by running `doxygen` command under the project root directory. (where the `Doxyfile` is located) You will find the document under `docs/` folder.
+
 ### Examples
 
+Examples are available under the `examples/` directory. You may build example programs with the following command after installing libbgp:
+
+```
+$ c++ name_of_example.cc -lbgp -o name_of_example
+```
+
+### License
+
+MIT
