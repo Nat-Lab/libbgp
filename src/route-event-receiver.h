@@ -11,6 +11,7 @@ class RouteEventReceiver {
 
 public:
     RouteEventReceiver() { subscription_id = 0; }
+    virtual ~RouteEventReceiver() {};
 
 protected:
 
@@ -19,8 +20,6 @@ protected:
     // true: event handled
     // false: event not handled
     virtual bool handleRouteEvent(const RouteEvent &ev) = 0;
-    
-    virtual ~RouteEventReceiver() {};
 private:
     int subscription_id;
 };
