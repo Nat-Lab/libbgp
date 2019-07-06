@@ -1,3 +1,13 @@
+/**
+ * @file bgp-path-attrib.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief BGP Path attributes.
+ * @version 0.1
+ * @date 2019-07-06
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-path-attrib.h"
 #include "bgp-errcode.h"
 #include "value-op.h"
