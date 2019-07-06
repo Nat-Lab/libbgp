@@ -20,6 +20,9 @@ namespace libbgp {
 /**
  * @brief The BgpKeepaliveMessage class.
  * 
+ * This is deserializer/serializer for BGP keepalive message body. If you want 
+ * to deserializer/serializer a full BGP message. Take a look at BgpPacket
+ * class.
  */
 class BgpKeepaliveMessage : public BgpMessage {
 public:

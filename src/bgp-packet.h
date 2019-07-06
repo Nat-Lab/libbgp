@@ -1,3 +1,13 @@
+/**
+ * @file bgp-packet.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief Top level deserialization/serialization entry point for BGP messages.
+ * @version 0.1
+ * @date 2019-07-06
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_PACKET_H_
 #define BGP_PACKET_H_
 #include "serializable.h"
@@ -5,6 +15,14 @@
 
 namespace libbgp {
 
+/**
+ * @brief The BgpPacket class.
+ * 
+ * BgpPacket class is the top level deserialization/serialization entry point 
+ * for BGP messages. This is what you should use if you wish to 
+ * serialize/deserialize a BGP message.
+ * 
+ */
 class BgpPacket : public Serializable {
 public:
     BgpPacket(BgpLogHandler *logger, bool is_4b, const BgpMessage *msg);

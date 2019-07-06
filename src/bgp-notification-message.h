@@ -19,6 +19,9 @@ namespace libbgp {
 /**
  * @brief The BgpNotificationMessage object.
  * 
+ * This is deserializer/serializer for BGP notification message body. If you 
+ * want to deserializer/serializer a full BGP message. Take a look at BgpPacket
+ * class.
  */
 class BgpNotificationMessage : public BgpMessage {
 public:

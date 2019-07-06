@@ -1,3 +1,13 @@
+/**
+ * @file bgp-packet.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief Top level deserialization/serialization entry point for BGP messages.
+ * @version 0.1
+ * @date 2019-07-06
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include "bgp-packet.h"
 #include "bgp.h"
 #include "value-op.h"
@@ -7,6 +17,12 @@
 
 namespace libbgp {
 
+/**
+ * @brief Construct a new BgpPacket object for deserializing BGP message.
+ * 
+ * @param logger Pointer to logger object for error logging.
+ * @param is_4b Enable four octets ASN support.
+ */
 BgpPacket::BgpPacket(BgpLogHandler *logger, bool is_4b) : Serializable(logger) {
     msg = NULL;
     m_msg = NULL;
@@ -14,6 +30,13 @@ BgpPacket::BgpPacket(BgpLogHandler *logger, bool is_4b) : Serializable(logger) {
     this->is_4b = is_4b;
 }
 
+/**
+ * @brief Construct a new BgpPacket object for serializing BGP message.
+ * 
+ * @param logger Pointer to logger object for error logging.
+ * @param is_4b Enable four octets ASN support.
+ * @param msg The message to be serialized
+ */
 BgpPacket::BgpPacket(BgpLogHandler *logger, bool is_4b, const BgpMessage *msg) : Serializable(logger) {
     this->msg = msg;
     m_msg = NULL;
@@ -97,6 +120,11 @@ ssize_t BgpPacket::write(uint8_t *to, size_t buf_sz) const {
     return pkt_len;
 }
 
+/**
+ * @brief Get pointer to the contained message.
+ * 
+ * @return const BgpMessage* Pointer to the message.
+ */
 const BgpMessage *BgpPacket::getMessage() const {
     return is_message_owner ? m_msg : msg;
 }

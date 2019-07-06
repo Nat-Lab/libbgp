@@ -21,6 +21,8 @@ namespace libbgp {
 /**
  * @brief The BgpOpenMessage class.
  * 
+ * This is deserializer/serializer for BGP open message body. If you want to 
+ * deserializer/serializer a full BGP message. Take a look at BgpPacket class.
  */
 class BgpOpenMessage : public BgpMessage {
 public:
