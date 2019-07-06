@@ -62,6 +62,49 @@ BgpRib::BgpRib(BgpLogHandler *logger) {
 }
 
 /**
+ * @brief Insert a local route into RIB.
+ * 
+ * Local routes are routes inserted to the RIB by user. The scope (src_router_id)
+ * of local routes are 0. This method will create necessary path attribues
+ * before inserting entry to RIB (AS_PATH, ORIGIN, NEXT_HOP). 
+ * 
+ * The logger pointer passed in is for attribues. (so if a attribute failed to 
+ * deserialize, it will print to the provided logger).
+ * 
+ * To remove an entry inserted with this method, use 0 as `src_router_id`.
+ * 
+ * @param logger Pointer to logger for the created path attributes to use. 
+ * @param route Route.
+ * @param nexthop Nexthop for the route.
+ * @retval NULL failed to insert.
+ * @retval !=NULL Inserted route.
+ */
+const BgpRibEntry* BgpRib::insert(BgpLogHandler *logger, const Route &route, uint32_t nexthop) {
+    std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
+    BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
+    BgpPathAttribNexthop *nexhop_attr = new BgpPathAttribNexthop(logger);
+    BgpPathAttribAsPath *as_path = new BgpPathAttribAsPath(logger, true);
+    nexhop_attr->next_hop = nexthop;
+    origin->origin = IGP;
+
+    attribs.push_back(std::shared_ptr<BgpPathAttrib>(origin));
+    attribs.push_back(std::shared_ptr<BgpPathAttrib>(nexhop_attr));
+    attribs.push_back(std::shared_ptr<BgpPathAttrib>(as_path));
+
+    for (const BgpRibEntry &entry : rib) {
+        if (entry.src_router_id == 0 && entry.route == route) {
+            if (logger) logger->stderr("BgpRib::insert: route exists.");
+            return NULL;
+        }
+    }
+
+    BgpRibEntry new_entry(route, 0, attribs);
+    rib.push_back(new_entry);
+
+    return &(rib.back());
+}
+
+/**
  * @brief Insert a new entry into RIB.
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.

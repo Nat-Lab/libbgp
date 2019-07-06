@@ -57,6 +57,9 @@ public:
     BgpRib();
     BgpRib(BgpLogHandler *logger);
 
+    // insert a route as local routing information
+    const BgpRibEntry* insert(BgpLogHandler *logger, const Route &route, uint32_t nexthop);
+
     // insert a new route into RIB, return true if success.
     bool insert(uint32_t src_router_id, const Route &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
