@@ -245,6 +245,7 @@ ssize_t BgpOpenMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_left) c
     indent++; {
         written += _print(indent, to, buf_left, "Version { %d }\n", version);
         written += _print(indent, to, buf_left, "MyAsn { %d }\n", my_asn);
+        written += _print(indent, to, buf_left, "BgpId { %s }\n", inet_ntoa(*(const struct in_addr*) &bgp_id));
         written += _print(indent, to, buf_left, "HoldTimer { %d }\n", hold_time);
         if (capabilities.size() == 0) written += _print(indent, to, buf_left, "Capabilities { }\n");
         else {
