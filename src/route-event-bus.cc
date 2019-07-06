@@ -10,7 +10,7 @@ int RouteEventBus::publish(RouteEventReceiver *recv, const RouteEvent &ev) {
     int n = 0;
 
     for (RouteEventReceiver* &subscriber : subscribers) {
-        if (subscriber->subscription_id != recv->subscription_id) {
+        if (recv == NULL || subscriber->subscription_id != recv->subscription_id) {
             if (subscriber->handleRouteEvent(ev)) n++;
         }
     }
