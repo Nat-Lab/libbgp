@@ -87,7 +87,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     uint8_t opt_params_len = getValue<uint8_t> (&buffer);
 
     // size of rest of message != length of opt_param or invalid length
-    if (opt_params_len != msg_sz - 10 || opt_params_len < 2) {
+    if (opt_params_len != msg_sz - 10 || (opt_params_len < 2 && opt_params_len != 0)) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
         if (opt_params_len + 10 != (uint8_t) msg_sz) 
             logger->stderr("BgpOpenMessage::parse: size of rest of message (%d) != length of opt_param (%d).\n", msg_sz - 10, opt_params_len);
