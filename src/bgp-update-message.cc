@@ -174,7 +174,8 @@ bool BgpUpdateMessage::setNextHop(uint32_t nexthop) {
  * 
  * @param asn Thr ASN.
  * @return true ASN appended.
- * @return false Failed to append ASN. errbuf may have details. (see bgp-error.h)
+ * @return false Failed to append ASN. error may be written to stderr with log
+ * handler.
  */
 bool BgpUpdateMessage::prepend(uint32_t asn) {
     if (use_4b_asn) {
@@ -238,8 +239,8 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
  * Try to restore AS_TRANS in AS_PATH attribute with AS4_PATH.
  * 
  * @return true Path restored.
- * @return false Failed to restore path. errbuf may have details. (see 
- * bgp-error.h)
+ * @return false Failed to restore path. error may be written to stderr with log
+ * handler.
  */
 bool BgpUpdateMessage::restoreAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
@@ -352,8 +353,8 @@ bool BgpUpdateMessage::restoreAsPath() {
  * Create/Update AS_PATH and make four octets ASNs in AS_PATH AS_TRANS. 
  * 
  * @return true AS_PATH downgraded.
- * @return false Failed to downgrade AS_PATH. errbuf may have details. (see 
- * bgp-error.h)
+ * @return false Failed to downgrade AS_PATH. error may be written to stderr 
+ * with log handler.
  */
 bool BgpUpdateMessage::downgradeAsPath() {
     if (!hasAttrib(AS_PATH)) return true;
