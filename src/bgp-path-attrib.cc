@@ -7,16 +7,37 @@
 
 namespace libbgp {
 
+/**
+ * @brief Get type of attribute from buffer.
+ * 
+ * @param from Pointer to buffer.
+ * @param buffer_sz Size of buffre.
+ * @return int8_t Attribute type.
+ * @retval -1 Failed to get attribute type.
+ * @retval >=0 Attribute type.
+ */
 int8_t BgpPathAttrib::GetTypeFromBuffer(const uint8_t *from, size_t buffer_sz) {
     if (buffer_sz < 3) return -1;
     return *((uint8_t *) (from + 1));
 }
 
+/**
+ * @brief Construct a new Bgp Path Attrib:: Bgp Path Attrib object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger) : Serializable(logger) {
     optional = transitive = partial = extended = false;
     value_ptr = NULL;
 }
 
+/**
+ * @brief Construct a new Bgp Path Attrib:: Bgp Path Attrib object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ * @param value Pointer to value buffer of unknow type attribute.
+ * @param val_len Length of the value buffer.
+ */
 BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16_t val_len) : BgpPathAttrib(logger) {
     if (value_len > 0) assert(value != NULL);
 
@@ -24,6 +45,10 @@ BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16
     memcpy(value_ptr, value, value_len);
 }
 
+/**
+ * @brief Destroy the Bgp Path Attrib:: Bgp Path Attrib object
+ * 
+ */
 BgpPathAttrib::~BgpPathAttrib() {
     if (value_ptr != NULL) free(value_ptr);
 }
@@ -38,6 +63,14 @@ BgpPathAttrib* BgpPathAttrib::clone() const {
     return attr;
 }
 
+/**
+ * @brief Utility function to print flags for attribute.
+ * 
+ * @param indent Indentation level.
+ * @param to Pointer to buffer pointer.
+ * @param buf_sz Pointer to avaliable buffer counter.
+ * @return ssize_t Bytes written.
+ */
 ssize_t BgpPathAttrib::printFlags(size_t indent, uint8_t **to, size_t *buf_sz) const {
     size_t written = 0;
 
@@ -128,6 +161,16 @@ ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
     return value_len + 3;   
 }
 
+/**
+ * @brief Utility function to parse attribute header. (Flag, type, length)
+ * 
+ * @param from Pointer to buffer.
+ * @param buffer_sz Size of buffer.
+ * @return ssize_t Bytes read.
+ * @retval -1 Failed to parse header. error may be written to stderr with log
+ * handler.
+ * @retval >=0 Bytes read.
+ */
 ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     if (buffer_sz < 3) {
         setError(E_UPDATE, E_UNSPEC_UPDATE, NULL, 0);
@@ -166,6 +209,19 @@ ssize_t BgpPathAttrib::parseHeader(const uint8_t *from, size_t buffer_sz) {
     return extended ? 4 : 3;
 }
 
+/**
+ * @brief Write attribute header to buffer. (Flag, Type)
+ * 
+ * Write attribute header to buffer. Notice that only attribute flags and type
+ * will be written to buffer. You need to write attribute length yourself.
+ * 
+ * @param to Destnation buiffer.
+ * @param buffer_sz Max write size.
+ * @return ssize_t Bytes written.
+ * @retval -1 Failed to write buffer. error may be written to stderr with log
+ * handler.
+ * @retval >=0 Bytes written.
+ */
 ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < (extended ? 3 : 4)) {
         logger->stderr("BgpPathAttrib::writeHeader: dst buffer too small: %d\n", buffer_sz);
@@ -178,7 +234,11 @@ ssize_t BgpPathAttrib::writeHeader(uint8_t *to, size_t buffer_sz) const {
     putValue<uint8_t>(&buffer, type_code);
     return 2;
 }
-
+/**
+ * @brief Construct a new Bgp Path Attrib Origin:: Bgp Path Attrib Origin object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribOrigin::BgpPathAttribOrigin(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     transitive = true;
     type_code = ORIGIN;
@@ -262,21 +322,45 @@ ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
     return 4;
 }
 
+/**
+ * @brief Construct a new Bgp Path Attrib As Path:: Bgp Path Attrib As Path object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ * @param is_4b Enable four octets ASN support.
+ */
 BgpPathAttribAsPath::BgpPathAttribAsPath(BgpLogHandler *logger, bool is_4b) : BgpPathAttrib(logger) {
     this->is_4b = is_4b;
     transitive = true;
     type_code = AS_PATH;
 }
 
+/**
+ * @brief Construct a new Bgp As Path Segment:: Bgp As Path Segment object
+ * 
+ * @param is_4b Enable four octets ASN support.
+ * @param type Type of AS path segment.
+ */
 BgpAsPathSegment::BgpAsPathSegment(bool is_4b, uint8_t type) {
     this->is_4b = is_4b;
     this->type = type;
 }
 
+/**
+ * @brief Get number of ASNs in the segment.
+ * 
+ * @return size_t Number of ASNs.
+ */
 size_t BgpAsPathSegment::getCount() const {
     return value.size();
 }
 
+/**
+ * @brief Prepend ASN to AS segment.
+ * 
+ * @param asn ASN to prepend.
+ * @return true ASN prepended.
+ * @return false Failed to prepend ASN.
+ */
 bool BgpAsPathSegment::prepend(uint32_t asn) {
     if (value.size() >= (is_4b ? 127 : 255)) return false;
     uint32_t prepend_asn = is_4b ? asn : (asn >= 0xffff ? 23456 : asn);
@@ -378,12 +462,29 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     return parsed_len + 3;
 }
 
+/**
+ * @brief Add a new segment with one ASN in it.
+ * 
+ * @param asn The first ASN in the segment.
+ */
 void BgpPathAttribAsPath::addSeg(uint32_t asn) {
     BgpAsPathSegment segment(is_4b, AS_SEQUENCE);
     segment.prepend(asn);
     as_paths.push_back(segment);
 }
 
+/**
+ * @brief Prepend an ASN into AS path.
+ * 
+ * This method will prepend an ASN to AS_SEQUENCE segment if the segment is the
+ * first in path. A new AS_SEQUENCE will be create and append to AS_PATH 
+ * otherwise. A new AS_SEQUENCE will also be create if the current one is full.
+ * 
+ * @param asn The ASN to append.
+ * @return true ASN prepended.
+ * @return false Failed to append ASN. error may be written to stderr with log
+ * handler.
+ */
 bool BgpPathAttribAsPath::prepend(uint32_t asn) {
     if (as_paths.size() == 0) {
         // nothing here yet, add a new sequence. (5.1.2.b.3)
@@ -467,7 +568,11 @@ ssize_t BgpPathAttribAsPath::write(uint8_t *to, size_t buffer_sz) const {
     return written_len + 3;
 }
 
-
+/**
+ * @brief Construct a new Bgp Path Attrib Nexthop:: Bgp Path Attrib Nexthop object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribNexthop::BgpPathAttribNexthop(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = NEXT_HOP;
     transitive = true;
@@ -538,7 +643,11 @@ ssize_t BgpPathAttribNexthop::write(uint8_t *to, size_t buffer_sz) const {
     return 7;
 }
 
-
+/**
+ * @brief Construct a new Bgp Path Attrib Med:: Bgp Path Attrib Med object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribMed::BgpPathAttribMed(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = MULTI_EXIT_DISC;
     optional = true;
@@ -607,7 +716,11 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
     return 7;
 }
 
-
+/**
+ * @brief Construct a new Bgp Path Attrib Local Pref:: Bgp Path Attrib Local Pref object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribLocalPref::BgpPathAttribLocalPref(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = LOCAL_PREF;
 }
@@ -676,10 +789,14 @@ ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 
+/**
+ * @brief Construct a new Bgp Path Attrib Atomic Aggregate:: Bgp Path Attrib Atomic Aggregate object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribAtomicAggregate::BgpPathAttribAtomicAggregate(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = ATOMIC_AGGREGATE;
 }
-
 
 ssize_t BgpPathAttribAtomicAggregate::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
     size_t written = 0;
@@ -733,7 +850,12 @@ ssize_t BgpPathAttribAtomicAggregate::write(uint8_t *to, size_t buffer_sz) const
     return 3;
 }
 
-
+/**
+ * @brief Construct a new Bgp Path Attrib Aggregator:: Bgp Path Attrib Aggregator object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ * @param is_4b Enable four octets ASN support.
+ */
 BgpPathAttribAggregator::BgpPathAttribAggregator(BgpLogHandler *logger, bool is_4b) : BgpPathAttrib(logger) {
     this->is_4b = is_4b;
     type_code = AGGREATOR;
@@ -819,7 +941,11 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
     return write_value_sz + 3;
 }
 
-
+/**
+ * @brief Construct a new Bgp Path Attrib As 4 Path:: Bgp Path Attrib As 4 Path object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribAs4Path::BgpPathAttribAs4Path(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     optional = true;
     transitive = true;
@@ -917,12 +1043,29 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
     return parsed_len + 3;
 }
 
+/**
+ * @brief Add a new segment with one ASN in it.
+ * 
+ * @param asn The first ASN in the segment.
+ */
 void BgpPathAttribAs4Path::addSeg(uint32_t asn) {
     BgpAsPathSegment segment(true, AS_SEQUENCE);
     segment.prepend(asn);
     as4_paths.push_back(segment);
 }
 
+/**
+ * @brief Prepend an ASN into AS4 path.
+ * 
+ * This method will prepend an ASN to AS_SEQUENCE segment if the segment is the
+ * first in path. A new AS_SEQUENCE will be create and append to AS_PATH 
+ * otherwise. A new AS_SEQUENCE will also be create if the current one is full.
+ * 
+ * @param asn The ASN to append.
+ * @return true ASN prepended.
+ * @return false Failed to append ASN. error may be written to stderr with log
+ * handler.
+ */
 bool BgpPathAttribAs4Path::prepend(uint32_t asn) {
     if (as4_paths.size() == 0) {
         // nothing here yet, add a new sequence. (5.1.2.b.3)
@@ -1012,6 +1155,11 @@ BgpPathAttrib* BgpPathAttribAs4Aggregator::clone() const {
     return new BgpPathAttribAs4Aggregator(*this);
 }
 
+/**
+ * @brief Construct a new Bgp Path Attrib As 4 Aggregator:: Bgp Path Attrib As 4 Aggregator object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribAs4Aggregator::BgpPathAttribAs4Aggregator(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = AS4_AGGREGATOR;
     optional = true;
@@ -1081,6 +1229,11 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
     return 11;
 }
 
+/**
+ * @brief Construct a new Bgp Path Attrib Community:: Bgp Path Attrib Community object
+ * 
+ * @param logger Pointer to logger object for error logging.
+ */
 BgpPathAttribCommunity::BgpPathAttribCommunity(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = COMMUNITY;
     optional = true;
