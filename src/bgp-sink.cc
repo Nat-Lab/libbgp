@@ -80,7 +80,7 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
  * @return ssize_t Bytes poured.
  * @retval -2 Failed to pour packet. error may be written to stderr with log
  * handler.
- * @retval -1 Packet poured, but parse error occured. error may be written to 
+ * @retval -1 Packet poured, but parse error occurred. error may be written to 
  * stderr with log handler, notification message data that needs to be sent to
  * peer may be avaliable.
  * @retval >=0 Bytes poured.
