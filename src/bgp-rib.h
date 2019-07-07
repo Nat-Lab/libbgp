@@ -71,9 +71,8 @@ public:
     // remove a route from RIB, return true if route removed, false if not exist.
     bool withdraw(uint32_t src_router_id, const Route &route);
 
-    // remove all routes from a peer, return number of routes remvoed on success, 
-    // -1 on error.
-    ssize_t discard(uint32_t src_router_id);
+    // remove all routes from a peer, return all discarded routes on success.
+    std::vector<Route> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
     const BgpRibEntry* lookup(uint32_t dest) const;

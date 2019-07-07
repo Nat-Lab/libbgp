@@ -125,8 +125,10 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
 
                 if (logger) {
                     uint32_t prefix = route.getPrefix();
-                    logger->stdout("BgpRib::insert: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
-                    logger->stdout("updated entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+                    char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+                    logger->stdout("BgpRib::insert: (updated) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
                 }
 
                 return true;
@@ -136,8 +138,10 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
 
     if (logger) {
         uint32_t prefix = route.getPrefix();
-        logger->stdout("BgpRib::insert: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
-        logger->stdout("new entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+        char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+        logger->stdout("BgpRib::insert: (new_entry) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
     }
 
     mutex.lock();
@@ -178,8 +182,10 @@ bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
             if (logger) {
                 uint32_t prefix = route.getPrefix();
-                logger->stdout("BgpRib::withdraw: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
-                logger->stdout("dropped entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+                logger->stdout("BgpRib::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
             }
             rib.erase(entry);
             return true;
@@ -192,28 +198,27 @@ bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
 /**
  * @brief Drop all routes from RIB that originated from a BGP speaker.
  * 
- * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @return ssize_t Number of routes dropped.
- * @retval -1 Failed to drop routes.
- * @retval >=0 Number of routes dropped.
+ * @param src_router_id src_router_id Originating BGP speaker's ID in network bytes order.
+ * @return std::vector<Route> Dropped routes.
  */
-ssize_t BgpRib::discard(uint32_t src_router_id) {
+std::vector<Route> BgpRib::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    size_t n_erased = 0;
+    std::vector<Route> dropped_routes;
     for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end();) {
         if (entry->src_router_id == src_router_id) {
-            rib.erase(entry);
-            n_erased++;
+            dropped_routes.push_back(entry->route);
             if (logger) {
-                const Route &route = entry->route;
-                uint32_t prefix = route.getPrefix();
-                logger->stdout("BgpRib::discard: %s: ", inet_ntoa(*(const struct in_addr*) &src_router_id));
-                logger->stdout("dropped entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
+                uint32_t prefix = entry->route.getPrefix();
+                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+                logger->stdout("BgpRib::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, entry->route.getLength());
             }
+            rib.erase(entry);
         } else entry++;
     }
 
-    return n_erased;
+    return dropped_routes;
 }
 
 const BgpRibEntry* BgpRib::selectEntry(const BgpRibEntry *a, const BgpRibEntry *b) {
