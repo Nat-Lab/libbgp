@@ -99,6 +99,7 @@ const BgpRibEntry* BgpRib::insert(BgpLogHandler *logger, const Route &route, uin
     }
 
     BgpRibEntry new_entry(route, 0, attribs);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     rib.push_back(new_entry);
 
     return &(rib.back());
@@ -139,7 +140,9 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
         logger->stdout("new entry: %s/%d\n", inet_ntoa(*(const struct in_addr*) &prefix), route.getLength());
     }
 
+    mutex.lock();
     rib.push_back(new_entry);
+    mutex.unlock();
     return true;
 }
 
@@ -170,6 +173,7 @@ ssize_t BgpRib::insert(uint32_t src_router_id, const std::vector<Route> &routes,
  * @return false Route not dropped. Likely becuase such route does not exist.
  */
 bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
             if (logger) {
@@ -194,6 +198,7 @@ bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
  * @retval >=0 Number of routes dropped.
  */
 ssize_t BgpRib::discard(uint32_t src_router_id) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     size_t n_erased = 0;
     for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end();) {
         if (entry->src_router_id == src_router_id) {

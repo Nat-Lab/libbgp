@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <vector>
 #include <memory>
+#include <mutex>
 #include "route.h"
 #include "bgp-path-attrib.h"
 
@@ -86,6 +87,7 @@ private:
 
     static const BgpRibEntry* selectEntry(const BgpRibEntry *a, const BgpRibEntry *b);
     std::vector<BgpRibEntry> rib;
+    std::recursive_mutex mutex;
     BgpLogHandler *logger;
 };
 
