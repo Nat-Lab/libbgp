@@ -200,10 +200,10 @@ int main(void) {
     // put the route in RIB. 
     const libbgp::BgpRibEntry *inserted = local_rib.insert(&local_logger, r_172_30_24, local_bgp_config.nexthop);
 
-    // BGP FSM will send all routes to peer (filtered withegress route filters 
+    // BGP FSM will send all routes to peer (filtered with egress route filters 
     // if set) when peering established. However, if the session is already 
     // started, BGP FSM will have no way knowing there's new routes added to the
-    // RIB. We will need to notify BGP FSM with route event bus.
+    // RIB. We will need to notify BGP FSM with route event bus. 
 
     // create an route-add event.
     libbgp::RouteAddEvent add_event;
@@ -214,9 +214,12 @@ int main(void) {
     // publisher, and it is for ensuring publisher of the event does not
     // receive the event it published itself. You may use NULL if you are not
     // subscribed to the event bus.
+    // When a BGP FSM receive an add route event from event bus, it will filter
+    // the routes in event payload with egress route filters, and send routes
+    // to the peer.
     local_bus.publish(&local_handler, add_event);
 
-    // now let drop that route we just added.
+    // now let drop that route we just added from RIB.
     local_rib.withdraw(0, r_172_30_24);
 
     // and notify the FSM.
