@@ -19,7 +19,7 @@ namespace libbgp {
 
 BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SINK_SIZE) {
     this->config = config;
-    state = IDLE;
+    setState(IDLE);
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
 
     if (config.rev_bus) {
@@ -112,7 +112,7 @@ int BgpFsm::start() {
         msg.setAsn(config.asn);
     }
 
-    state = OPEN_SENT;
+    setState(OPEN_SENT);
     if(!writeMessage(msg)) return -1;
     return 1;
 }
@@ -131,7 +131,7 @@ int BgpFsm::stop() {
 
     BgpNotificationMessage notify (logger, E_CEASE, E_SHUTDOWN, NULL, 0);
 
-    state = IDLE;
+    setState(IDLE);
     if(!writeMessage(notify)) return -1;
     return 1;
 }
@@ -158,7 +158,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
 
         if (poured <= -2) {
             logger->stderr("BgpFsm::run: sink seems to be broken, please reset.\n");
-            state = BROKEN;
+            setState(BROKEN);
             return -1;
         }
 
@@ -175,12 +175,16 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         if (poured == -1) {
             if (msg->type == NOTIFICATION) {
                 logger->stderr("BgpFsm::run: got invalid NOTIFICATION message.\n");
+                if (state == ESTABLISHED) {
+                    logger->stderr("BgpFsm::run: discarding all routes.\n");
+                }
+
                 delete packet;
-                state = IDLE;
+                setState(IDLE);
                 return 0;
             }
             BgpNotificationMessage notify (logger, msg->getErrorCode(), msg->getErrorSubCode(), msg->getError(), msg->getErrorLength());
-            state = IDLE;
+            setState(IDLE);
             if(!writeMessage(notify)) return -1;
             delete packet;
             return 0;
@@ -199,7 +203,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             }
             logger->stderr("BgpFsm::run: got NOTIFICATION: %s (%d): %s (%d).\n", err_msg, notify->errcode, err_sub_msg, notify->subcode);
             delete packet;
-            state = IDLE;
+            setState(IDLE);
             return 0;
         }
 
@@ -240,7 +244,7 @@ int BgpFsm::tick() {
     if (clock->getTime() - last_recv > hold_timer) {
         logger->stderr("BgpFsm::tick: peer hold timer timeout.\n");
         BgpNotificationMessage notify (logger, E_HOLD, 0, NULL, 0);
-        state = IDLE;
+        setState(IDLE);
         if(!writeMessage(notify)) return -1;
         return 0;
     }
@@ -264,7 +268,7 @@ int BgpFsm::resetSoft() {
 
 void BgpFsm::resetHard() {
     in_sink.drain();
-    state = IDLE;
+    setState(IDLE);
 }
 
 int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
@@ -309,7 +313,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
                     "BgpFsm::openRecv: collision found, and some other FSM feels like they should live"
                     "while we feel like we should live too. is there duplicated FSMs?\n"
                 );
-                state = BROKEN;
+                setState(BROKEN);
                 return -1;
             }
         }
@@ -332,7 +336,7 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
             BgpNotificationMessage notify (logger, E_CEASE, E_COLLISION, NULL, 0);
             if(!writeMessage(notify)) return -1;
 
-            state = IDLE;
+            setState(IDLE);
             return 0;
         } else {
             // this is a new connection, and peer has higher ID. the exisiting
@@ -352,13 +356,13 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
             BgpNotificationMessage notify (logger, E_CEASE, E_COLLISION, NULL, 0);
             if(!writeMessage(notify)) return -1;
 
-            state = IDLE;
+            setState(IDLE);
             return 0;
         }
     }
 
     // UNREACHED
-    state = BROKEN;
+    setState(BROKEN);
     logger->stderr("BgpFsm::resloveCollison: ??? :( \n");
     return -1;
 }
@@ -373,11 +377,19 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
 
 bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
     if (state != OPEN_CONFIRM) return false;
+    if (config.verbose) {
+        logger->stdout("BgpFsm::handleRouteCollisionEvent: detecting collision with %s.\n", inet_ntoa(*(const struct in_addr*) &(ev.peer_bgp_id)));
+    }
+
     return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
 
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     if (state != ESTABLISHED) return false;
+
+    if (config.verbose) {
+        logger->stdout("BgpFsm::handleRouteAddEvent: got route-add events with %d routes.\n", ev.routes.size());
+    }
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -398,6 +410,10 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
+
+    if (config.verbose) {
+        logger->stdout("BgpFsm::handleRouteAddEvent: got route-withdraw events with %d routes.\n", ev.routes.size());
+    }
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
     withdraw.setWithdrawn(ev.routes);
@@ -440,7 +456,7 @@ int BgpFsm::validateState(uint8_t type) {
             if (type != OPEN) {
                 logger->stderr("BgpFsm::validateState: got non-OPEN message in OPEN_SENT state.\n");
                 BgpNotificationMessage notify (logger, E_FSM, E_OPEN_SENT, NULL, 0);
-                state = IDLE;
+                setState(IDLE);
                 if(!writeMessage(notify)) return -1;
 
                 return 0;
@@ -450,7 +466,7 @@ int BgpFsm::validateState(uint8_t type) {
             if (type != KEEPALIVE) {
                 logger->stderr("BgpFsm::validateState: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
                 BgpNotificationMessage notify (logger, E_FSM, E_OPEN_CONFIRM, NULL, 0);
-                state = IDLE;
+                setState(IDLE);
                 if(!writeMessage(notify)) return -1;
 
                 return 0;
@@ -460,7 +476,7 @@ int BgpFsm::validateState(uint8_t type) {
             if (type != UPDATE && type != KEEPALIVE) {
                 logger->stderr("BgpFsm::validateState: got invalid message (type %d) in ESTABLISHED state.\n", type);
                 BgpNotificationMessage notify (logger, E_FSM, E_ESTABLISHED, NULL, 0);
-                state = IDLE;
+                setState(IDLE);
                 if(!writeMessage(notify)) return -1;
 
                 return 0;
@@ -484,7 +500,7 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
         open_reply.setAsn(config.asn);
     }
 
-    state = OPEN_CONFIRM;
+    setState(OPEN_CONFIRM);
     if(!writeMessage(open_reply)) return -1;
 
     return 1;
@@ -497,7 +513,7 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
     if (retval != 1) return retval;
 
     BgpKeepaliveMessage keep = BgpKeepaliveMessage(logger);
-    state = OPEN_CONFIRM;
+    setState(OPEN_CONFIRM);
     if(!writeMessage(keep)) return -1;
 
     return 1;
@@ -505,12 +521,13 @@ int BgpFsm::fsmEvalOpenSent(const BgpMessage *msg) {
 
 int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     BgpKeepaliveMessage keep = BgpKeepaliveMessage(logger);
-    state = ESTABLISHED;
+    setState(ESTABLISHED);
     if(!writeMessage(keep)) return -1;
 
     // feed rib to peer; TODO: feed routes w/ same attrib w/ single message
     for (const BgpRibEntry &entry : rib->get()) {
         const Route route = entry.route;
+        if (entry.src_router_id == peer_bgp_id) continue;
         if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             BgpUpdateMessage update (logger, use_4b_asn);
             update.setAttribs(entry.attribs);
@@ -532,10 +549,10 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         rib->withdraw(peer_bgp_id, route);
     }
 
-    if (update->nlri.size() > 0) {
+    if (!config.no_nexthop_check && update->nlri.size() > 0) {
         const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
     
-        if (!config.no_nexthop_check && !Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+        if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
             // ignore invalid nexthop
             return 1;
         };
@@ -571,6 +588,29 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     return 1;
 }
 
+void BgpFsm::dropAllRoutes() {
+    if (peer_bgp_id != 0) {
+        std::vector<Route> dropped_routes = rib->discard(peer_bgp_id);
+        if (rev_bus_exist && dropped_routes.size() > 0) {
+            RouteWithdrawEvent wev;
+            wev.routes = dropped_routes;
+            config.rev_bus->publish(this, wev);
+        }
+    }
+}
+
+void BgpFsm::setState(BgpState new_state) {
+    if (state == new_state) return;
+
+    if (state == ESTABLISHED) {
+        // moved from ESTABLISHED to something else. Drop all routes.
+        dropAllRoutes();
+    }
+
+    state = new_state;
+}
+
+
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     BgpPacket pkt(logger, use_4b_asn, &msg);
     if (config.verbose) {
@@ -585,13 +625,13 @@ bool BgpFsm::writeMessage(const BgpMessage &msg) {
 
     if (pkt_len < 0) {
         logger->stderr("BgpFsm::writeMessage: failed to write message, abort.\n");
-        state = BROKEN;
+        setState(BROKEN);
         return false;
     }
 
     if (config.out_handler && !config.out_handler->handleOut(out_buffer, pkt_len)) {
         logger->stderr("BgpFsm::writeMessage: out_handler failed, abort.\n");
-        state = BROKEN;
+        setState(BROKEN);
         return false;
     }
 

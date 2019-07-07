@@ -196,6 +196,13 @@ private:
     int fsmEvalOpenConfirm(const BgpMessage *msg);
     int fsmEvalEstablished(const BgpMessage *msg);
 
+    // dropAll: drop all routes from peer and notify other FSMs w/ route event
+    // bus (if exists) (called on FSM go from ESTABLISED to IDLE)
+    void dropAllRoutes();
+
+    // setState: set the state of FSM. additional operations may be performed.
+    void setState(BgpState state);
+
     // resloveCollison: resloving collsion
     // return value:
     // -1: fatal_error, FSM now BROKEN, check errbuf.
