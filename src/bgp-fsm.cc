@@ -142,8 +142,6 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         return -1;
     }
 
-    // since we use pourPtr, we need to make sure no fill() happens
-    std::lock_guard<std::mutex> lock(in_sink_mutex);
     in_sink.fill(buffer, buffer_size);
 
     // tick the clock
@@ -580,7 +578,7 @@ bool BgpFsm::writeMessage(const BgpMessage &msg) {
         logger->stdout(pkt);
     }
 
-    std::lock_guard<std::mutex> lock(out_buffer_mutex);
+    std::lock_guard<std::recursive_mutex> lock(out_buffer_mutex);
 
     ssize_t pkt_len = pkt.write(out_buffer, BGP_FSM_BUFFER_SIZE);
     last_sent = clock->getTime();

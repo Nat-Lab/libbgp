@@ -220,8 +220,7 @@ private:
     Clock *clock;
     BgpLogHandler *logger;
 
-    std::mutex out_buffer_mutex;
-    std::mutex in_sink_mutex;
+    std::recursive_mutex out_buffer_mutex;
 
     // pointer to output buffer
     uint8_t *out_buffer;
