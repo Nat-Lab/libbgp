@@ -13,7 +13,6 @@
 #include "value-op.h"
 #include <string.h>
 #include <arpa/inet.h>
-#include <assert.h>
 
 namespace libbgp {
 
@@ -60,10 +59,34 @@ ssize_t BgpPacket::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
     return written;
 }
 
+/**
+ * @brief Deserialize a BGP message.
+ * 
+ * @param from Pointer to packet buffer.
+ * @param msg_sz Size of packet.
+ * @return ssize_t Bytes read.
+ * @retval -1 Deserialization error. Error may be logged.
+ * @retval >=0 Bytes read.
+ * @throws "bad_parse" Internal deserialization error.
+ * @throws "bad_type" The type of message/field member in buffer does not 
+ * match the attribute type of container.
+ * @throws "invalid_op" Invalid operation.
+ */
 ssize_t BgpPacket::parse(const uint8_t *from, size_t buf_sz) {
-    assert(buf_sz >= 19 && buf_sz <= 4096);
-    assert(m_msg == NULL && msg == NULL);
-    assert(is_message_owner);
+    if (buf_sz < 19 && buf_sz > 4096) {
+        logger->log(ERROR, "BgpPacket::parse: got a packet with invalid size.\n");
+        return -1;
+    }
+
+    if (!is_message_owner) {
+        logger->log(FATAL, "BgpPacket::parse: can't parse: read-only packet.\n");
+        throw "invalid_op";
+    }
+
+    if (is_message_owner && m_msg == NULL) {
+        logger->log(FATAL, "BgpPacket::parse: can't parse: message pointer NULL.\n");
+        throw "invalid_op";
+    }
 
     const uint8_t *buffer = from + 18;
     uint8_t msg_type = getValue<uint8_t>(&buffer);
@@ -84,13 +107,34 @@ ssize_t BgpPacket::parse(const uint8_t *from, size_t buf_sz) {
         return parsed_len;
     }
 
-    assert(msg_sz == (size_t) parsed_len);
+    if (msg_sz != (size_t) parsed_len) {
+        logger->log(FATAL, "BgpPacket::parse: parsed message length invalid but no error reported.\n");
+        throw "bad_parse";
+    }
+
     return parsed_len + 19;
 }
 
+/**
+ * @brief Serialize a BGP message.
+ * 
+ * @param from Pointer to packet buffer.
+ * @param msg_sz Size of packet.
+ * @return ssize_t Bytes written.
+ * @retval -1 Serialization error. Error may be logged.
+ * @retval >=0 Bytes written.
+ * @throws "invalid_op" Invalid operation.
+ */
 ssize_t BgpPacket::write(uint8_t *to, size_t buf_sz) const {
-    if (is_message_owner) assert(m_msg != NULL);
-    else assert(msg != NULL);
+    if (is_message_owner && m_msg == NULL) {
+        logger->log(FATAL, "BgpPacket::write: can't write: message pointer NULL.\n");
+        throw "invalid_op";
+    }
+
+    if (!is_message_owner && msg == NULL) {
+        logger->log(FATAL, "BgpPacket::write: can't write: message pointer NULL.\n");
+        throw "invalid_op";
+    }
 
     if (buf_sz < 19) {
         logger->log(ERROR, "BgpPacket::write: dst buffer too small.\n");

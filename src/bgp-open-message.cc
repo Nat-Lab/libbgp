@@ -12,7 +12,6 @@
 #include "bgp-errcode.h"
 #include "value-op.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -67,6 +66,16 @@ BgpOpenMessage::BgpOpenMessage(BgpLogHandler *logger, bool use_4b_asn, uint16_t 
     inet_pton(AF_INET, bgp_id, &(this->bgp_id));
 }
 
+/**
+ * @brief Parse a BGP open message body.
+ * 
+ * @param from Pointer to message body buffer.
+ * @param msg_sz Size of message.
+ * @return ssize_t Bytes read.
+ * @retval -1 Parse error. Error may be logged.
+ * @retval >=0 Bytes read.
+ * @throws "bad_parse" Internal parser error.
+ */
 ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 10) {
         uint8_t _err_data = msg_sz;
@@ -162,19 +171,28 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
                 return -1;
             }
 
-            assert(capa_parsed_len == capa_len + 2);
+            if (capa_parsed_len != capa_len + 2) {
+                logger->log(FATAL, "BgpOpenMessage::parse: parsed capability length mismatch but no error reported.\n");
+                throw "bad_parse";
+            }
 
             capabilities.push_back(std::shared_ptr<BgpCapability> (cap));
             parsed_capa_param_len += capa_parsed_len;
             buffer += capa_parsed_len - 2;
         }
 
-        assert(parsed_capa_param_len == param_length);
+        if (parsed_capa_param_len != param_length) {
+            logger->log(FATAL, "BgpOpenMessage::parse: parsed capabilities length mismatch but no error reported.\n");
+            throw "bad_parse";
+        }
 
         parsed_opt_params_len += parsed_capa_param_len;
     }
 
-    assert(parsed_opt_params_len == opt_params_len);
+    if (parsed_opt_params_len != opt_params_len) {
+            logger->log(FATAL, "BgpOpenMessage::parse: parsed opt params length mismatch but no error reported.\n");
+            throw "bad_parse";
+    }
 
     if ((size_t) (parsed_opt_params_len + 10) != msg_sz) {
         logger->log(ERROR, "BgpOpenMessage::parse: buffer does not end after parsing finished.\n");

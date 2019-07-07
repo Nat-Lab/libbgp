@@ -49,7 +49,9 @@ public:
     bool hasCapability(uint8_t code) const;
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+
     ssize_t parse(const uint8_t *from, size_t msg_sz);
+
     ssize_t write(uint8_t *to, size_t buf_sz) const;
 
     // bgp-fsm only supports 4-bytes asn capability. getCapabilities() allows

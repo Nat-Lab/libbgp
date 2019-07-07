@@ -12,7 +12,6 @@
 #include "bgp-errcode.h"
 #include "value-op.h"
 #include <arpa/inet.h>
-#include <assert.h>
 
 namespace libbgp {
 
@@ -590,7 +589,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         parsed_withdrawn_len += route_buffer_len;
     }
 
-    assert(parsed_withdrawn_len == withdrawn_len);
+    if (parsed_withdrawn_len != withdrawn_len) throw "bad_parse";
 
     uint16_t attribute_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
     if ((size_t) (attribute_len + withdrawn_len + 4) > msg_sz) {
@@ -632,7 +631,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             default: attrib = new BgpPathAttrib(logger); break;
         }
 
-        assert(attrib != NULL);
+        if (attrib == NULL) throw "bad_parse";
 
         ssize_t attrib_parsed = attrib->parse(buffer, attribute_len - parsed_attribute_len);
 
@@ -647,7 +646,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib));
     }
 
-    assert(parsed_attribute_len == attribute_len);
+    if (parsed_attribute_len != attribute_len) throw "bad_parse";
 
     // 4: len fields (withdrawn len & attrib len)
     size_t nlri_len = msg_sz - 4 - parsed_attribute_len - parsed_withdrawn_len;
@@ -684,7 +683,9 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         parsed_nlri_len += route_buffer_len;
     }
 
-    assert(parsed_nlri_len + parsed_attribute_len + parsed_withdrawn_len + 4 == msg_sz);
+    if (parsed_nlri_len + parsed_attribute_len + parsed_withdrawn_len + 4 != msg_sz) {
+        throw "bad_parse";
+    }
 
     if (nlri.size() > 0 && !validateAttribs()) return -1;
 
@@ -737,7 +738,10 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     for (const std::shared_ptr<BgpPathAttrib> &attr : path_attribute) {
         ssize_t buf_left = buf_sz - written_attrib_length - tot_written;
-        assert(buf_left >= 0);
+        if (buf_left < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::write: unexpected end of buffer.\n");
+            return -1;
+        }
 
         ssize_t write_ret = attr->write(buffer, buf_left);
 

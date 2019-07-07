@@ -9,7 +9,6 @@
  * 
  */
 #include "route.h"
-#include <assert.h>
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -28,9 +27,10 @@ const uint32_t CIDR_MASK_MAP[33] = {
  * 
  * @param cidr The netmask in CIDR notation.
  * @return uint32_t The netmask in network byte order.
+ * @throws "bad_route_length" Netmask invalid.
  */
 uint32_t cidr_to_mask(uint8_t cidr) {
-    assert(cidr <= 32);
+    if (cidr > 32) throw "bad_route_length";
     return CIDR_MASK_MAP[cidr];
 }
 
@@ -39,9 +39,10 @@ uint32_t cidr_to_mask(uint8_t cidr) {
  * 
  * @param prefix Prefix in network bytes order.
  * @param length Netmask in CIDR notation.
+ * @throws "bad_route_length" Netmask invalid.
  */
 Route::Route(uint32_t prefix, uint8_t length) {
-    assert(length <= 32);
+    if (length > 32) throw "bad_route_length";
     this->prefix = prefix;
     this->length = length;
 }
@@ -51,9 +52,10 @@ Route::Route(uint32_t prefix, uint8_t length) {
  * 
  * @param prefix Prefix in dotted string notation.
  * @param length Netmask in CIDR notation.
+ * @throws "bad_route_length" Netmask invalid.
  */
 Route::Route(const char* prefix, uint8_t length) {
-    assert(length <= 32);
+    if (length > 32) throw "bad_route_length";
     this->length = length;
     inet_pton(AF_INET, prefix, &(this->prefix));
 }
@@ -163,12 +165,12 @@ bool Route::operator== (const Route &other) const {
 }
 
 bool Route::operator> (const Route &other) const {
-    assert(prefix == other.prefix);
+    if (length > 32) throw "prefix_mismatch";
     return length < other.length;
 }
 
 bool Route::operator< (const Route &other) const {
-    assert(prefix == other.prefix);
+    if (length > 32) throw "prefix_mismatch";
     return length < other.length;
 }
 
@@ -185,7 +187,7 @@ bool Route::operator!= (const Route &other) const {
 }
 
 bool Route::set(uint32_t prefix, uint8_t length) {
-    if (length > 24) return false;
+    if (length > 32) return false;
     this->length = length;
     this->prefix = prefix;
     return true;
@@ -211,7 +213,7 @@ bool Route::setPrefix(uint32_t prefix) {
  * @return false Failed to set netmask.
  */
 bool Route::setLength(uint8_t length) {
-    if (length > 24) return false;
+    if (length > 32) return false;
     this->length = length;
     return true;
 }
@@ -238,9 +240,10 @@ uint8_t Route::getLength() const {
  * @brief Get netmask.
  * 
  * @return uint32_t The netmask in network byte order.
+ * @throws "bad_route_length" Netmask invalid.
  */
 uint32_t Route::getMask() const {
-    assert(length <= 32);
+    if (length > 32) throw "bad_route_length";
     return CIDR_MASK_MAP[length];
 }
 

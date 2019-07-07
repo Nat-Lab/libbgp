@@ -11,7 +11,6 @@
 #include "bgp-sink.h"
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -50,7 +49,6 @@ BgpSink::~BgpSink() {
  */
 ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    assert(offset_end >= offset_start);
     if (len > buffer_size) {
         if (logger) logger->log(ERROR, "BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
         return -1;
@@ -83,10 +81,10 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
  * stderr with log handler, notification message data that needs to be sent to
  * peer may be avaliable.
  * @retval >=0 Bytes poured.
+ * @throws "bad_packet" Parsed packet length mismatch.
  */
 ssize_t BgpSink::pour(BgpPacket **pkt) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    assert(offset_end >= offset_start);
 
     uint8_t *cur = this->buffer + offset_start;
 
@@ -115,7 +113,8 @@ ssize_t BgpSink::pour(BgpPacket **pkt) {
 
     if (par_ret < 0) return -1;
 
-    assert(par_ret == field_len);
+    if (par_ret != field_len) throw "bad_packet";
+
     return par_ret;
 }
 

@@ -11,7 +11,6 @@
 #include "bgp-bad-message.h"
 #include "bgp-errcode.h"
 #include <unistd.h>
-#include <assert.h>
 
 namespace libbgp {
 

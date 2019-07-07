@@ -214,8 +214,6 @@ std::vector<Route> BgpRib::discard(uint32_t src_router_id) {
 }
 
 const BgpRibEntry* BgpRib::selectEntry(const BgpRibEntry *a, const BgpRibEntry *b) {
-    assert(!(a == NULL && b == NULL));
-
     if (a == NULL) return b;
     if (b == NULL) return a;
 

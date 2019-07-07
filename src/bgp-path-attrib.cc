@@ -12,7 +12,6 @@
 #include "bgp-errcode.h"
 #include "value-op.h"
 #include <stdlib.h>
-#include <assert.h>
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -49,7 +48,10 @@ BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger) : Serializable(logger) {
  * @param val_len Length of the value buffer.
  */
 BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16_t val_len) : BgpPathAttrib(logger) {
-    if (value_len > 0) assert(value != NULL);
+    if (value_len > 0) {
+        logger->log(FATAL, "BgpPathAttrib::BgpPathAttrib: unknow attribute created with length != 0 but buffer NULL.\n");
+        throw "bad_value_buffer";
+    }
 
     value_ptr = (uint8_t *) malloc(val_len);
     memcpy(value_ptr, value, value_len);
@@ -64,7 +66,10 @@ BgpPathAttrib::~BgpPathAttrib() {
 }
 
 BgpPathAttrib* BgpPathAttrib::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttrib::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     BgpPathAttrib *attr = new BgpPathAttrib(logger, value_ptr, value_len);
     attr->transitive = transitive;
     attr->optional = optional;
@@ -255,7 +260,10 @@ BgpPathAttribOrigin::BgpPathAttribOrigin(BgpLogHandler *logger) : BgpPathAttrib(
 }
 
 BgpPathAttrib* BgpPathAttribOrigin::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribOrigin::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribOrigin(*this);
 }
 
@@ -285,7 +293,10 @@ ssize_t BgpPathAttribOrigin::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == ORIGIN);
+    if (type_code != ORIGIN) {
+        logger->log(FATAL, "BgpPathAttribOrigin::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
 
@@ -380,7 +391,10 @@ bool BgpAsPathSegment::prepend(uint32_t asn) {
 }
 
 BgpPathAttrib* BgpPathAttribAsPath::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribAsPath::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribAsPath(*this);
 }
 
@@ -420,7 +434,10 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == AS_PATH);
+    if (type_code != AS_PATH) {
+        logger->log(FATAL, "BgpPathAttribAsPath::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     if (optional || !transitive || extended || partial) {
         logger->log(ERROR, "BgpPathAttribAsPath::parse: bad flag bits, must be !optional, !extended, !partial, transitive.\n");
@@ -467,7 +484,10 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
         parsed_len += asns_length;
     }
 
-    assert(parsed_len == value_len);
+    if (parsed_len != value_len) {
+        logger->log(FATAL, "BgpPathAttribAsPath::parse: parsed length and value length mismatch, but no error reported.\n");
+        throw "bad_parse";
+    }
 
     return parsed_len + 3;
 }
@@ -602,7 +622,10 @@ ssize_t BgpPathAttribNexthop::doPrint(size_t indent, uint8_t **to, size_t *buf_s
 }
 
 BgpPathAttrib* BgpPathAttribNexthop::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribNexthop::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribNexthop(*this);
 }
 
@@ -610,7 +633,10 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == NEXT_HOP);
+    if (type_code != NEXT_HOP) {
+        logger->log(FATAL, "BgpPathAttribNexthop::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
 
@@ -677,7 +703,10 @@ ssize_t BgpPathAttribMed::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) c
 }
 
 BgpPathAttrib* BgpPathAttribMed::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribMed::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribMed(*this);
 }
 
@@ -685,7 +714,10 @@ ssize_t BgpPathAttribMed::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == MULTI_EXIT_DISC);
+    if (type_code != MULTI_EXIT_DISC) {
+        logger->log(FATAL, "BgpPathAttribMed::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
 
@@ -749,7 +781,10 @@ ssize_t BgpPathAttribLocalPref::doPrint(size_t indent, uint8_t **to, size_t *buf
 }
 
 BgpPathAttrib* BgpPathAttribLocalPref::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribLocalPref::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribLocalPref(*this);
 }
 
@@ -757,7 +792,10 @@ ssize_t BgpPathAttribLocalPref::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == LOCAL_PREF);
+    if (type_code != LOCAL_PREF) {
+        logger->log(FATAL, "BgpPathAttribLocalPref::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
 
@@ -821,7 +859,10 @@ ssize_t BgpPathAttribAtomicAggregate::doPrint(size_t indent, uint8_t **to, size_
 }
 
 BgpPathAttrib* BgpPathAttribAtomicAggregate::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribAtomicAggregate::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribAtomicAggregate(*this);
 }
 
@@ -829,7 +870,10 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == ATOMIC_AGGREGATE);
+    if (type_code != ATOMIC_AGGREGATE) {
+        logger->log(FATAL, "BgpPathAttribAtomicAggregate::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     if (value_len != 0) {
         logger->log(ERROR, "BgpPathAttribAtomicAggregate::parse: bad length, want 0, saw %d.\n", value_len);
@@ -888,7 +932,10 @@ ssize_t BgpPathAttribAggregator::doPrint(size_t indent, uint8_t **to, size_t *bu
 }
 
 BgpPathAttrib* BgpPathAttribAggregator::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribAggregator::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribAggregator(*this);
 }
 
@@ -896,7 +943,10 @@ ssize_t BgpPathAttribAggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == AGGREATOR);
+    if (type_code != AGGREATOR) {
+        logger->log(FATAL, "BgpPathAttribAggregator::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
     const uint8_t want_len = (is_4b ? 8 : 6);
@@ -994,7 +1044,10 @@ ssize_t BgpPathAttribAs4Path::doPrint(size_t indent, uint8_t **to, size_t *buf_s
 }
 
 BgpPathAttrib* BgpPathAttribAs4Path::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribAs4Path::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribAs4Path(*this);
 }
 
@@ -1002,7 +1055,10 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == AS4_PATH);
+    if (type_code != AS4_PATH) {
+        logger->log(FATAL, "BgpPathAttribAs4Path::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     if (!optional || !transitive || extended || partial) {
         logger->log(ERROR, "BgpPathAttribAs4Path::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
@@ -1048,7 +1104,10 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
         parsed_len += asns_length;
     }
 
-    assert(parsed_len == value_len);
+    if (parsed_len != value_len) {
+        logger->log(FATAL, "BgpPathAttribAs4Path::parse: parsed length and value length mismatch, but no error reported.\n");
+        throw "bad_parse";
+    }
 
     return parsed_len + 3;
 }
@@ -1161,7 +1220,10 @@ ssize_t BgpPathAttribAs4Path::write(uint8_t *to, size_t buffer_sz) const {
 }
 
 BgpPathAttrib* BgpPathAttribAs4Aggregator::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribAs4Aggregator::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribAs4Aggregator(*this);
 }
 
@@ -1194,7 +1256,10 @@ ssize_t BgpPathAttribAs4Aggregator::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == AS4_AGGREGATOR);
+    if (type_code != AS4_AGGREGATOR) {
+        logger->log(FATAL, "BgpPathAttribAs4Aggregator::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
 
@@ -1264,7 +1329,10 @@ ssize_t BgpPathAttribCommunity::doPrint(size_t indent, uint8_t **to, size_t *buf
 }
 
 BgpPathAttrib* BgpPathAttribCommunity::clone() const {
-    assert(!hasError());
+    if(hasError()) {
+        logger->log(FATAL, "BgpPathAttribCommunity::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
     return new BgpPathAttribCommunity(*this);
 }
 
@@ -1272,7 +1340,10 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
     ssize_t header_length = parseHeader(from, length);
     if (header_length < 0) return -1;
 
-    assert(type_code == COMMUNITY);
+    if (type_code != COMMUNITY) {
+        logger->log(FATAL, "BgpPathAttribCommunity::parse: type in header mismatch.\n");
+        throw "bad_type";
+    }
 
     const uint8_t *buffer = from + 3;
 

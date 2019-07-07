@@ -13,7 +13,6 @@
 #include "value-op.h"
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -59,6 +58,7 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
 /**
  * @brief Construct a new Bgp Capability 4 Bytes Asn:: Bgp Capability 4 Bytes Asn object
  * 
+ * @param logger Logger.
  */
 BgpCapability4BytesAsn::BgpCapability4BytesAsn(BgpLogHandler *logger) : BgpCapability(logger) {
     my_asn = 0;
@@ -80,7 +80,10 @@ ssize_t BgpCapability4BytesAsn::doPrint(size_t indent, uint8_t **to, size_t *buf
 ssize_t BgpCapability4BytesAsn::parse(const uint8_t *from, size_t msg_sz) {
     ssize_t hdr_len = parseHeader(from, msg_sz);
 
-    assert(code == ASN_4B);
+    if (code != ASN_4B) {
+        logger->log(FATAL, "BgpCapability4BytesAsn::parse: typecode mismatch with object type.\n");
+        throw "bad_type";
+    }
 
     if (hdr_len < 0) return hdr_len;
     if (length != 4) {

@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 namespace libbgp {
 
@@ -57,13 +56,16 @@ bool Serializable::hasError() const {
  * @param suberr The error subcode.
  * @param data The error data buffer.
  * @param data_len The length of error data buffer.
+ * @throws "err_exist" Error already set.
  */
 void Serializable::setError(uint8_t err, uint8_t suberr, const uint8_t *data, size_t data_len) {
     err_code = err;
     err_subcode = suberr;
 
-    // err_buf_len not 0, setError() when error already there?
-    assert(err_len == 0);
+    if (err_len != 0) {
+        logger->log(FATAL, "Serializable::setError: error already exists.\n");
+        throw "err_exist";
+    }
 
     if (data_len == 0) return;
     err_len = data_len;
