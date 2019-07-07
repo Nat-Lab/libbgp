@@ -17,6 +17,8 @@
 
 namespace libbgp {
 
+class BgpLogHandler;
+
 /**
  * @brief The serializable base class.
  * 

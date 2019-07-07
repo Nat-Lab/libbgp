@@ -48,6 +48,30 @@ void BgpLogHandler::stderr(const char* format_str, ...) {
     buf_mtx.unlock();
 }
 
+/**
+ * @brief Print a Serializable object to stdout.
+ * 
+ * @param serializable The serializable object.
+ */
+void BgpLogHandler::stdout(const Serializable &serializable) {
+    buf_mtx.lock();
+    serializable.print((uint8_t *) out_buffer, 4096);
+    stdoutImpl(out_buffer);
+    buf_mtx.unlock();
+}
+
+/**
+ * @brief Print a Serializable object to stderr.
+ * 
+ * @param serializable The serializable object.
+ */
+void BgpLogHandler::stderr(const Serializable &serializable) {
+    buf_mtx.lock();
+    serializable.print((uint8_t *) out_buffer, 4096);
+    stderrImpl(out_buffer);
+    buf_mtx.unlock();
+}
+
 void BgpLogHandler::stdoutImpl(const char* str) {
     fprintf(::stdout, "%s", str);
 }

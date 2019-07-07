@@ -11,8 +11,11 @@
 #ifndef BGP_LOG_H_
 #define BGP_LOG_H_
 #include <mutex>
+#include "serializable.h"
 
 namespace libbgp {
+
+class Serializable;
 
 /**
  * @brief The BgpLogHandler class.
@@ -24,6 +27,8 @@ class BgpLogHandler {
 public:
     void stdout(const char* format_str, ...);
     void stderr(const char* format_str, ...);
+    void stdout(const Serializable &ser);
+    void stderr(const Serializable &ser);
 
     /**
      * @brief Destroy the Bgp Log Handler object
