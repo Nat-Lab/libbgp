@@ -45,9 +45,9 @@ LogLevel BgpLogHandler::getLogLevel() const {
 }
 
 /**
- * @brief Log a message. Consider using LIBBGP_LOG_BEGIN and LIBBGP_LOG_END if
- * logging the message needs a lot of computing power. (e.g., print Serializable
- * or converting IP to string.)
+ * @brief Log a message. Consider using LIBBGP_LOG if logging the message needs
+ * a lot of computing power. (e.g., print Serializable or converting IP to 
+ * string.)
  * 
  * @param level Log level.
  * @param format_str printf format string.
@@ -68,9 +68,9 @@ void BgpLogHandler::log(LogLevel level, const char* format_str, ...) {
 }
 
 /**
- * @brief Log a message. Consider using LIBBGP_LOG_BEGIN and LIBBGP_LOG_END if
- * logging the message needs a lot of computing power. (e.g., print Serializable
- * or converting IP to string.)
+ * @brief Log a message. Consider using LIBBGP_LOG if logging the message needs
+ * a lot of computing power. (e.g., print Serializable or converting IP to 
+ * string.)
  * 
  * @param level Log level.
  * @param serializable Serializable object to log.

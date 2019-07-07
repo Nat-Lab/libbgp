@@ -16,12 +16,10 @@
 // log helper macro. some log taks a lot of resources to produce (e.g., print
 // BgpPacket). This allow us to disable logging completely with macro and also
 // force log level check.
-#ifndef DISBALE_LOG
-#define LIBBGP_LOG_BEGIN(logger, level) if (logger->getLogLevel() >= level) {
-#define LIBBGP_LOG_END }
+#ifndef DISBALE_LOG_MACROS
+#define LIBBGP_LOG(logger, level) if (logger->getLogLevel() >= level)
 #else
-#define LIBBGP_LOG_BEGIN(logger, level)
-#define LIBBGP_LOG_END
+#define LIBBGP_LOG(logger, level)
 #endif
 
 namespace libbgp {

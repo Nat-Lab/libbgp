@@ -115,26 +115,26 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
                 rib.erase(entry);
                 rib.push_back(new_entry);
 
-                LIBBGP_LOG_BEGIN(logger, INFO);
-                uint32_t prefix = route.getPrefix();
-                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-                inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-                logger->log(INFO, "BgpRib::insert: (updated) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
-                LIBBGP_LOG_END;
+                LIBBGP_LOG(logger, INFO) {
+                    uint32_t prefix = route.getPrefix();
+                    char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+                    inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+                    logger->log(INFO, "BgpRib::insert: (updated) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+                }
 
                 return true;
             } else return false;
         }
     }
 
-    LIBBGP_LOG_BEGIN(logger, INFO);
-    uint32_t prefix = route.getPrefix();
-    char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-    inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-    logger->log(INFO, "BgpRib::insert: (new_entry) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
-    LIBBGP_LOG_END;
+    LIBBGP_LOG(logger, INFO) {
+        uint32_t prefix = route.getPrefix();
+        char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+        logger->log(INFO, "BgpRib::insert: (new_entry) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+    }
 
     mutex.lock();
     rib.push_back(new_entry);
@@ -172,13 +172,13 @@ bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
-            LIBBGP_LOG_BEGIN(logger, INFO);
-            uint32_t prefix = route.getPrefix();
-            char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-            inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-            logger->log(INFO, "BgpRib::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
-            LIBBGP_LOG_END;
+            LIBBGP_LOG(logger, INFO) {
+                uint32_t prefix = route.getPrefix();
+                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpRib::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+            }
             rib.erase(entry);
             return true;
         }
@@ -199,13 +199,13 @@ std::vector<Route> BgpRib::discard(uint32_t src_router_id) {
     for (std::vector<BgpRibEntry>::const_iterator entry = rib.begin(); entry != rib.end();) {
         if (entry->src_router_id == src_router_id) {
             dropped_routes.push_back(entry->route);
-            LIBBGP_LOG_BEGIN(logger, INFO);
-            uint32_t prefix = entry->route.getPrefix();
-            char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-            inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-            logger->log(INFO, "BgpRib::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, entry->route.getLength());
-            LIBBGP_LOG_END;
+            LIBBGP_LOG(logger, INFO) {
+                uint32_t prefix = entry->route.getPrefix();
+                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpRib::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, entry->route.getLength());
+            }
             rib.erase(entry);
         } else entry++;
     }

@@ -175,11 +175,10 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             return -1;
         }
 
-        LIBBGP_LOG_BEGIN(logger, DEBUG);
-        logger->log(DEBUG, "BgpFsm::run: got message (Current state: %s):\n", bgp_fsm_state_str[state]);
-        logger->log(DEBUG, *packet);
-        LIBBGP_LOG_END;
-
+        LIBBGP_LOG(logger, DEBUG) {
+            logger->log(DEBUG, "BgpFsm::run: got message (Current state: %s):\n", bgp_fsm_state_str[state]);
+            logger->log(DEBUG, *packet);
+        }
 
         const BgpMessage *msg = packet->getMessage();
         // parse failed / packet invalid (errors like Unsupported Optional 
@@ -392,10 +391,9 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
 bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
     if (state != OPEN_CONFIRM) return false;
 
-    LIBBGP_LOG_BEGIN(logger, INFO);
-    logger->log(INFO, "BgpFsm::handleRouteCollisionEvent: detecting collision with %s.\n", inet_ntoa(*(const struct in_addr*) &(ev.peer_bgp_id)));
-    LIBBGP_LOG_END;
-
+    LIBBGP_LOG(logger, INFO) {
+        logger->log(INFO, "BgpFsm::handleRouteCollisionEvent: detecting collision with %s.\n", inet_ntoa(*(const struct in_addr*) &(ev.peer_bgp_id)));
+    }
     return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
 
@@ -629,10 +627,10 @@ void BgpFsm::setState(BgpState new_state) {
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     BgpPacket pkt(logger, use_4b_asn, &msg);
-    LIBBGP_LOG_BEGIN(logger, DEBUG)
-    logger->log(DEBUG, "BgpFsm::writeMessage: write (Current state: %s):\n", bgp_fsm_state_str[state]);
-    logger->log(DEBUG, pkt);
-    LIBBGP_LOG_END;
+    LIBBGP_LOG(logger, DEBUG) {
+        logger->log(DEBUG, "BgpFsm::writeMessage: write (Current state: %s):\n", bgp_fsm_state_str[state]);
+        logger->log(DEBUG, pkt);
+    }
 
     std::lock_guard<std::recursive_mutex> lock(out_buffer_mutex);
 
