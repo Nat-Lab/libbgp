@@ -165,10 +165,8 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         }
 
         if (config.verbose) {
-            out_buffer_mutex.lock();
-            packet->print(out_buffer, BGP_FSM_BUFFER_SIZE);
-            logger->stdout("BgpFsm::run: got message (s=%d):\n%s", state, out_buffer);
-            out_buffer_mutex.unlock();
+            logger->stdout("BgpFsm::run: got message (s=%d):\n", state, out_buffer);
+            logger->stdout(*packet);
         }
 
         const BgpMessage *msg = packet->getMessage();
@@ -576,13 +574,13 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 }
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
-    std::lock_guard<std::mutex> lock(out_buffer_mutex);
     BgpPacket pkt(logger, use_4b_asn, &msg);
-
     if (config.verbose) {
-        pkt.print(out_buffer, BGP_FSM_BUFFER_SIZE);
-        logger->stdout("BgpFsm::writeMessage: write (s=%d):\n%s", state, out_buffer);
+        logger->stdout("BgpFsm::writeMessage: write (s=%d):\n", state);
+        logger->stdout(pkt);
     }
+
+    std::lock_guard<std::mutex> lock(out_buffer_mutex);
 
     ssize_t pkt_len = pkt.write(out_buffer, BGP_FSM_BUFFER_SIZE);
     last_sent = clock->getTime();
