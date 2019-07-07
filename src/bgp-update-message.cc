@@ -183,7 +183,7 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
 
         // AS4_PATH can't exist in 4b mode
         if (hasAttrib(AS4_PATH)) {
-            logger->stderr("BgpUpdateMessage::prepend: we have AS4_PATH attribute but we are running in 4b mode. " 
+            logger->log(ERROR, "BgpUpdateMessage::prepend: we have AS4_PATH attribute but we are running in 4b mode. " 
                        "consider restoreAsPath().\n");
             return false;
         }
@@ -197,7 +197,7 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
 
         BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
         if (!path.is_4b) {
-            logger->stderr("BgpUpdateMessage::prepend: existing AS_PATH is 2b but we are running in 4b mode. " 
+            logger->log(ERROR, "BgpUpdateMessage::prepend: existing AS_PATH is 2b but we are running in 4b mode. " 
                        "consider restoreAsPath().\n");
             return false;
         }
@@ -217,7 +217,7 @@ bool BgpUpdateMessage::prepend(uint32_t asn) {
         } else {
             BgpPathAttribAsPath &path = dynamic_cast<BgpPathAttribAsPath &>(getAttrib(AS_PATH));
             if (path.is_4b) {
-                logger->stderr("BgpUpdateMessage::prepend: existing AS_PATH is 4b but we are running in 2b mode. " 
+                logger->log(ERROR, "BgpUpdateMessage::prepend: existing AS_PATH is 4b but we are running in 2b mode. " 
                            "consider downgradeAsPath().\n");
                 return false;
             }
@@ -254,14 +254,14 @@ bool BgpUpdateMessage::restoreAsPath() {
 
         for (const BgpAsPathSegment &seg2 : path.as_paths) {
             if (seg2.is_4b) {
-                logger->stderr("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
+                logger->log(ERROR, "BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
                 return false;
             }
 
             BgpAsPathSegment new_seg (true, seg2.type);
             for (uint16_t asn : seg2.value) {
                 if (asn == 23456) {
-                    logger->stderr("BgpUpdateMessage::restoreAsPath: warning: AS_TRANS found but no AS4_PATH.\n");
+                    logger->log(ERROR, "BgpUpdateMessage::restoreAsPath: warning: AS_TRANS found but no AS4_PATH.\n");
                 }
                 new_seg.value.push_back(asn);
             }
@@ -279,7 +279,7 @@ bool BgpUpdateMessage::restoreAsPath() {
     const BgpPathAttribAs4Path &as4_path = dynamic_cast<const BgpPathAttribAs4Path &>(getAttrib(AS4_PATH));
     for (const BgpAsPathSegment &seg4 : as4_path.as4_paths) {
         if (!seg4.is_4b) {
-            logger->stderr("BgpUpdateMessage::restoreAsPath: bad as4_path: found 2b seg.\n");
+            logger->log(ERROR, "BgpUpdateMessage::restoreAsPath: bad as4_path: found 2b seg.\n");
             return false;
         }
         
@@ -307,7 +307,7 @@ bool BgpUpdateMessage::restoreAsPath() {
     for (const BgpAsPathSegment &seg2 : path.as_paths) {
         std::vector<uint32_t>::const_iterator local_iter = iter_4b;
         if (seg2.is_4b) {
-            logger->stderr("BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
+            logger->log(ERROR, "BgpUpdateMessage::restoreAsPath: 4b seg found in 2b attrib.\n");
             return false;
         }
 
@@ -329,7 +329,7 @@ bool BgpUpdateMessage::restoreAsPath() {
                     incr_iter = true;
                     new_asn = *local_iter;
                 } else if (new_asn != *local_iter) {
-                    logger->stderr("BgpUpdateMessage::restoreAsPath: warning: AS_PATH and AS4_PATH does not match.\n");
+                    logger->log(ERROR, "BgpUpdateMessage::restoreAsPath: warning: AS_PATH and AS4_PATH does not match.\n");
                 }
 
                 if (incr_iter) local_iter++;
@@ -367,7 +367,7 @@ bool BgpUpdateMessage::downgradeAsPath() {
 
     for (const BgpAsPathSegment &seg4 : path.as_paths) {
         if (!seg4.is_4b) {
-            logger->stderr("BgpUpdateMessage::downgradeAsPath: 2b seg found in 4b attrib.\n");
+            logger->log(ERROR, "BgpUpdateMessage::downgradeAsPath: 2b seg found in 4b attrib.\n");
             return false;
         }
 
@@ -522,7 +522,7 @@ bool BgpUpdateMessage::validateAttribs() {
         else if (type_code == ORIGIN) has_origin = true;
 
         if ((typecode_bitsmap >> type_code) & 1U) {
-            logger->stderr("BgpUpdateMessage::validateAttribs:: duplicated attribute type in list: %d\n", type_code);
+            logger->log(ERROR, "BgpUpdateMessage::validateAttribs:: duplicated attribute type in list: %d\n", type_code);
             setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
             return false;
         }
@@ -531,7 +531,7 @@ bool BgpUpdateMessage::validateAttribs() {
     }
 
     if (!(has_as_path && has_nexthop && has_origin)) {
-        logger->stderr("BgpUpdateMessage::validateAttribs: mandatory attribute(s) missing.\n");
+        logger->log(ERROR, "BgpUpdateMessage::validateAttribs: mandatory attribute(s) missing.\n");
         setError(E_UPDATE, E_MISS_WELL_KNOWN, NULL, 0);
         return false;
     }
@@ -543,7 +543,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 4) {
         uint8_t _err_data = msg_sz;
         setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
-        logger->stderr("BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
+        logger->log(ERROR, "BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
         return -1;
     }
 
@@ -552,7 +552,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     uint16_t withdrawn_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
 
     if (withdrawn_len > msg_sz - 4) { // -4: two length fields (withdrawn len + attrib len)
-        logger->stderr("BgpUpdateMessage::parse: withdrawn routes length overflows message.\n");
+        logger->log(ERROR, "BgpUpdateMessage::parse: withdrawn routes length overflows message.\n");
         setError(E_UPDATE, E_UNSPEC, NULL, 0);
         return -1;
     }
@@ -561,7 +561,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     
     while (parsed_withdrawn_len < withdrawn_len) {
         if (withdrawn_len - parsed_withdrawn_len < 1) {
-            logger->stderr("BgpUpdateMessage::parse: unexpected end of withdrawn routes list.\n");
+            logger->log(ERROR, "BgpUpdateMessage::parse: unexpected end of withdrawn routes list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -569,14 +569,14 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
         parsed_withdrawn_len++;
         if (route_len > 32) {
-            logger->stderr("BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
+            logger->log(ERROR, "BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
 
         size_t route_buffer_len = (route_len + 7) / 8;
         if (parsed_withdrawn_len + route_buffer_len > withdrawn_len) {
-            logger->stderr("BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
+            logger->log(ERROR, "BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -594,7 +594,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     uint16_t attribute_len = ntohs(getValue<uint16_t>(&buffer)); // len: 2
     if ((size_t) (attribute_len + withdrawn_len + 4) > msg_sz) {
-        logger->stderr("BgpUpdateMessage::parse: attribute list length overflows message buffer.\n");
+        logger->log(ERROR, "BgpUpdateMessage::parse: attribute list length overflows message buffer.\n");
         setError(E_UPDATE, E_ATTR_LIST, NULL, 0);
         return -1;
     }
@@ -603,7 +603,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     while (parsed_attribute_len < attribute_len) {
         if (attribute_len - parsed_attribute_len < 3) {
-            logger->stderr("BgpUpdateMessage::parse: unexpected end of attribute list.\n");
+            logger->log(ERROR, "BgpUpdateMessage::parse: unexpected end of attribute list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -611,7 +611,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         int8_t attr_type = BgpPathAttrib::GetTypeFromBuffer(buffer, attribute_len - parsed_attribute_len);
 
         if (attr_type < 0) {
-            logger->stderr("BgpUpdateMessage::parse: failed to parse attribute type.\n");
+            logger->log(ERROR, "BgpUpdateMessage::parse: failed to parse attribute type.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -655,7 +655,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
     while (parsed_nlri_len < nlri_len) {
         if (nlri_len - parsed_nlri_len < 1) {
-            logger->stderr("BgpOpenMessage::parse: unexpected end of nlri.\n");
+            logger->log(ERROR, "BgpOpenMessage::parse: unexpected end of nlri.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -663,14 +663,14 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
         uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
         parsed_nlri_len++;
         if (route_len > 32) {
-            logger->stderr("BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
+            logger->log(ERROR, "BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
 
         size_t route_buffer_len = (route_len + 7) / 8;
         if (parsed_nlri_len + route_buffer_len > nlri_len) {
-            logger->stderr("BgpUpdateMessage::parse: nlri route overflows routes list.\n");
+            logger->log(ERROR, "BgpUpdateMessage::parse: nlri route overflows routes list.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
@@ -693,7 +693,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < 4) {
-        logger->stderr("BgpUpdateMessage::write: destination buffer too small.\n");
+        logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
         return -1;
     }
 
@@ -713,7 +713,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
         // 1: this prefix len field
         if (1 + written_withdrawn_length + pfx_buf_sz + tot_written > buf_sz) {
-            logger->stderr("BgpUpdateMessage::write: destination buffer too small.\n");
+            logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
             return -1;
         }
 
@@ -761,7 +761,7 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
         // 1: this prefix len field
         if (1 + written_nlri_len + pfx_buf_sz + tot_written > buf_sz) {
-            logger->stderr("BgpUpdateMessage::write: destination buffer too small.\n");
+            logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
             return -1;
         }
 

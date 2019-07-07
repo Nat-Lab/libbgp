@@ -40,7 +40,7 @@ BgpCapability::BgpCapability(BgpLogHandler *logger) : Serializable(logger) {
 ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 2) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-        logger->stderr("BgpCapability::parseHeader: unexpected end of capability.\n");
+        logger->log(ERROR, "BgpCapability::parseHeader: unexpected end of capability.\n");
         return -1;
     }
 
@@ -49,7 +49,7 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
 
     if ((size_t) (length + 2) > msg_sz) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-        logger->stderr("BgpCapability::parseHeader: capability size exceed capabilities list.\n");
+        logger->log(ERROR, "BgpCapability::parseHeader: capability size exceed capabilities list.\n");
         return -1;
     }
 
@@ -85,7 +85,7 @@ ssize_t BgpCapability4BytesAsn::parse(const uint8_t *from, size_t msg_sz) {
     if (hdr_len < 0) return hdr_len;
     if (length != 4) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-        logger->stderr("BgpCapability4BytesAsn::parse: bad length field (saw %d, want 4).\n", length);
+        logger->log(ERROR, "BgpCapability4BytesAsn::parse: bad length field (saw %d, want 4).\n", length);
         return -1;
     }
 
@@ -97,7 +97,7 @@ ssize_t BgpCapability4BytesAsn::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpCapability4BytesAsn::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < 6) {
-        logger->stderr("BgpCapability4BytesAsn::write: dest buffer too small.\n");
+        logger->log(ERROR, "BgpCapability4BytesAsn::write: dest buffer too small.\n");
         return -1;
     }
 
@@ -151,7 +151,7 @@ ssize_t BgpCapabilityUnknow::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpCapabilityUnknow::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < (size_t) (length + 2)) {
-        logger->stderr("BgpCapabilityUnknow::write: dest buffer too small.\n");
+        logger->log(ERROR, "BgpCapabilityUnknow::write: dest buffer too small.\n");
         return -1;
     }
 
@@ -160,7 +160,7 @@ ssize_t BgpCapabilityUnknow::write(uint8_t *to, size_t buf_sz) const {
     putValue<uint8_t>(&buffer, length);
     if (length == 0) return 2;
     if (value == NULL) {
-        logger->stderr("BgpCapabilityUnknow: missing value pointer.\n");
+        logger->log(ERROR, "BgpCapabilityUnknow: missing value pointer.\n");
         return -1;
     }
     memcpy(buffer, value, length);

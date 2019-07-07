@@ -26,13 +26,13 @@ BgpBadMessage::BgpBadMessage(BgpLogHandler *logger, uint8_t type) : BgpMessage(l
 }
 
 ssize_t BgpBadMessage::parse(__attribute__((unused)) const uint8_t *from, __attribute__((unused)) size_t msg_sz) {
-    logger->stderr("BgpBadMessage::parse: unknow message type %d\n", type);
+    logger->log(ERROR, "BgpBadMessage::parse: unknow message type %d\n", type);
     setError(E_HEADER, E_TYPE, &type, 1);
     return -1;
 }
 
 ssize_t BgpBadMessage::write(__attribute__((unused)) uint8_t *to, __attribute__((unused)) size_t msg_sz) const {
-    logger->stderr("BgpBadMessage::write: you can't write a bad message\n");
+    logger->log(ERROR, "BgpBadMessage::write: you can't write a bad message\n");
     return -1;
 }
 

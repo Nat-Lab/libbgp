@@ -55,7 +55,6 @@ public:
  */
 class BgpRib {
 public:
-    BgpRib();
     BgpRib(BgpLogHandler *logger);
 
     // insert a route as local routing information

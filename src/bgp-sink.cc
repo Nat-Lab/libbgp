@@ -52,14 +52,14 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     assert(offset_end >= offset_start);
     if (len > buffer_size) {
-        if (logger) logger->stderr("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
+        if (logger) logger->log(ERROR, "BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
         return -1;
     }
 
     if (offset_end + len > buffer_size) {
         settle(); 
         if (offset_end + len > buffer_size) {
-            if (logger) logger->stderr("BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
+            if (logger) logger->log(ERROR, "BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
             return -1;
         }
     }
@@ -92,14 +92,14 @@ ssize_t BgpSink::pour(BgpPacket **pkt) {
 
     if (offset_end - offset_start < 19) return 0;
     if (memcmp(cur, "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff", 16) != 0) {
-        if (logger) logger->stderr("BgpSink::pour: invalid BGP marker.\n");
+        if (logger) logger->log(ERROR, "BgpSink::pour: invalid BGP marker.\n");
         return -2;
     }
 
     uint16_t field_len = ntohs(*(uint16_t *) (cur + 16));
 
     if (field_len < 19 || field_len > 4096) {
-        if (logger) logger->stderr("BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
+        if (logger) logger->log(ERROR, "BgpSink::pourPtr: invalid BGP packet length (%d).\n", field_len);
         return -2;
     }
 

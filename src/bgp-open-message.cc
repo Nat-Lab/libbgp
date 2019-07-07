@@ -71,7 +71,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 10) {
         uint8_t _err_data = msg_sz;
         setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
-        logger->stderr("BgpOpenMessage::parse: invalid open message size: %d.\n", msg_sz);
+        logger->log(ERROR, "BgpOpenMessage::parse: invalid open message size: %d.\n", msg_sz);
         return -1;
     }
 
@@ -90,9 +90,9 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (opt_params_len != msg_sz - 10 || (opt_params_len < 2 && opt_params_len != 0)) {
         setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
         if (opt_params_len + 10 != (uint8_t) msg_sz) 
-            logger->stderr("BgpOpenMessage::parse: size of rest of message (%d) != length of opt_param (%d).\n", msg_sz - 10, opt_params_len);
+            logger->log(ERROR, "BgpOpenMessage::parse: size of rest of message (%d) != length of opt_param (%d).\n", msg_sz - 10, opt_params_len);
         if (opt_params_len < 2)
-            logger->stderr("BgpOpenMessage::parse: opt params size < 2: %d.\n", opt_params_len);
+            logger->log(ERROR, "BgpOpenMessage::parse: opt params size < 2: %d.\n", opt_params_len);
         return -1;
     }
 
@@ -102,7 +102,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     while ((opt_params_len_left = opt_params_len - parsed_opt_params_len) > 0) {
         if (opt_params_len_left < 2) {
             setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-            logger->stderr("BgpOpenMessage::parse: unexpected end of opt param list.\n");
+            logger->log(ERROR, "BgpOpenMessage::parse: unexpected end of opt param list.\n");
             return -1;
         }
 
@@ -115,21 +115,21 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
         // opt param size exceed opt_params_len
         if (parsed_opt_params_len + param_length > opt_params_len) {
             setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-            logger->stderr("BgpOpenMessage::parse: opt param size exceed opt_params_len.\n");
+            logger->log(ERROR, "BgpOpenMessage::parse: opt param size exceed opt_params_len.\n");
             return -1;
         }
 
         // not capability?
         if (param_type != 2) {
             setError(E_OPEN, E_OPT_PARAM, NULL, 0);
-            logger->stderr("BgpOpenMessage::parse: unknow opt param type: %d.\n", param_type);
+            logger->log(ERROR, "BgpOpenMessage::parse: unknow opt param type: %d.\n", param_type);
             return -1;
         }
 
         // invalid capability field?
         if (param_length < 2) {
             setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-            logger->stderr("BgpOpenMessage::parse: invalid capability opt param length: %d.\n", param_length);
+            logger->log(ERROR, "BgpOpenMessage::parse: invalid capability opt param length: %d.\n", param_length);
             return -1;
         }
 
@@ -139,7 +139,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
         while ((capa_param_left = param_length - parsed_capa_param_len) > 0) {
             if (capa_param_left < 2) {
                 setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
-                logger->stderr("BgpOpenMessage::parse: unexpected end of capa list.\n");
+                logger->log(ERROR, "BgpOpenMessage::parse: unexpected end of capa list.\n");
                 return -1;
             }
 
@@ -177,7 +177,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     assert(parsed_opt_params_len == opt_params_len);
 
     if ((size_t) (parsed_opt_params_len + 10) != msg_sz) {
-        logger->stderr("BgpOpenMessage::parse: buffer does not end after parsing finished.\n");
+        logger->log(ERROR, "BgpOpenMessage::parse: buffer does not end after parsing finished.\n");
         setError(E_OPEN, E_UNSPEC, NULL, 0);
         return -1;
     }
@@ -187,7 +187,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
 ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
     if (buf_sz < 10) {
-        logger->stderr("BgpOpenMessage::write: buffer size too small (need 10, avaliable %d).\n", buf_sz);
+        logger->log(ERROR, "BgpOpenMessage::write: buffer size too small (need 10, avaliable %d).\n", buf_sz);
         return -1;
     }
 
@@ -208,7 +208,7 @@ ssize_t BgpOpenMessage::write(uint8_t *to, size_t buf_sz) const {
 
     // 3: opt_param type, capa_len, capa_code
     if (buf_sz < 13) {
-        logger->stderr("BgpOpenMessage::write: buffer size too small.\n", buf_sz);
+        logger->log(ERROR, "BgpOpenMessage::write: buffer size too small.\n", buf_sz);
         return -1;
     }
 

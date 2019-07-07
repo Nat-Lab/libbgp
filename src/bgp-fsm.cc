@@ -17,9 +17,17 @@
 
 namespace libbgp {
 
+const char* bgp_fsm_state_str[] = {
+    "Idle",
+    "Open Sent",
+    "Open Confirm",
+    "Established",
+    "Broken"
+};
+
 BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SINK_SIZE) {
     this->config = config;
-    setState(IDLE);
+    state = IDLE;
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
 
     if (config.rev_bus) {
@@ -46,7 +54,7 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SIN
     in_sink.setLogger(logger);
 
     if (!config.rib) {
-        rib = config.verbose ? new BgpRib(logger) : new BgpRib();
+        rib = new BgpRib(logger);
         rib_local = true;
     } else {
         rib = config.rib;
@@ -96,14 +104,16 @@ BgpState BgpFsm::getState() const {
 
 int BgpFsm::start() {
     if (state == BROKEN) {
-        logger->stderr("BgpFsm::start: FSM is broken, consider reset.\n");
+        logger->log(ERROR, "BgpFsm::start: FSM is broken, consider reset.\n");
         return 0;
     }
 
     if (state != IDLE) {
-        logger->stderr("BgpFsm::start: not in IDLE state.\n");
+        logger->log(ERROR, "BgpFsm::start: not in IDLE state.\n");
         return 0;
     }
+    
+    logger->log(INFO, "BgpFsm::start: sending OPEN message to peer.\n");
 
     uint16_t my_asn_2b = config.asn >= 0xffff ? 23456 : config.asn;
 
@@ -119,15 +129,18 @@ int BgpFsm::start() {
 
 int BgpFsm::stop() {
     if (state == BROKEN) {
-        logger->stderr("BgpFsm::stop: FSM is broken, consider reset.\n");
+        logger->log(ERROR, "BgpFsm::stop: FSM is broken, consider reset.\n");
         return 0;
     }
 
     if (state == IDLE) return 1;
     if (state != ESTABLISHED) {
-        logger->stderr("BgpFsm::stop: FSM in not ESTABLISED nor IDLE, can't stop.\n");
+        logger->log(ERROR, "BgpFsm::stop: FSM in not ESTABLISED nor IDLE, can't stop. To force stop, do a reset.\n");
         return 0;
     }
+
+    logger->log(INFO, "BgpFsm::stop: de-peering...\n");
+    
 
     BgpNotificationMessage notify (logger, E_CEASE, E_SHUTDOWN, NULL, 0);
 
@@ -138,7 +151,7 @@ int BgpFsm::stop() {
 
 int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
     if (state == BROKEN) {
-        logger->stderr("BgpFsm::run: FSM is broken, consider reset.\n");
+        logger->log(ERROR, "BgpFsm::run: FSM is broken, consider reset.\n");
         return -1;
     }
 
@@ -157,15 +170,16 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         ssize_t poured = in_sink.pour(&packet);
 
         if (poured <= -2) {
-            logger->stderr("BgpFsm::run: sink seems to be broken, please reset.\n");
+            logger->log(ERROR, "BgpFsm::run: sink seems to be broken, please reset.\n");
             setState(BROKEN);
             return -1;
         }
 
-        if (config.verbose) {
-            logger->stdout("BgpFsm::run: got message (s=%d):\n", state, out_buffer);
-            logger->stdout(*packet);
-        }
+        LIBBGP_LOG_BEGIN(logger, DEBUG);
+        logger->log(DEBUG, "BgpFsm::run: got message (Current state: %s):\n", bgp_fsm_state_str[state]);
+        logger->log(DEBUG, *packet);
+        LIBBGP_LOG_END;
+
 
         const BgpMessage *msg = packet->getMessage();
         // parse failed / packet invalid (errors like Unsupported Optional 
@@ -174,9 +188,9 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         // fsmEval*)
         if (poured == -1) {
             if (msg->type == NOTIFICATION) {
-                logger->stderr("BgpFsm::run: got invalid NOTIFICATION message.\n");
+                logger->log(ERROR, "BgpFsm::run: got invalid NOTIFICATION message.\n");
                 if (state == ESTABLISHED) {
-                    logger->stderr("BgpFsm::run: discarding all routes.\n");
+                    logger->log(ERROR, "BgpFsm::run: discarding all routes.\n");
                 }
 
                 delete packet;
@@ -201,7 +215,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
                 case E_FSM: err_sub_msg = bgp_fsm_error_str[notify->subcode]; break;
                 case E_CEASE: err_sub_msg = bgp_cease_error_str[notify->subcode]; break;
             }
-            logger->stderr("BgpFsm::run: got NOTIFICATION: %s (%d): %s (%d).\n", err_msg, notify->errcode, err_sub_msg, notify->subcode);
+            logger->log(ERROR, "BgpFsm::run: got NOTIFICATION: %s (%d): %s (%d).\n", err_msg, notify->errcode, err_sub_msg, notify->subcode);
             delete packet;
             setState(IDLE);
             return 0;
@@ -221,7 +235,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             case OPEN_CONFIRM: retval = fsmEvalOpenConfirm(msg); break;
             case ESTABLISHED: retval = fsmEvalEstablished(msg); break;
             default: {
-                logger->stderr("BgpFsm::run: FSM in invalid state: %d.\n", state);
+                logger->log(ERROR, "BgpFsm::run: FSM in invalid state: %d.\n", state);
                 delete packet;
                 return -1;
             }
@@ -242,7 +256,7 @@ int BgpFsm::tick() {
 
     // peer hold-timer exipred?
     if (clock->getTime() - last_recv > hold_timer) {
-        logger->stderr("BgpFsm::tick: peer hold timer timeout.\n");
+        logger->log(ERROR, "BgpFsm::tick: peer hold timer timeout.\n");
         BgpNotificationMessage notify (logger, E_HOLD, 0, NULL, 0);
         setState(IDLE);
         if(!writeMessage(notify)) return -1;
@@ -286,7 +300,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 
     // if hold timer != 0 but < 3, reject witl E_HOLD_TIME (as per rfc4271)
     if (open_msg->hold_time < 3 && open_msg->hold_time != 0) {
-        logger->stderr("BgpFsm::openRecv: invalid hold timer %d.\n", open_msg->hold_time);
+        logger->log(ERROR, "BgpFsm::openRecv: invalid hold timer %d.\n", open_msg->hold_time);
         BgpNotificationMessage notify (logger, E_OPEN, E_HOLD_TIME, NULL, 0);
         if(!writeMessage(notify)) return -1;
         return 0;
@@ -309,7 +323,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 
             // should not be happening
             if(res_result == 1) {
-                logger->stderr(
+                logger->log(ERROR, 
                     "BgpFsm::openRecv: collision found, and some other FSM feels like they should live"
                     "while we feel like we should live too. is there duplicated FSMs?\n"
                 );
@@ -363,7 +377,7 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
 
     // UNREACHED
     setState(BROKEN);
-    logger->stderr("BgpFsm::resloveCollison: ??? :( \n");
+    logger->log(ERROR, "BgpFsm::resloveCollison: ??? :( \n");
     return -1;
 }
 
@@ -377,9 +391,10 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
 
 bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
     if (state != OPEN_CONFIRM) return false;
-    if (config.verbose) {
-        logger->stdout("BgpFsm::handleRouteCollisionEvent: detecting collision with %s.\n", inet_ntoa(*(const struct in_addr*) &(ev.peer_bgp_id)));
-    }
+
+    LIBBGP_LOG_BEGIN(logger, INFO);
+    logger->log(INFO, "BgpFsm::handleRouteCollisionEvent: detecting collision with %s.\n", inet_ntoa(*(const struct in_addr*) &(ev.peer_bgp_id)));
+    LIBBGP_LOG_END;
 
     return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
@@ -387,9 +402,7 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    if (config.verbose) {
-        logger->stdout("BgpFsm::handleRouteAddEvent: got route-add events with %d routes.\n", ev.routes.size());
-    }
+    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add events with %d routes.\n", ev.routes.size());
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -411,9 +424,8 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    if (config.verbose) {
-        logger->stdout("BgpFsm::handleRouteAddEvent: got route-withdraw events with %d routes.\n", ev.routes.size());
-    }
+    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw events with %d routes.\n", ev.routes.size());
+
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
     withdraw.setWithdrawn(ev.routes);
@@ -448,13 +460,13 @@ int BgpFsm::validateState(uint8_t type) {
     switch(state) {
         case IDLE:
             if (type != OPEN) {
-                logger->stderr("BgpFsm::validateState: got non-OPEN message in IDLE state.\n");
+                logger->log(ERROR, "BgpFsm::validateState: got non-OPEN message in IDLE state.\n");
                 return 0;
             }
             return 1;
         case OPEN_SENT:
             if (type != OPEN) {
-                logger->stderr("BgpFsm::validateState: got non-OPEN message in OPEN_SENT state.\n");
+                logger->log(ERROR, "BgpFsm::validateState: got non-OPEN message in OPEN_SENT state.\n");
                 BgpNotificationMessage notify (logger, E_FSM, E_OPEN_SENT, NULL, 0);
                 setState(IDLE);
                 if(!writeMessage(notify)) return -1;
@@ -464,7 +476,7 @@ int BgpFsm::validateState(uint8_t type) {
             return 1;
         case OPEN_CONFIRM:
             if (type != KEEPALIVE) {
-                logger->stderr("BgpFsm::validateState: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
+                logger->log(ERROR, "BgpFsm::validateState: got non-KEEPALIVE message in OPEN_CONFIRM state.\n");
                 BgpNotificationMessage notify (logger, E_FSM, E_OPEN_CONFIRM, NULL, 0);
                 setState(IDLE);
                 if(!writeMessage(notify)) return -1;
@@ -474,7 +486,7 @@ int BgpFsm::validateState(uint8_t type) {
             return 1;
         case ESTABLISHED:
             if (type != UPDATE && type != KEEPALIVE) {
-                logger->stderr("BgpFsm::validateState: got invalid message (type %d) in ESTABLISHED state.\n", type);
+                logger->log(ERROR, "BgpFsm::validateState: got invalid message (type %d) in ESTABLISHED state.\n", type);
                 BgpNotificationMessage notify (logger, E_FSM, E_ESTABLISHED, NULL, 0);
                 setState(IDLE);
                 if(!writeMessage(notify)) return -1;
@@ -483,7 +495,7 @@ int BgpFsm::validateState(uint8_t type) {
             }
             return 1;
         default:
-            logger->stderr("BgpFsm::validateState: got message in bad state. consider reset.\n");
+            logger->log(ERROR, "BgpFsm::validateState: got message in bad state. consider reset.\n");
             return -1;
     }
 }
@@ -602,7 +614,11 @@ void BgpFsm::dropAllRoutes() {
 void BgpFsm::setState(BgpState new_state) {
     if (state == new_state) return;
 
+    logger->log(INFO, "BgpFsm::setState: changing state: %s -> %s\n", bgp_fsm_state_str[state], bgp_fsm_state_str[new_state]); 
+
     if (state == ESTABLISHED) {
+        logger->log(INFO, "BgpFsm::setState: dropping all routes received from peer...\n");
+
         // moved from ESTABLISHED to something else. Drop all routes.
         dropAllRoutes();
     }
@@ -613,10 +629,10 @@ void BgpFsm::setState(BgpState new_state) {
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     BgpPacket pkt(logger, use_4b_asn, &msg);
-    if (config.verbose) {
-        logger->stdout("BgpFsm::writeMessage: write (s=%d):\n", state);
-        logger->stdout(pkt);
-    }
+    LIBBGP_LOG_BEGIN(logger, DEBUG)
+    logger->log(DEBUG, "BgpFsm::writeMessage: write (Current state: %s):\n", bgp_fsm_state_str[state]);
+    logger->log(DEBUG, pkt);
+    LIBBGP_LOG_END;
 
     std::lock_guard<std::recursive_mutex> lock(out_buffer_mutex);
 
@@ -624,13 +640,13 @@ bool BgpFsm::writeMessage(const BgpMessage &msg) {
     last_sent = clock->getTime();
 
     if (pkt_len < 0) {
-        logger->stderr("BgpFsm::writeMessage: failed to write message, abort.\n");
+        logger->log(ERROR, "BgpFsm::writeMessage: failed to write message, abort.\n");
         setState(BROKEN);
         return false;
     }
 
     if (config.out_handler && !config.out_handler->handleOut(out_buffer, pkt_len)) {
-        logger->stderr("BgpFsm::writeMessage: out_handler failed, abort.\n");
+        logger->log(ERROR, "BgpFsm::writeMessage: out_handler failed, abort.\n");
         setState(BROKEN);
         return false;
     }

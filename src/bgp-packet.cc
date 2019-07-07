@@ -93,7 +93,7 @@ ssize_t BgpPacket::write(uint8_t *to, size_t buf_sz) const {
     else assert(msg != NULL);
 
     if (buf_sz < 19) {
-        logger->stderr("BgpPacket::write: dst buffer too small.\n");
+        logger->log(ERROR, "BgpPacket::write: dst buffer too small.\n");
         return -1;
     }
 

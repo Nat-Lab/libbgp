@@ -49,9 +49,8 @@ typedef struct BgpConfig {
     /**
      * @brief The log handler.
      * 
-     * The log handler is invoked whenever BGP FSM needs to write message to
-     * stdout/stderr. If you set this to null, FSM will output to the real
-     * stdout/stderr.
+     * The log handler is invoked whenever BGP FSM needs to log information. If 
+     * you set this to null, FSM will output to the stderr with log level INFO.
      */
     BgpLogHandler *log_handler;
 
@@ -173,14 +172,6 @@ typedef struct BgpConfig {
      * a real-time clock.
      */
     Clock *clock;
-
-    /**
-     * @brief Enable verbose output.
-     * 
-     * Enabling verbose output will make BGP FSM print all incoming/outgoing 
-     * message along with other useful information.
-     */
-    bool verbose;
 } BgpConfig;
 
 /**
