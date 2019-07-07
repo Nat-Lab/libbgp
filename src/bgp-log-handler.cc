@@ -14,69 +14,76 @@
 
 namespace libbgp {
 
+const char* bgp_log_level_str[] = {
+    "FATAL",
+    "ERROR",
+    "WARN ",
+    "INFO ",
+    "DEBUG"
+};
+
+BgpLogHandler::BgpLogHandler() {
+    level = INFO;
+}
+
 /**
- * @brief Print message to stdout.
+ * @brief Set the log level.
  * 
+ * @param level Log level.
+ */
+void BgpLogHandler::setLogLevel(LogLevel level) {
+    this->level = level;
+}
+
+/**
+ * @brief Get the log level.
+ * 
+ * @return LogLevel log level.
+ */
+LogLevel BgpLogHandler::getLogLevel() const {
+    return level;
+}
+
+/**
+ * @brief Log a message. Consider using LIBBGP_LOG_BEGIN and LIBBGP_LOG_END if
+ * logging the message needs a lot of computing power. (e.g., print Serializable
+ * or converting IP to string.)
+ * 
+ * @param level Log level.
  * @param format_str printf format string.
- * @param ... variables.
+ * @param ... printf variables.
  */
-void BgpLogHandler::stdout(const char* format_str, ...) {
+void BgpLogHandler::log(LogLevel level, const char* format_str, ...) {
+    if (level > this->level) return;
+
+    buf_mtx.lock();
+    int pre_sz = snprintf(out_buffer, 4096, "[%s] ", bgp_log_level_str[level]);
+
     va_list args;
-
-    buf_mtx.lock();
     va_start(args, format_str);
-    vsnprintf(out_buffer, 4096, format_str, args);
+    vsnprintf(out_buffer + pre_sz, 4096 - pre_sz, format_str, args);
     va_end(args);
-    stdoutImpl(out_buffer);
+    logImpl(out_buffer);
     buf_mtx.unlock();
 }
 
 /**
- * @brief Print message to stderr.
+ * @brief Log a message. Consider using LIBBGP_LOG_BEGIN and LIBBGP_LOG_END if
+ * logging the message needs a lot of computing power. (e.g., print Serializable
+ * or converting IP to string.)
  * 
- * @param format_str printf format string.
- * @param ... variables.
+ * @param level Log level.
+ * @param serializable Serializable object to log.
  */
-void BgpLogHandler::stderr(const char* format_str, ...) {
-    va_list args;
-
+void BgpLogHandler::log(LogLevel level, const Serializable &serializable) {
     buf_mtx.lock();
-    va_start(args, format_str);
-    vsnprintf(out_buffer, 4096, format_str, args);
-    va_end(args);
-    stderrImpl(out_buffer);
+    int pre_sz = snprintf(out_buffer, 4096, "[%s] ", bgp_log_level_str[level]);
+    serializable.print((uint8_t *) (out_buffer + pre_sz), 4096 - pre_sz);
+    logImpl(out_buffer);
     buf_mtx.unlock();
 }
 
-/**
- * @brief Print a Serializable object to stdout.
- * 
- * @param serializable The serializable object.
- */
-void BgpLogHandler::stdout(const Serializable &serializable) {
-    buf_mtx.lock();
-    serializable.print((uint8_t *) out_buffer, 4096);
-    stdoutImpl(out_buffer);
-    buf_mtx.unlock();
-}
-
-/**
- * @brief Print a Serializable object to stderr.
- * 
- * @param serializable The serializable object.
- */
-void BgpLogHandler::stderr(const Serializable &serializable) {
-    buf_mtx.lock();
-    serializable.print((uint8_t *) out_buffer, 4096);
-    stderrImpl(out_buffer);
-    buf_mtx.unlock();
-}
-
-void BgpLogHandler::stdoutImpl(const char* str) {
-    fprintf(::stdout, "%s", str);
-}
-
-void BgpLogHandler::stderrImpl(const char* str) {
+void BgpLogHandler::logImpl(const char* str) {
     fprintf(::stderr, "%s", str);
 }
 

@@ -13,9 +13,32 @@
 #include <mutex>
 #include "serializable.h"
 
+// log helper macro. some log taks a lot of resources to produce (e.g., print
+// BgpPacket). This allow us to disable logging completely with macro and also
+// force log level check.
+#ifndef DISBALE_LOG
+#define LIBBGP_LOG_BEGIN(logger, level) if (logger->getLogLevel() >= level) {
+#define LIBBGP_LOG_END }
+#else
+#define LIBBGP_LOG_BEGIN(logger, level)
+#define LIBBGP_LOG_END
+#endif
+
 namespace libbgp {
 
 class Serializable;
+
+/**
+ * @brief Log levels for logger (BgpLogHandler)
+ * 
+ */
+enum LogLevel {
+    FATAL,
+    ERROR,
+    WARN,
+    INFO,
+    DEBUG
+};
 
 /**
  * @brief The BgpLogHandler class.
@@ -25,10 +48,12 @@ class Serializable;
  */
 class BgpLogHandler {
 public:
-    void stdout(const char* format_str, ...);
-    void stderr(const char* format_str, ...);
-    void stdout(const Serializable &ser);
-    void stderr(const Serializable &ser);
+    BgpLogHandler();
+
+    void log(LogLevel level, const char* format_str, ...);
+    void log(LogLevel level, const Serializable &serializable);
+    void setLogLevel(LogLevel level);
+    LogLevel getLogLevel() const;
 
     /**
      * @brief Destroy the Bgp Log Handler object
@@ -38,19 +63,15 @@ public:
 protected:
 
     /**
-     * @brief stdout implementation, by default it writes to the real stdout.
-     * You may choose to override the implementation.
-     * @param str 
+     * @brief Log implementation. By default, it writes to stderr. You may
+     * implement your own BgpLogHandler to write message to a different place.
+     * 
+     * @param str Log message.
      */
-    virtual void stdoutImpl(const char* str);
+    virtual void logImpl(const char* str);
 
-    /**
-     * @brief stderr implementation, by default it writes to the real stderr.
-     * You may choose to override the implementation.
-     * @param str 
-     */
-    virtual void stderrImpl(const char* str);
 private:
+    LogLevel level;
     std::mutex buf_mtx;
     char out_buffer[4096];
 };
