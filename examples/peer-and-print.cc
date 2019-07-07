@@ -102,6 +102,11 @@ int main(void) {
     // parameters to FSM.
     libbgp::BgpConfig config;
 
+    // get a default logger (output to stderr), and set to debug level to get
+    // all log messages.
+    libbgp::BgpLogHandler logger;
+    logger.setLogLevel(libbgp::DEBUG);
+
     config.asn = MY_ASN; // set local ASN
     config.peer_asn = 0; // 0: accept any ASN
     config.use_4b_asn = true; // enable RFC 6793
@@ -116,8 +121,7 @@ int main(void) {
     config.rev_bus = NULL; 
 
     config.clock = NULL; // use system clock.
-    config.verbose = true; // print out all messages.
-    config.log_handler = NULL; // use default log handler (write to stdout/stderr)
+    config.log_handler = &logger;
 
     inet_pton(AF_INET, ROUTER_ID, &config.router_id); // router id.
     inet_pton(AF_INET, ROUTER_ID, &config.nexthop); // nexthop
