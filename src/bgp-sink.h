@@ -73,7 +73,7 @@ private:
     size_t offset_start;
     size_t offset_end;
     bool use_4b_asn;
-    std::mutex mutex;
+    std::recursive_mutex mutex;
     BgpLogHandler *logger;
 };
 

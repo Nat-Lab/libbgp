@@ -49,7 +49,7 @@ BgpSink::~BgpSink() {
  * @retval >=0 Bytes consumed.
  */
 ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     assert(offset_end >= offset_start);
     if (len > buffer_size) {
         if (logger) logger->stderr("BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
@@ -85,7 +85,7 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
  * @retval >=0 Bytes poured.
  */
 ssize_t BgpSink::pour(BgpPacket **pkt) {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     assert(offset_end >= offset_start);
 
     uint8_t *cur = this->buffer + offset_start;
@@ -131,7 +131,7 @@ void BgpSink::settle() {
  * 
  */
 void BgpSink::drain() {
-    std::lock_guard<std::mutex> lock(mutex);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     offset_end = offset_start = 0;
 }
 
