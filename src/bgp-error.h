@@ -1,3 +1,13 @@
+/**
+ * @file bgp-error.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief Legacy libbgp error handler.
+ * @version 0.1
+ * @date 2019-07-07
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef BGP_ERROR_H_
 #define BGP_ERROR_H_
 #include <stdint.h>

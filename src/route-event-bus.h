@@ -1,3 +1,13 @@
+/**
+ * @file route-event-bus.h
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The route event bus.
+ * @version 0.1
+ * @date 2019-07-07
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #ifndef ROUTE_EV_BUS_H_
 #define ROUTE_EV_BUS_H_
 #include "route-event.h"
@@ -7,6 +17,13 @@ namespace libbgp {
 
 class RouteEventReceiver;
 
+/**
+ * @brief The RouteEventBus class.
+ * 
+ * The route event bus is used to share information and communicate with other 
+ * BGP FSMs. For example, route add/withdrawn events are sent to other FSMs with
+ * route event bus. Collision resolution also depends on the route event bus. 
+ */
 class RouteEventBus {
 public:
     RouteEventBus();
