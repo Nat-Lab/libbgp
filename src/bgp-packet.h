@@ -47,5 +47,12 @@ private:
     bool is_4b;
 };
 
+/**
+ * @example deserialize-and-serialize.cc
+ * 
+ * Deserializing and serializing BGP message with BgpPacket.
+ * 
+ */
+
 }
 #endif // BGP_PACKET_H_

@@ -37,6 +37,14 @@ public:
     uint32_t peer_bgp_id;
 };
 
+/** 
+ * @example route-event-bus.cc
+ * Example of adding new routes to RIB while BGP FSM is running. Notify BGP FSM
+ * to send updates to the peer with RouteEventBus. This example also shows how
+ * you can implement your own BgpOutHandler and BgpLogHandler.
+ * 
+ */
+
 }
 
 #endif // ROUTE_EV_H_

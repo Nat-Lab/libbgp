@@ -28,5 +28,12 @@ private:
     int fd;
 };
 
+/**
+ * @example peer-and-print.cc
+ * A simple BGP speaker listen on TCP 0.0.0.0:179, wait for a peer, and print 
+ * all BGP messages sent/received with BgpFsm. 
+ * 
+ */
+
 }
 #endif // FD_OUT_HANDLER_H_

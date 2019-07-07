@@ -89,5 +89,17 @@ private:
     BgpLogHandler *logger;
 };
 
+/**
+ * @example peer-and-print.cc
+ * A simple BGP speaker listen on TCP 0.0.0.0:179, wait for a peer, and print 
+ * all BGP messages sent/received with BgpFsm. 
+ * 
+ * @example route-event-bus.cc
+ * Example of adding new routes to RIB while BGP FSM is running. Notify BGP FSM
+ * to send updates to the peer with RouteEventBus. This example also shows how
+ * you can implement your own BgpOutHandler and BgpLogHandler.
+ * 
+ */
+
 }
 #endif // RIB_H_
