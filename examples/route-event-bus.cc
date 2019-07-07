@@ -116,7 +116,8 @@ int main(void) {
     local_bgp_config.out_handler = &pipe_local; // handle output with bridge
     local_bgp_config.no_collision_detection = true; // no need for that
 
-    local_bgp_config.rib = NULL; 
+    // use our pre-defined RIB.
+    local_bgp_config.rib = &local_rib; 
 
     // use our local event bus.
     local_bgp_config.rev_bus = &local_bus; 
@@ -139,6 +140,10 @@ int main(void) {
     // don't validate nexthop of routes received from peer.
     local_bgp_config.no_nexthop_check = true; 
 
+    // pre-fill the RIB with a route.
+    libbgp::Route r_141_193_21_24 ("141.193.21.0", 24);
+    local_rib.insert(&local_logger, r_141_193_21_24, local_bgp_config.nexthop);
+
     /* create the "remote" BGP speaker */
     libbgp::BgpConfig remote_bgp_config;
     PipedOutHandler pipe_remote; // create the output pipe
@@ -149,8 +154,6 @@ int main(void) {
     MyEventHandler remote_handler("remote"); // create our event subscriber
     remote_bus.subscribe(&remote_handler); // subscribe to it
 
-    libbgp::BgpRib remote_rib(&remote_logger); // create the rib.
-
     /* set config parameters for remote speaker */
     remote_bgp_config.asn = 65001; // set local ASN
     remote_bgp_config.peer_asn = 65000; // set peer ASN
@@ -159,6 +162,7 @@ int main(void) {
     remote_bgp_config.out_handler = &pipe_remote; // handle output with bridge
     remote_bgp_config.no_collision_detection = true; // no need for that
 
+    // remote: not using a pre-defined RIB.
     remote_bgp_config.rib = NULL; 
 
     // use our remote event bus.
