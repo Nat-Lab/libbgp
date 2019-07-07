@@ -42,7 +42,7 @@ private:
         for (const libbgp::Route &r : routes) {
             uint32_t prefix = r.getPrefix();
             inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-            printf("%s: %s: %s/%d\n", name, type, ip_str, r.getLength());
+            printf("[%s] %s: %s/%d\n", name, type, ip_str, r.getLength());
         }
     }
 
@@ -81,12 +81,8 @@ public:
     }
 
 protected:
-    void stdoutImpl(const char* str) {
-        printf("%s stdout: %s", name, str);
-    }
-
-    void stderrImpl(const char* str) {
-        printf("%s stderr: %s", name, str);
+    void logImpl(const char* str) {
+        printf("[%s] %s", name, str);
     }
 
 private:
@@ -98,6 +94,7 @@ int main(void) {
     libbgp::BgpConfig local_bgp_config;
     PipedOutHandler pipe_local; // create the output pipe
     MyLoghandler local_logger("local"); // create the logger for local speaker
+    local_logger.setLogLevel(libbgp::DEBUG);
 
     /* create the route event bus for our home-made receiver to print routes */
     libbgp::RouteEventBus local_bus; // create the event bus
@@ -123,7 +120,6 @@ int main(void) {
     local_bgp_config.rev_bus = &local_bus; 
 
     local_bgp_config.clock = NULL; // use system clock.
-    local_bgp_config.verbose = true; // print out all messages.
     local_bgp_config.log_handler = &local_logger; 
 
     inet_pton(AF_INET, "10.0.0.1", &local_bgp_config.router_id); // router id
@@ -148,6 +144,7 @@ int main(void) {
     libbgp::BgpConfig remote_bgp_config;
     PipedOutHandler pipe_remote; // create the output pipe
     MyLoghandler remote_logger("remote"); // create the logger for remote speaker
+    remote_logger.setLogLevel(libbgp::DEBUG);
 
     /* create the route event bus for our home-made receiver to print routes */
     libbgp::RouteEventBus remote_bus; // create the event bus
@@ -169,7 +166,6 @@ int main(void) {
     remote_bgp_config.rev_bus = &remote_bus; 
 
     remote_bgp_config.clock = NULL; // use system clock.
-    remote_bgp_config.verbose = true; // print out all messages.
     remote_bgp_config.log_handler = &remote_logger; 
 
     inet_pton(AF_INET, "10.0.0.2", &remote_bgp_config.router_id); // router id
