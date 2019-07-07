@@ -163,9 +163,9 @@ int main(void) {
         ticker_thread.join();
     }
     
+    fsm.stop();
     fprintf(stderr, "closing socket & clean up...\n");
     free(read_buffer);
-    close(fd_sock);
     close(fd_conn);
     return 0;
 }
