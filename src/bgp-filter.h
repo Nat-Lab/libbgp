@@ -75,6 +75,12 @@ private:
     std::vector<BgpFilterRule> rules;
 };
 
+/**
+ * @example route-filter.cc
+ * Example of using ingress/egress route filtering feature of BgpFsm.
+ * 
+ */
+
 }
 
 #endif // BGP_FILTER_H_

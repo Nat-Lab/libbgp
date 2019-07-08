@@ -184,6 +184,10 @@ typedef struct BgpConfig {
  * to send updates to the peer with RouteEventBus. This example also shows how
  * you can implement your own BgpOutHandler and BgpLogHandler.
  * 
+ * @example route-filter.cc
+ * Example of using ingress/egress route filtering feature of BgpFsm. This 
+ * example also shows how you can implement your own BgpOutHandler and 
+ * BgpLogHandler.
  */
 
 }

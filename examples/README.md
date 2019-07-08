@@ -20,5 +20,6 @@ The following examples are avaliable:
 - `deserialize-and-serialize.cc`: Deserializing and serializing BGP message with `BgpPacket`.
 - `peer-and-print.cc`: listen on TCP `0.0.0.0:179`, wait for a peer, and print all BGP messages sent/received with `BgpFsm`. (`pthread` needed for the `ticker` thread)
 - `route-event-bus.cc`: Example of adding new routes to RIB while BGP FSM is running. Notify BGP FSM to send updates to the peer with `RouteEventBus`. This example also shows how you can implement your own `BgpOutHandler` and `BgpLogHandler`.
+- `route-filter.cc`: Example of using ingress/egress route filtering feature of BgpFsm. This example also shows how you can implement your own `BgpOutHandler` and `BgpLogHandler`.
 
 All the example codes are distributed under the  [Unlicense](https://unlicense.org) license.
