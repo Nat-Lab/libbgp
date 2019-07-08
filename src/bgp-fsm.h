@@ -90,9 +90,9 @@ public:
     /**
      * @brief Get the Routing Information Base.
      * 
-     * @return const BgpRib& const reference to RIB.
+     * @return BgpRib& reference to the RIB.
      */
-    const BgpRib& getRib() const;
+    BgpRib& getRib() const;
 
     /**
      * @brief Get current FSM state.

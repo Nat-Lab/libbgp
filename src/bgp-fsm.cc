@@ -94,7 +94,7 @@ uint16_t BgpFsm::getHoldTimer() const {
     return hold_timer;
 }
 
-const BgpRib& BgpFsm::getRib() const {
+BgpRib& BgpFsm::getRib() const {
     return rib_local ? *rib : *(config.rib);
 }
 
