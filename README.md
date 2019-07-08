@@ -13,13 +13,14 @@ For simple usage and quick start, refer to examples. For detailed API usages, re
 `libbgp` uses autotools for build automation. In general, you need the following build dependencies:
 
 - autotools (autoconf, automake, m4)
+- autoconf-archive
 - libtool
 - Doxygen (for generating documents)
 
 If you use a Debian based operating system, you should be able to install these with the following apt command:
 
 ```
-# apt install autoconf automake m4 libtool doxygen
+# apt install autoconf autoconf-archive automake m4 libtool doxygen
 ```
 
 Once you have the dependencies installed, use the following commands to build libbgp:
