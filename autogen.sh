@@ -1,6 +1,3 @@
 #!/bin/sh
 
-libtoolize \
-&& aclocal \
-&& automake --add-missing \
-&& autoconf
+autoreconf --install --force
