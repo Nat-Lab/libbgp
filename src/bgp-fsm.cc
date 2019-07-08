@@ -408,7 +408,14 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     for (const Route &route : ev.routes) {
         if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             update.addNlri(route);
-        } 
+        } else {
+            LIBBGP_LOG(logger, INFO) {
+                uint32_t prefix = route.getPrefix();
+                char ip_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpFsm::handleRouteAddEvent: route %s/%d filtered by out_filter.\n", ip_str, route.getLength());
+            }
+        }
     }
 
     if (update.nlri.size() <= 0) return false;
@@ -544,6 +551,13 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             update.addNlri(route);
             prepareUpdateMessage(update);
             if(!writeMessage(update)) return -1;
+        } else {
+            LIBBGP_LOG(logger, INFO) {
+                uint32_t prefix = route.getPrefix();
+                char ip_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, route.getLength());
+            }
         }
     }
 
@@ -573,6 +587,13 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     for (const Route &route : update->nlri) {
         if(config.in_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             routes.push_back(route);
+        } else {
+            LIBBGP_LOG(logger, INFO) {
+                uint32_t prefix = route.getPrefix();
+                char ip_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters.\n", ip_str, route.getLength());
+            }
         }
     }
 
