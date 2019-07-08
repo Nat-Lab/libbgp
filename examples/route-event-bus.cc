@@ -73,7 +73,8 @@ private:
 };
 
 // Since we have two FSMs here, we want to label their log output so we know
-// where the log is comming from.
+// where the log is comming from. Implement our own log handler so we can label
+// the log output.
 class MyLoghandler : public libbgp::BgpLogHandler {
 public:
     MyLoghandler(const char *name) {
@@ -113,7 +114,9 @@ int main(void) {
     local_bgp_config.out_handler = &pipe_local; // handle output with bridge
     local_bgp_config.no_collision_detection = true; // no need for that
 
-    // use our pre-defined RIB.
+    // use our pre-defined RIB. We may also set this to NULL, this will make
+    // BgpFsm create RIB itself. We can get the created RIB with BgpFsm::getRib.
+    // Demo of that can be found in route-filter.cc example.
     local_bgp_config.rib = &local_rib; 
 
     // use our local event bus.
