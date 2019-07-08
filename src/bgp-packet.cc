@@ -83,8 +83,8 @@ ssize_t BgpPacket::parse(const uint8_t *from, size_t buf_sz) {
         throw "invalid_op";
     }
 
-    if (is_message_owner && m_msg == NULL) {
-        logger->log(FATAL, "BgpPacket::parse: can't parse: message pointer NULL.\n");
+    if (is_message_owner && m_msg != NULL) {
+        logger->log(FATAL, "BgpPacket::parse: can't parse: message pointer not NULL.\n");
         throw "invalid_op";
     }
 
