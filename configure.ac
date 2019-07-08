@@ -1,11 +1,12 @@
 AC_INIT(libbgp, 0.1)
 AM_INIT_AUTOMAKE([foreign])
 LT_INIT
+AC_LANG(C++)
 AC_SUBST(LIBTOOL_DEPS)
 AC_CONFIG_FILES([Makefile src/Makefile])
 AC_CONFIG_MACRO_DIRS([m4])
 AC_PROG_CXX
-AX_CHECK_COMPILE_FLAG([-std=c++0x], [CXXFLAGS="$CXXFLAGS -std=c++0x"])
+AX_CHECK_COMPILE_FLAG([-std=c++0x], [CXXFLAGS="$CXXFLAGS -std=c++0x"], [AC_MSG_ERROR([c++11/c++0x needed to build libbgp])])
 AX_CHECK_COMPILE_FLAG([-Wall], [CXXFLAGS="$CXXFLAGS -Wall"])
 AX_CHECK_COMPILE_FLAG([-Wextra], [CXXFLAGS="$CXXFLAGS -Wextra"])
 AC_OUTPUT
