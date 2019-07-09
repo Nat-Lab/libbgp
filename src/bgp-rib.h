@@ -40,6 +40,14 @@ public:
     uint32_t src_router_id;
 
     /**
+     * @brief The update ID. BgpRibEntry with same update ID are received from
+     * the same update and their path attributes are therefore same. Note that
+     * entries with different update_id may still have same path attributes.
+     * 
+     */
+    uint64_t update_id;
+
+    /**
      * @brief Path attributes for this entry.
      * 
      */
@@ -70,6 +78,10 @@ public:
     // remove a route from RIB, return true if route removed, false if not exist.
     bool withdraw(uint32_t src_router_id, const Route &route);
 
+    // remove routes from RIB, return number of routes removed on success, -1
+    // on error
+    ssize_t withdraw(uint32_t src_router_id, const std::vector<Route> &routes);
+
     // remove all routes from a peer, return all discarded routes on success.
     std::vector<Route> discard(uint32_t src_router_id);
 
@@ -87,6 +99,7 @@ private:
     std::vector<BgpRibEntry> rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;
+    uint64_t update_id;
 };
 
 /**

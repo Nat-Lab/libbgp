@@ -51,6 +51,7 @@ uint32_t BgpRibEntry::getMetric() const {
  */
 BgpRib::BgpRib(BgpLogHandler *logger) {
     this->logger = logger;
+    update_id = 0;
 }
 
 /**
@@ -83,15 +84,29 @@ const BgpRibEntry* BgpRib::insert(BgpLogHandler *logger, const Route &route, uin
     attribs.push_back(std::shared_ptr<BgpPathAttrib>(nexhop_attr));
     attribs.push_back(std::shared_ptr<BgpPathAttrib>(as_path));
 
+    uint64_t use_update_id = update_id;
+
     for (const BgpRibEntry &entry : rib) {
         if (entry.src_router_id == 0 && entry.route == route) {
             logger->log(ERROR, "BgpRib::insert: route exists.");
             return NULL;
         }
+
+        // see if we can group this entry to other local entries
+        if (entry.src_router_id == 0) {
+            for (const std::shared_ptr<BgpPathAttrib> &attr : entry.attribs) {
+                if (attr->type_code == NEXT_HOP) {
+                    const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(*attr);
+                    if (nh.next_hop == nexthop) use_update_id = entry.update_id;
+                }
+            }
+        }
     }
 
     BgpRibEntry new_entry(route, 0, attribs);
     std::lock_guard<std::recursive_mutex> lock(mutex);
+    new_entry.update_id = use_update_id;
+    if (use_update_id == update_id) update_id++;
     rib.push_back(new_entry);
 
     return &(rib.back());
@@ -113,6 +128,7 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
         if (entry->route == route && entry->src_router_id == src_router_id) {
             if (entry->getMetric() > new_entry.getMetric()) {
                 rib.erase(entry);
+                new_entry.update_id = update_id++;
                 rib.push_back(new_entry);
 
                 LIBBGP_LOG(logger, INFO) {
@@ -120,7 +136,7 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
                     char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
                     inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
                     inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-                    logger->log(INFO, "BgpRib::insert: (updated) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+                    logger->log(INFO, "BgpRib::insert: (updated) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
                 }
 
                 return true;
@@ -128,12 +144,13 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
         }
     }
 
+    new_entry.update_id = update_id++;
     LIBBGP_LOG(logger, INFO) {
         uint32_t prefix = route.getPrefix();
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib::insert: (new_entry) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib::insert: (new_entry) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
     mutex.lock();
@@ -154,9 +171,12 @@ bool BgpRib::insert(uint32_t src_router_id, const Route &route, const std::vecto
  */
 ssize_t BgpRib::insert(uint32_t src_router_id, const std::vector<Route> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
     size_t inserted = 0;
+    uint64_t hold_id = update_id;
     for (const Route &r : routes) {
         if (insert(src_router_id, r, attrib)) inserted++;
+        update_id = hold_id;
     }
+    update_id++;
     return inserted;
 }
 
@@ -185,6 +205,23 @@ bool BgpRib::withdraw(uint32_t src_router_id, const Route &route) {
     }
 
     return false;
+}
+
+/**
+ * @brief Withdraw routes from RIB.
+ * 
+ * @param src_router_id Originating BGP speaker's ID in network bytes order.
+ * @param routes Routes.
+ * @return ssize_t Number of routes dropped.
+ * @retval -1 Failed to drop routes.
+ * @retval >=0 Number of routes dropped.
+ */
+ssize_t BgpRib::withdraw(uint32_t src_router_id, const std::vector<Route> &routes) {
+    size_t dropped = 0;
+    for (const Route &r : routes) {
+        if (withdraw(src_router_id, r)) dropped++;
+    }
+    return dropped;
 }
 
 /**
