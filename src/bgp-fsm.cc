@@ -556,23 +556,32 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     setState(ESTABLISHED);
     if(!writeMessage(keep)) return -1;
 
-    // feed rib to peer; TODO: feed routes w/ same attrib w/ single message
-    for (const BgpRibEntry &entry : rib->get()) {
-        const Route route = entry.route;
-        if (entry.src_router_id == peer_bgp_id) continue;
-        if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
-            BgpUpdateMessage update (logger, use_4b_asn);
-            update.setAttribs(entry.attribs);
-            update.addNlri(route);
+    std::vector<BgpRibEntry>::const_iterator iter = rib->get().begin();
+    const std::vector<BgpRibEntry>::const_iterator end = rib->get().end();
+
+    // FIXME: update routes grouping: don't exceed max size of the buffer.
+    while (iter != end) {
+        uint64_t cur_group_id = iter->update_id;
+        BgpUpdateMessage update (logger, use_4b_asn);
+        update.setAttribs(iter->attribs);
+
+        for (; cur_group_id == iter->update_id && iter != end; iter++) {
+            const Route &r = iter->route;
+            if (config.out_filters.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
+                update.addNlri(r);
+            } else {
+                LIBBGP_LOG(logger, INFO) {
+                    uint32_t prefix = r.getPrefix();
+                    char ip_str[INET_ADDRSTRLEN];
+                    inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                    logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
+                }
+            }
+        }
+
+        if (update.nlri.size() > 0) {
             prepareUpdateMessage(update);
             if(!writeMessage(update)) return -1;
-        } else {
-            LIBBGP_LOG(logger, INFO) {
-                uint32_t prefix = route.getPrefix();
-                char ip_str[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, route.getLength());
-            }
         }
     }
 
