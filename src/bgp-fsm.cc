@@ -287,12 +287,26 @@ void BgpFsm::resetHard() {
 int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     if (open_msg->version != 4) {
         BgpNotificationMessage notify (logger, E_OPEN, E_VERSION, NULL, 0);
+        setState(IDLE);
         if(!writeMessage(notify)) return -1;
         return 0;
     }
 
     if (config.peer_asn != 0 && open_msg->my_asn != config.peer_asn) {
         BgpNotificationMessage notify (logger, E_OPEN, E_PEER_AS, NULL, 0);
+        setState(IDLE);
+        if(!writeMessage(notify)) return -1;
+        return 0;
+    }
+
+    if (!validAddr(open_msg->bgp_id)) {
+        LIBBGP_LOG(logger, ERROR) {
+            char ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(open_msg->bgp_id), ip_str, INET_ADDRSTRLEN);
+            logger->log(ERROR, "BgpFsm::openRecv: peer BGP ID (%s) invalid.\n", ip_str);
+        }
+        BgpNotificationMessage notify (logger, E_OPEN, E_BGP_ID, NULL, 0);
+        setState(IDLE);
         if(!writeMessage(notify)) return -1;
         return 0;
     }
@@ -301,6 +315,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     if (open_msg->hold_time < 3 && open_msg->hold_time != 0) {
         logger->log(ERROR, "BgpFsm::openRecv: invalid hold timer %d.\n", open_msg->hold_time);
         BgpNotificationMessage notify (logger, E_OPEN, E_HOLD_TIME, NULL, 0);
+        setState(IDLE);
         if(!writeMessage(notify)) return -1;
         return 0;
     }
@@ -400,7 +415,7 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add events with %d routes.\n", ev.routes.size());
+    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add events with %zu routes.\n", ev.routes.size());
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -429,7 +444,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw events with %d routes.\n", ev.routes.size());
+    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw events with %zu routes.\n", ev.routes.size());
 
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
@@ -573,11 +588,27 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         rib->withdraw(peer_bgp_id, route);
     }
 
-    if (!config.no_nexthop_check && update->nlri.size() > 0) {
+    if (update->nlri.size() > 0) {
         const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
+
+        if (!validAddr(nh.next_hop)) {
+            LIBBGP_LOG(logger, WARN) {
+                char ip_str[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(nh.next_hop), ip_str, INET_ADDRSTRLEN);
+                logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with invalid nexthop %s\n", update->nlri.size(), ip_str);
+            }
+            return 1;
+        }
     
-        if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
-            // ignore invalid nexthop
+        if (!config.no_nexthop_check && !Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+            LIBBGP_LOG(logger, WARN) {
+                char ip_str_nh[INET_ADDRSTRLEN];
+                char ip_str_lan[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(nh.next_hop), ip_str_nh, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(config.peering_lan_prefix), ip_str_lan, INET_ADDRSTRLEN);
+                logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with nexthop outside peering LAN. (%s not in %s/%d)\n", 
+                    update->nlri.size(), ip_str_nh, ip_str_lan, config.peering_lan_length);
+            }
             return 1;
         };
     }
@@ -645,6 +676,20 @@ void BgpFsm::setState(BgpState new_state) {
     state = new_state;
 }
 
+bool BgpFsm::validAddr(uint32_t addr) const {
+    if (addr == config.nexthop || addr == config.router_id) {
+        return false;
+    }
+
+    uint32_t addr_host = ntohl(addr);
+    uint32_t first = addr_host >> 24;
+
+    if (first == 0 || first == 127 || (first >= 224 && first <= 239) || first > 240) {
+        return false;
+    }
+
+    return true;
+}
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
     BgpPacket pkt(logger, use_4b_asn, &msg);
