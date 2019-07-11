@@ -38,7 +38,7 @@ int RouteEventBus::publish(RouteEventReceiver *recv, const RouteEvent &ev) {
 }
 
 /**
- * @brief Subscribe to this event bus.
+ * @brief Subscribe from this event bus.
  * 
  * @param recv The receiver.
  * @return true Subscribed.
