@@ -174,8 +174,7 @@ ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, cons
  * @retval >=0 Size in btyes.
  */
 ssize_t Serializable::length() const {
-    logger->log(WARN, "Serializable::length: using default implementation of Serializable::length(). "
-                      "Which is done by writting to dummy buffer. Consider implement length() in subclass.\n");
+    logger->log(WARN, "Serializable::length: using default implementation of Serializable::length() (write to dummy).\n");
     uint8_t buffer[4096];
     return write(buffer, 4096);
 }
