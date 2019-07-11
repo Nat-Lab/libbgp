@@ -110,6 +110,8 @@ public:
      */
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const;
 
+    virtual ssize_t length() const;
+
     /**
      * @brief Clone the attribute.
      * 
@@ -168,6 +170,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -237,6 +240,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 private:
     // addSeg: add a new AS_SEQUENCE with one ASN to AS_PATH 
     void addSeg(uint32_t asn);
@@ -260,6 +264,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -280,6 +285,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -300,6 +306,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -314,6 +321,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -347,6 +355,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -369,6 +378,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 private:
     void addSeg(uint32_t asn);
 };
@@ -397,6 +407,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 /**
@@ -417,6 +428,7 @@ public:
     ssize_t parse(const uint8_t *buffer, size_t length);
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
 };
 
 }

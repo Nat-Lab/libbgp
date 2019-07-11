@@ -154,6 +154,10 @@ ssize_t BgpPathAttrib::parse(const uint8_t *from, size_t length) {
     return value_len + header_len;
 }
 
+ssize_t BgpPathAttrib::length() const {
+    return value_len + (extended ? 4 : 3);
+}
+
 ssize_t BgpPathAttrib::write(uint8_t *to, size_t buffer_sz) const {
     if (buffer_sz < (size_t) (value_len + 3)) {
         logger->log(ERROR, "BgpPathAttrib::write: destination buffer size too small.\n");
@@ -343,6 +347,10 @@ ssize_t BgpPathAttribOrigin::write(uint8_t *to, size_t buffer_sz) const {
     return 4;
 }
 
+ssize_t BgpPathAttribOrigin::length() const {
+    return 4;
+}
+
 /**
  * @brief Construct a new Bgp Path Attrib As Path:: Bgp Path Attrib As Path object
  * 
@@ -490,6 +498,16 @@ ssize_t BgpPathAttribAsPath::parse(const uint8_t *from, size_t length) {
     }
 
     return parsed_len + 3;
+}
+
+ssize_t BgpPathAttribAsPath::length() const {
+    size_t len = 3; // header len = 3
+
+    for (const BgpAsPathSegment &seg : as_paths) {
+        len += (seg.is_4b ? 4 : 2) * seg.value.size() + 2;
+    }
+
+    return len;
 }
 
 /**
@@ -679,6 +697,10 @@ ssize_t BgpPathAttribNexthop::write(uint8_t *to, size_t buffer_sz) const {
     return 7;
 }
 
+ssize_t BgpPathAttribNexthop::length() const {
+    return 7;
+}
+
 /**
  * @brief Construct a new Bgp Path Attrib Med:: Bgp Path Attrib Med object
  * 
@@ -755,6 +777,10 @@ ssize_t BgpPathAttribMed::write(uint8_t *to, size_t buffer_sz) const {
 
     putValue<uint8_t>(&buffer, 4); // length = 4
     putValue<uint32_t>(&buffer, htonl(med));
+    return 7;
+}
+
+ssize_t BgpPathAttribMed::length() const {
     return 7;
 }
 
@@ -836,6 +862,9 @@ ssize_t BgpPathAttribLocalPref::write(uint8_t *to, size_t buffer_sz) const {
     return 7;
 }
 
+ssize_t BgpPathAttribLocalPref::length() const {
+    return 7;
+}
 
 /**
  * @brief Construct a new Bgp Path Attrib Atomic Aggregate:: Bgp Path Attrib Atomic Aggregate object
@@ -901,6 +930,10 @@ ssize_t BgpPathAttribAtomicAggregate::write(uint8_t *to, size_t buffer_sz) const
 
     putValue<uint8_t>(&buffer, 0); // length = 0
 
+    return 3;
+}
+
+ssize_t BgpPathAttribAtomicAggregate::length() const {
     return 3;
 }
 
@@ -999,6 +1032,10 @@ ssize_t BgpPathAttribAggregator::write(uint8_t *to, size_t buffer_sz) const {
     putValue<uint32_t>(&buffer, aggregator);
 
     return write_value_sz + 3;
+}
+
+ssize_t BgpPathAttribAggregator::length() const {
+    return 3 + (is_4b ? 6 : 8);
 }
 
 /**
@@ -1110,6 +1147,16 @@ ssize_t BgpPathAttribAs4Path::parse(const uint8_t *from, size_t length) {
     }
 
     return parsed_len + 3;
+}
+
+ssize_t BgpPathAttribAs4Path::length() const {
+    size_t len = 3; // header len = 3
+
+    for (const BgpAsPathSegment &seg : as4_paths) {
+        len += 4 * seg.value.size() + 2;
+    }
+
+    return len;
 }
 
 /**
@@ -1304,6 +1351,10 @@ ssize_t BgpPathAttribAs4Aggregator::write(uint8_t *to, size_t buffer_sz) const {
     return 11;
 }
 
+ssize_t BgpPathAttribAs4Aggregator::length() const {
+    return 11;
+}
+
 /**
  * @brief Construct a new Bgp Path Attrib Community:: Bgp Path Attrib Community object
  * 
@@ -1383,4 +1434,9 @@ ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
     putValue<uint32_t>(&buffer, community);
     return 7;
 }
+
+ssize_t BgpPathAttribCommunity::length() const {
+    return 7;
+}
+
 }
