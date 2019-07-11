@@ -58,6 +58,8 @@ public:
      */
     virtual ssize_t write(uint8_t *to, size_t buf_sz) const = 0;
 
+    virtual ssize_t length() const;
+
     bool hasError() const;
 
     // get error code

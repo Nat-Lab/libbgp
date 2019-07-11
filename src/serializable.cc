@@ -166,4 +166,18 @@ ssize_t Serializable::_print(size_t indent, uint8_t **to, size_t *buf_left, cons
     return sz + indent * 4;
 }
 
+/**
+ * @brief Get size in bytes required to serialize the object.
+ * 
+ * @return ssize_t Size in btyes.
+ * @retval -1 Failed to get size.
+ * @retval >=0 Size in btyes.
+ */
+ssize_t Serializable::length() const {
+    logger->log(WARN, "Serializable::length: using default implementation of Serializable::length(). "
+                      "Which is done by writting to dummy buffer. Consider implement length() in subclass.\n");
+    uint8_t buffer[4096];
+    return write(buffer, 4096);
+}
+
 }
