@@ -572,7 +572,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             msg_len += attrib->length();
         }
 
-        for (; cur_group_id == iter->update_id && iter != end && msg_len < 4096; iter++) {
+        for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
             const Route &r = iter->route;
             if (config.out_filters.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
                 msg_len += (r.getLength() + 7) / 8;
