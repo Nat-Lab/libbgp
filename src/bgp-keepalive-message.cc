@@ -19,7 +19,7 @@ namespace libbgp {
  * 
  * @param loggger Pointer to logger object for error logging.
  */
-BgpKeepaliveMessage::BgpKeepaliveMessage(BgpLogHandler *loggger) : BgpMessage(logger) {
+BgpKeepaliveMessage::BgpKeepaliveMessage(__attribute__((unused)) BgpLogHandler *loggger) : BgpMessage(logger) {
     type = KEEPALIVE;
 }
 

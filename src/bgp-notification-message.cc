@@ -21,7 +21,7 @@ namespace libbgp {
  * 
  * @param loggger Pointer to logger object for error logging.
  */
-BgpNotificationMessage::BgpNotificationMessage(BgpLogHandler *loggger) : BgpMessage(logger) {
+BgpNotificationMessage::BgpNotificationMessage(__attribute__((unused)) BgpLogHandler *loggger) : BgpMessage(logger) {
     type = NOTIFICATION;
     err_data = 0;
     data_len = 0;
@@ -39,7 +39,7 @@ BgpNotificationMessage::~BgpNotificationMessage() {
  * @param data The error buffer pointer
  * @param data_len Length of error buffer.
  */
-BgpNotificationMessage::BgpNotificationMessage(BgpLogHandler *loggger, uint8_t errcode, uint8_t subcode, const uint8_t *data, uint16_t data_len) : BgpMessage(logger) {
+BgpNotificationMessage::BgpNotificationMessage(__attribute__((unused)) BgpLogHandler *loggger, uint8_t errcode, uint8_t subcode, const uint8_t *data, uint16_t data_len) : BgpMessage(logger) {
     type = NOTIFICATION;
     this->errcode = errcode;
     this->subcode = subcode;
