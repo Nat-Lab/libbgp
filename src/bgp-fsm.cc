@@ -559,15 +559,23 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     std::vector<BgpRibEntry>::const_iterator iter = rib->get().begin();
     const std::vector<BgpRibEntry>::const_iterator end = rib->get().end();
 
-    // FIXME: update routes grouping: don't exceed max size of the buffer.
+    // group routes and and updates
     while (iter != end) {
         uint64_t cur_group_id = iter->update_id;
         BgpUpdateMessage update (logger, use_4b_asn);
         update.setAttribs(iter->attribs);
 
-        for (; cur_group_id == iter->update_id && iter != end; iter++) {
+        // length of the update message, 19: headers, 4: length fields
+        size_t msg_len = 19 + 4;
+
+        for (const std::shared_ptr<BgpPathAttrib> &attrib : iter->attribs) {
+            msg_len += attrib->length();
+        }
+
+        for (; cur_group_id == iter->update_id && iter != end && msg_len < 4096; iter++) {
             const Route &r = iter->route;
             if (config.out_filters.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
+                msg_len += (r.getLength() + 7) / 8;
                 update.addNlri(r);
             } else {
                 LIBBGP_LOG(logger, INFO) {
