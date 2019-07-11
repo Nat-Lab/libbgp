@@ -1370,8 +1370,10 @@ ssize_t BgpPathAttribCommunity::doPrint(size_t indent, uint8_t **to, size_t *buf
     size_t written = 0;
     written += _print(indent, to, buf_sz, "CommunityAttribute {\n");
     indent++; {
+        uint16_t community_[2];
+        memcpy(community_, &community, 4);
         written += printFlags(indent, to, buf_sz);
-        written += _print(indent, to, buf_sz, "Community { %d:%d }\n", *(uint16_t *) &community, *(uint16_t *) &community + 1);
+        written += _print(indent, to, buf_sz, "Community { %d:%d }\n", ntohs(community_[0]), ntohs(community_[1]));
     }; indent--;
 
     written += _print(indent, to, buf_sz, "}\n");
