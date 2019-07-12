@@ -1,4 +1,4 @@
-AC_INIT(libbgp, 0.1)
+AC_INIT(libbgp, 0.2)
 AM_INIT_AUTOMAKE([foreign])
 LT_INIT
 AC_LANG(C++)
