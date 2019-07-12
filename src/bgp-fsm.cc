@@ -457,10 +457,26 @@ bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
 void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     update.dropNonTransitive();
     if (config.forced_default_nexthop || !update.hasAttrib(NEXT_HOP)) {
+        LIBBGP_LOG(logger, INFO) {
+            char ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(config.nexthop), ip_str, INET_ADDRSTRLEN);
+            if (config.forced_default_nexthop) {
+                logger->log(INFO, "BgpFsm::prepareUpdateMessage: forced_default_nexthop set, using %s as nexthop.\n", ip_str);
+            } else {
+                logger->log(INFO, "BgpFsm::prepareUpdateMessage: no nethop attribute set, using %s as nexthop.\n", ip_str);
+            }
+        }
         update.setNextHop(config.nexthop);
     } else {
         BgpPathAttribNexthop &nh = dynamic_cast<BgpPathAttribNexthop &> (update.getAttrib(NEXT_HOP));
         if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+            LIBBGP_LOG(logger, INFO) {
+                char def_nexthop[INET_ADDRSTRLEN];
+                char cur_nexthop[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(config.nexthop), def_nexthop, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(nh.next_hop), cur_nexthop, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpFsm::prepareUpdateMessage: nexthop %s not in peering lan, using %s.\n", cur_nexthop, def_nexthop);
+            }
             nh.next_hop = config.nexthop;
         }
     }
