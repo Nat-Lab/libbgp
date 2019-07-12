@@ -156,7 +156,7 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
     }
 
     ssize_t fill_ret = in_sink.fill(buffer, buffer_size);
-    if (fill_ret != buffer_size) {
+    if (fill_ret != (ssize_t) buffer_size) {
         logger->log(ERROR, "BgpFsm::run: failed to fill() sink.\n");
         setState(BROKEN);
         return -1;
