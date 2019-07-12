@@ -155,7 +155,12 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
         return -1;
     }
 
-    in_sink.fill(buffer, buffer_size);
+    ssize_t fill_ret = in_sink.fill(buffer, buffer_size);
+    if (fill_ret != buffer_size) {
+        logger->log(ERROR, "BgpFsm::run: failed to fill() sink.\n");
+        setState(BROKEN);
+        return -1;
+    }
 
     // tick the clock
     int tick_ret = tick();
@@ -174,6 +179,8 @@ int BgpFsm::run(const uint8_t *buffer, const size_t buffer_size) {
             setState(BROKEN);
             return -1;
         }
+
+        if (poured == 0) return 3;
 
         LIBBGP_LOG(logger, DEBUG) {
             logger->log(DEBUG, "BgpFsm::run: got message (Current state: %s):\n", bgp_fsm_state_str[state]);
