@@ -83,7 +83,7 @@ uint32_t BgpFsm::getBgpId() const {
 }
 
 uint32_t BgpFsm::getPeerAsn() const {
-    return config.peer_asn;
+    return peer_asn;
 }
 
 uint32_t BgpFsm::getPeerBgpId() const {
