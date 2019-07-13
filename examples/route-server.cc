@@ -226,13 +226,19 @@ private:
 };
 
 void print_help (const char* me) {
-    fprintf(stderr, "%s: simple bgp route server implementation with libbgp.\n", me);
-    fprintf(stderr, "usage: %s -i router_id -a my_asn -p lan_prefix -l lan_prefix_length\n", me);
-    fprintf(stderr, "example: start a route server for peering lan 10.0.0.0/24, use 65000 as local\n");
-    fprintf(stderr, "         asn, and 10.0.0.1 as router id.\n");
-    fprintf(stderr, "         %s -i 10.0.0.1 -a 65000 -p 10.0.0.0 -l 24\n", me);
-    fprintf(stderr, "\n");
+    fprintf(stderr, "simple bgp route server implementation with libbgp.\n");
     fprintf(stderr, "the route server accepts peering from any asn.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "usage: %s [-v] -i router_id -a my_asn -p lan_prefix -l lan_length\n", me);
+    fprintf(stderr, "    -a my_asn             asn of the route server.\n");
+    fprintf(stderr, "    -i route_id           router id of the route server.\n");
+    fprintf(stderr, "    -l lan_length         prefix length of the peering lan in cidr notation.\n");
+    fprintf(stderr, "    -p lan_prefix         prefix of the peering lan.\n");
+    fprintf(stderr, "    -v                    enable debug output.\n");
+    fprintf(stderr, "\n");
+    fprintf(stderr, "for example, running with '-i 10.0.0.1 -a 65000 -p 10.0.0.0 -l 24' starts a\n");
+    fprintf(stderr, "route server for peering lan 10.0.0.0/24, use 65000 as local asn and 10.0.0.1\n");
+    fprintf(stderr, "as router id.\n");
 }
 
 int main (int argc, char **argv) {
@@ -240,14 +246,16 @@ int main (int argc, char **argv) {
     char *lan_prefix = NULL;
     uint8_t lan_len = 0;
     uint32_t my_asn = 0;
+    bool verbose = false;
 
     char opt;
-    while ((opt = getopt(argc, argv, "i:a:p:l:")) != -1) {
+    while ((opt = getopt(argc, argv, "i:a:p:l:v")) != -1) {
         switch (opt) {
             case 'i': bgp_id = strdup(optarg); break;
             case 'a': my_asn = atoi(optarg); break;
             case 'p': lan_prefix = strdup(optarg); break;
             case 'l': lan_len = atoi(optarg); break;
+            case 'v': verbose = true; break;
             default:
                 print_help(argv[0]);
                 return 1;
@@ -260,6 +268,7 @@ int main (int argc, char **argv) {
     }
 
     RouteServer rs (my_asn, bgp_id, lan_prefix, lan_len);
+    if (verbose) rs.setLogLevel(libbgp::DEBUG);
     rs.loop_forever();
 
     return 0;
