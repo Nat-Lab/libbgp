@@ -356,7 +356,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 
     hold_timer = config.hold_timer > open_msg->hold_time ? open_msg->hold_time : config.hold_timer;
     peer_bgp_id = open_msg->bgp_id;
-    peer_asn = open_msg->my_asn;
+    peer_asn = open_msg->getAsn();
     use_4b_asn = open_msg->hasCapability(ASN_4B) && config.use_4b_asn;
     
     return 1;
