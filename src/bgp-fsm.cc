@@ -422,7 +422,7 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add events with %zu routes.\n", ev.routes.size());
+    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add event with %zu routes.\n", ev.routes.size());
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -451,7 +451,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
 
-    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw events with %zu routes.\n", ev.routes.size());
+    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw event with %zu routes.\n", ev.routes.size());
 
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
