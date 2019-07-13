@@ -112,6 +112,11 @@ private:
  * to send updates to the peer with RouteEventBus. This example also shows how
  * you can implement your own BgpOutHandler and BgpLogHandler.
  * 
+ * @example route-server.cc
+ * Simple BGP route server implements with libbgp. Use of RouteEventBus and 
+ * shared BgpRib is demoed in this example. This example also shows how you can
+ * implement your own BgpLogHandler.
+ * 
  */
 
 }
