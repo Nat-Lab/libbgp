@@ -91,8 +91,6 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
     hold_time = ntohs(getValue<uint16_t> (&buffer));
     bgp_id = getValue<uint32_t> (&buffer);
 
-    // TODO: bgp-id verify
-
     uint8_t opt_params_len = getValue<uint8_t> (&buffer);
 
     // size of rest of message != length of opt_param or invalid length

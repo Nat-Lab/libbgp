@@ -678,8 +678,6 @@ ssize_t BgpPathAttribNexthop::parse(const uint8_t *from, size_t length) {
 
     next_hop = getValue<uint32_t>(&buffer);
 
-    // todo: validate nexthop
-
     return 7;
 }
 
