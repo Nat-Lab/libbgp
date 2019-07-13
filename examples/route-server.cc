@@ -1,3 +1,15 @@
+/**
+ * @file route-server.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief A BGP route server.
+ * @version 0.1
+ * @date 2019-07-12
+ * 
+ * Simple BGP route server implements with libbgp.
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <libbgp/bgp-fsm.h>
 #include <libbgp/fd-out-handler.h>
 #include <arpa/inet.h>
@@ -8,11 +20,14 @@
 #include <utility>
 #include <chrono>
 
+// Implement our logger so we can tag the log message with source ASN and peer 
+// address.
 class RouteServerLogHandler : public libbgp::BgpLogHandler {
 public:
     RouteServerLogHandler(const char *peer_addr) {
         this->peer_addr = peer_addr;
         this->asn = 0;
+        is_self = false;
     }
 
     void setAsn(uint32_t asn) {
@@ -23,8 +38,16 @@ public:
         this->peer_addr = peer_addr;
     }
 
+    void setSelf() {
+        is_self = true;
+    }
+
 protected:
     void logImpl(const char* str) {
+        if (is_self) {
+            printf("[route-server] %s", str);
+            return;
+        }
         if (asn == 0) {
             printf("[AS??? %s] %s", peer_addr, str);
         } else printf("[AS%d %s] %s", asn, peer_addr, str);
@@ -33,26 +56,30 @@ protected:
 private:
     const char *peer_addr;
     uint32_t asn;
+    bool is_self;
 };
 
+// The actual route server.
 class RouteServer {
 public:
-    RouteServer(uint32_t my_asn, const char *bgp_id, const char *peering_lan_prefix, uint8_t peering_lan_length) : root_logger(0), rib(&root_logger) {
-        base_config.asn = my_asn;
-        base_config.peer_asn = 0; // 0: accept any
-        base_config.use_4b_asn = true;
-        base_config.hold_timer = 120;
-        base_config.rib = &rib;
-        base_config.rev_bus = &bus;
-        base_config.clock = NULL;
+    RouteServer(uint32_t my_asn, const char *bgp_id, const char *peering_lan_prefix, uint8_t peering_lan_length) : 
+    root_logger(0), rib(&root_logger) { // The constructor of BgpRib needs a logger. Let's pass that in.
+
+        /* create a "base" config that every FSMs will be copying from */
+        base_config.asn = my_asn; // set local ASN
+        base_config.peer_asn = 0; // 0: accept peer with any ASN.
+        base_config.use_4b_asn = true; // Enable four octets ASN support.
+        base_config.hold_timer = 120; // hold timer
+        base_config.rib = &rib; // all FSMs will share an RIB.
+        base_config.rev_bus = &bus; // all FSMs should be communicating using the event bus.
+        base_config.clock = NULL; // use system clock to check time-based evetns.
         base_config.peering_lan_length = peering_lan_length;
         base_config.forced_default_nexthop = false;
 
         inet_pton(AF_INET, bgp_id, &(base_config.router_id));
         inet_pton(AF_INET, peering_lan_prefix, &(base_config.peering_lan_prefix));
 
-        root_logger.setAddr(bgp_id);
-        root_logger.setAsn(base_config.asn);
+        root_logger.setSelf();
         log_level = libbgp::INFO;
 
         root_logger.setLogLevel(log_level);
@@ -63,6 +90,7 @@ public:
         root_logger.setLogLevel(lvl);
     }
 
+    // The entry point of the route server. It handles socket.
     bool loop_forever() {
         int fd_sock = -1, fd_conn = -1;
         struct sockaddr_in server_addr, client_addr;
@@ -122,17 +150,23 @@ public:
     }
 
 private:
+    // Handle a session. 
     void session_handler(const char *peer_addr, int fd) {
         uint8_t this_buffer[4096];
 
+        // create logger for the session
         RouteServerLogHandler this_logger (peer_addr);
         this_logger.setLogLevel(log_level);
 
+        // use FdOutHandler to write FSM output to socket
         libbgp::FdOutHandler this_out (fd);
+
+        // copy from base_config and set log/out handler
         libbgp::BgpConfig this_config (base_config);
         this_config.log_handler = &this_logger;
         this_config.out_handler = &this_out;
 
+        // build the FSM.
         libbgp::BgpFsm this_fsm(this_config);
 
         ssize_t read_ret = -1;
@@ -144,10 +178,14 @@ private:
         while ((read_ret = read(fd, this_buffer, 4096)) > 0) {
             int fsm_ret = this_fsm.run(this_buffer, (size_t) read_ret);
             this_logger.setAsn(this_fsm.getPeerAsn());
+
+            // ret 0: fatal error/reset by peer.
+            // ret 2: notification sent to peer
             if (fsm_ret <= 0 || fsm_ret == 2) break;
         }
 
-        // force FSM to go IDLE and remove routes.
+        // force FSM to go IDLE and remove routes. (needed in case of TCP socket
+        // disconected but FSM still active.
         this_fsm.resetHard();
 
         fsm_list_mtx.lock();
@@ -162,6 +200,7 @@ private:
         root_logger.log(libbgp::INFO, "session with AS%d (%s) closed.\n", this_fsm.getPeerAsn(), peer_addr);
     }
 
+    // "ticker" to tick FSM every one second.
     void ticker() {
         root_logger.log(libbgp::INFO, "clock started.\n");
         while (true) {
