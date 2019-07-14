@@ -1,3 +1,14 @@
+/**
+ * @file peer-and-print.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief isten on TCP 0.0.0.0:179, wait for a peer, and print all BGP messages
+ * sent/received with BgpFsm
+ * @version 0.1
+ * @date 2019-07-14
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <libbgp/bgp-fsm.h>
 #include <libbgp/bgp-config.h>
 #include <libbgp/fd-out-handler.h>
