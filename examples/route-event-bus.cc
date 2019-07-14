@@ -1,3 +1,14 @@
+/**
+ * @file route-event-bus.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief Example of adding new routes to RIB while BGP FSM is running. Notify 
+ * BGP FSM to send updates to the peer with RouteEventBus.
+ * @version 0.1
+ * @date 2019-07-14
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <libbgp/bgp-fsm.h>
 #include <libbgp/route-event-bus.h>
 #include <arpa/inet.h>
