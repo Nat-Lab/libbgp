@@ -1,3 +1,13 @@
+/**
+ * @file deserialize-and-serialize.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief serializing and deserializing with BgpPacket
+ * @version 0.1
+ * @date 2019-07-14
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <libbgp/bgp-packet.h>
 #include <libbgp/bgp-update-message.h>
 #include <libbgp/bgp-open-message.h>
@@ -9,7 +19,7 @@ int main (void) {
     // prints to stdout/stderr by default.
     libbgp::BgpLogHandler logger;
 
-    /* serializing */
+    /* deserializing */
 
     // an update message
     const uint8_t *update_msg_buffer = (const uint8_t *) "\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\xff\x00\x1c\x02\x00\x05\x1c\x8d\xc1\x15\x10\x00\x00";
@@ -43,9 +53,9 @@ int main (void) {
 
     printf("Size of withdrawn routes: %li\n", update_msg->withdrawn_routes.size());
 
-    /* end serializing */
+    /* end deserializing */
 
-    /* deserializing */
+    /* serializing */
 
     uint32_t bgp_id = 0;
     inet_pton(AF_INET, "172.30.0.1", &bgp_id);
@@ -75,6 +85,8 @@ int main (void) {
     // print the message
     serializer.print((uint8_t *) message_visualized, 4096);
     printf("%s", message_visualized);
+
+    /* end serializing */
 
     return 0;
 }
