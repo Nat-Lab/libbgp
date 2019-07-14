@@ -55,6 +55,9 @@ public:
 
     // compute metric based on path attribute. (currently based on AS_PATH only)
     uint32_t getMetric() const;
+
+    // get nexthop of this entry.
+    uint32_t getNexthop() const;
 };
 
 /**

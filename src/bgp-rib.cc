@@ -45,6 +45,23 @@ uint32_t BgpRibEntry::getMetric() const {
 }
 
 /**
+ * @brief Get nexthop for this entry.
+ * 
+ * @return uint32_t nexthop in network byte order.
+ * @throws "no_nexthop" nexthop attribute does not exist.
+ */
+uint32_t BgpRibEntry::getNexthop() const {
+    for (const std::shared_ptr<BgpPathAttrib> &attr : attribs) {
+        if (attr->type_code == NEXT_HOP) {
+            const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(*attr);
+            return nh.next_hop;
+        }
+    }
+
+    throw "no_nexthop";
+}
+
+/**
  * @brief Construct a new BgpRib object with logging.
  * 
  * @param logger Log handler to use.
