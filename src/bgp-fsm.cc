@@ -371,23 +371,30 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
             BgpNotificationMessage notify (logger, E_CEASE, E_COLLISION, NULL, 0);
             if(!writeMessage(notify)) return -1;
 
+            logger->log(INFO, "(new_session) we have higher router id, dispose this new session.\n");
+
             setState(IDLE);
             return 0;
         } else {
             // this is a new connection, and peer has higher ID. the exisiting
             // connection should be dispose, since THIS fsm is created by peer 
             // connecting to us, this one will be kept, we do nothing.
+
+            logger->log(INFO, "(new_session) peer has higher router id, ask the other fsm to dispose session.\n");
             return 1;
         }
     } else {
         if (ntohl(config.router_id) > ntohl(peer_bgp_id)) {
             // this is a old connection, and "we" have higer ID, the new one
             // shoud close, we do nothing.
+            logger->log(INFO, "(old_session) we have higher router id, keep this old session.\n");
 
             return 1;
         } else {
             // this is a old connection, and "peer" have higer ID, this one
             // shoud close.
+
+            logger->log(INFO, "(old_session) peer has higher router id, dispose this session.\n");
             BgpNotificationMessage notify (logger, E_CEASE, E_COLLISION, NULL, 0);
             if(!writeMessage(notify)) return -1;
 
