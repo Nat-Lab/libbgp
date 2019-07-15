@@ -380,7 +380,7 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
             return 1;
         }
     } else {
-        if (config.router_id > peer_bgp_id) {
+        if (ntohl(config.router_id) > ntohl(peer_bgp_id)) {
             // this is a old connection, and "we" have higer ID, the new one
             // shoud close, we do nothing.
 
