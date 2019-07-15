@@ -32,6 +32,14 @@ public:
      * @return false The out was not handled.
      */
     virtual bool handleOut(const uint8_t *buffer, size_t length) = 0;
+
+    /**
+     * @brief State change notification. Will be call if FSM state changed.
+     * 
+     * @param old_state Old state.
+     * @param new_state New state.
+     */
+    virtual void notifyStateChange(__attribute__((unused)) int old_state, __attribute__((unused)) int new_state) {}
     virtual ~BgpOutHandler() {}
 };
 

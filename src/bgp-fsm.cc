@@ -704,6 +704,8 @@ void BgpFsm::dropAllRoutes() {
 void BgpFsm::setState(BgpState new_state) {
     if (state == new_state) return;
 
+    if (config.out_handler) config.out_handler->notifyStateChange(state, new_state);
+
     logger->log(INFO, "BgpFsm::setState: changing state: %s -> %s\n", bgp_fsm_state_str[state], bgp_fsm_state_str[new_state]); 
 
     if (state == ESTABLISHED) {
