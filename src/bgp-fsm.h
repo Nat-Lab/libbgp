@@ -10,7 +10,6 @@
  */
 #ifndef BGP_FSM_H_
 #define BGP_FSM_H_
-#define BGP_FSM_SINK_SIZE 8192
 #define BGP_FSM_BUFFER_SIZE 4096
 
 #include "clock.h"

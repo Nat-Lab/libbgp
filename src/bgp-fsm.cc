@@ -25,7 +25,7 @@ const char* bgp_fsm_state_str[] = {
     "Broken"
 };
 
-BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn, BGP_FSM_SINK_SIZE) {
+BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn) {
     this->config = config;
     state = IDLE;
     out_buffer = (uint8_t *) malloc(BGP_FSM_BUFFER_SIZE);
