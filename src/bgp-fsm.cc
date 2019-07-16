@@ -594,18 +594,24 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
         uint64_t cur_group_id = iter->update_id;
         BgpUpdateMessage update (logger, use_4b_asn);
         update.setAttribs(iter->attribs);
+        prepareUpdateMessage(update);
 
         // length of the update message, 19: headers, 4: length fields
         size_t msg_len = 19 + 4;
 
-        for (const std::shared_ptr<BgpPathAttrib> &attrib : iter->attribs) {
-            msg_len += attrib->length();
+        for (const std::shared_ptr<BgpPathAttrib> &attrib : update.path_attribute) {
+            msg_len += attrib->length(); // 2: attribute header
         }
 
         for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
             const Route &r = iter->route;
             if (config.out_filters.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
-                msg_len += (r.getLength() + 7) / 8;
+                msg_len += 1 + (r.getLength() + 7) / 8;
+                if (msg_len > 4096) {
+                    // size too big, roll back and break.
+                    iter--;
+                    break;
+                }
                 update.addNlri(r);
             } else {
                 LIBBGP_LOG(logger, INFO) {
@@ -618,7 +624,6 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
         }
 
         if (update.nlri.size() > 0) {
-            prepareUpdateMessage(update);
             if(!writeMessage(update)) return -1;
         }
     }
