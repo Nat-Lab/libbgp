@@ -418,7 +418,7 @@ bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
 }
 
 bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
-    if (state != OPEN_CONFIRM) return false;
+    if (state != OPEN_CONFIRM || peer_bgp_id != ev.peer_bgp_id) return false;
 
     LIBBGP_LOG(logger, INFO) {
         logger->log(INFO, "BgpFsm::handleRouteCollisionEvent: detecting collision with %s.\n", inet_ntoa(*(const struct in_addr*) &(ev.peer_bgp_id)));
