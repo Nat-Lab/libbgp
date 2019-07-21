@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <arpa/inet.h>
+#define BGP_SINK_DEFAULT_BUFSZ 65536
 
 namespace libbgp {
 
@@ -19,10 +20,9 @@ namespace libbgp {
  * @brief Construct a new Bgp Sink:: Bgp Sink object
  * 
  * @param use_4b_asn Enable four octets ASN support.
- * @param buffer_size Size of the sink buffer.
  */
-BgpSink::BgpSink(bool use_4b_asn, size_t buffer_size) {
-    this->buffer_size = buffer_size;
+BgpSink::BgpSink(bool use_4b_asn) {
+    this->buffer_size = BGP_SINK_DEFAULT_BUFSZ;
     this->buffer = (uint8_t *) malloc(buffer_size);
     this->use_4b_asn = use_4b_asn;
     this->logger = NULL;
@@ -54,12 +54,12 @@ ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
         return -1;
     }
 
-    if (offset_end + len > buffer_size) {
-        settle(); 
-        if (offset_end + len > buffer_size) {
-            if (logger) logger->log(ERROR, "BgpSink::fill: not enough space left in sink (%d more needed).\n", buffer_size - (offset_end + len));
-            return -1;
-        }
+    // first try settle
+    if (offset_end + len > buffer_size) settle();
+
+    // if still too small, expand
+    while (offset_end + len > buffer_size) {
+        expand();
     }
 
     memcpy(this->buffer + offset_end, buffer, len);
@@ -123,6 +123,19 @@ void BgpSink::settle() {
         if (offset_start == offset_end) offset_start = offset_end = 0;
         else memmove(buffer, buffer + offset_start, offset_end - offset_start);
     }
+}
+
+void BgpSink::expand() {
+    size_t new_buf_sz = buffer_size * 2;
+    size_t content_sz = getBytesInSink();
+    uint8_t *new_buffer = (uint8_t *) malloc(new_buf_sz);
+    memcpy(new_buffer, buffer + offset_start, content_sz);
+    free(buffer);
+    buffer = new_buffer;
+    buffer_size = new_buf_sz;
+    offset_start = 0;
+    offset_end = content_sz;
+    if (logger) logger->log(DEBUG, "BgpSink::expand: expanded size to %zu\n", buffer_size);
 }
 
 /**
