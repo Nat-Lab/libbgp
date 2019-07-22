@@ -291,4 +291,35 @@ bool Route6::includes (const char* prefix, uint8_t length) const {
     return Includes(this->prefix, this->length, prefix_arr, length);
 }
 
+/**
+ * @brief Test if two routes are equals.
+ * 
+ * @param other The other route object.
+ * @return true The routes are equal.
+ * @return false The routes are different.
+ */
+bool Route6::operator== (const Route6 &other) const {
+    return memcmp(prefix, other.prefix, 16) == 0 && other.length == length;
+}
+
+bool Route6::operator> (const Route6 &other) const {
+    return length < other.length;
+}
+
+bool Route6::operator< (const Route6 &other) const {
+    return length > other.length;
+}
+
+bool Route6::operator>= (const Route6 &other) const {
+    return !(*this < other);
+}
+
+bool Route6::operator<= (const Route6 &other) const {
+    return !(*this > other);
+}
+
+bool Route6::operator!= (const Route6 &other) const {
+    return !(*this == other);
+}
+
 }
