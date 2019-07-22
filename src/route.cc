@@ -186,6 +186,14 @@ bool Route::operator!= (const Route &other) const {
     return !(*this == other);
 }
 
+/**
+ * @brief Set Route.
+ * 
+ * @param prefix The prefix in netowkr byte order.
+ * @param length The netmask in CIDR notation.
+ * @return true Route set.
+ * @return false Failed to set route.
+ */
 bool Route::set(uint32_t prefix, uint8_t length) {
     if (length > 32) return false;
     this->length = length;
