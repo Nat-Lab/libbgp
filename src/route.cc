@@ -63,7 +63,7 @@ Route::Route(const char* prefix, uint8_t length) {
 /**
  * @brief Test if an address is inside a prefix.
  * 
- * @param prefix The prefix in network bytes order..
+ * @param prefix The prefix in network bytes order.
  * @param length The netmask of prefix in CIDR notation.
  * @param address The address in network bytes order.
  * @return true The address is in the prefix.
@@ -77,7 +77,7 @@ bool Route::Includes (uint32_t prefix, uint8_t length, uint32_t address) {
 /**
  * @brief Test if a prefix is inside another prefix.
  * 
- * @param prefix_a The prefix in network bytes order..
+ * @param prefix_a The prefix in network bytes order.
  * @param length_a The netmask of prefix in CIDR notation.
  * @param prefix_b The prefix to test against.
  * @param length_b The netmask of prefix to test against in CIDR notation.
@@ -171,7 +171,7 @@ bool Route::operator> (const Route &other) const {
 
 bool Route::operator< (const Route &other) const {
     if (length > 32) throw "prefix_mismatch";
-    return length < other.length;
+    return length > other.length;
 }
 
 bool Route::operator>= (const Route &other) const {
