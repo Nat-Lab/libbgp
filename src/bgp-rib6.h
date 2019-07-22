@@ -25,7 +25,9 @@ namespace libbgp {
  */
 class BgpRib6Entry {
 public:
-    BgpRib6Entry (Route6 r, uint32_t src, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
+    BgpRib6Entry (Route6 r, uint32_t src, const uint8_t nexthop_global[16], 
+        const uint8_t nexthop_linklocal[16], 
+        const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
 
     /**
      * @brief The prefix of this entry.
@@ -79,14 +81,20 @@ public:
     BgpRib6(BgpLogHandler *logger);
 
     // insert a route as local routing information
-    const BgpRib6Entry* insert(BgpLogHandler *logger, const Route6 &route, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16]);
+    const BgpRib6Entry* insert(BgpLogHandler *logger, 
+        const Route6 &route, const uint8_t nexthop_global[16], 
+        const uint8_t nexthop_linklocal[16]);
 
     // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Route6 &route, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+    bool insert(uint32_t src_router_id, const Route6 &route, 
+        const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Route6> &routes, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+    ssize_t insert(uint32_t src_router_id, const std::vector<Route6> &routes, 
+        const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // remove a route from RIB, return true if route removed, false if not exist.
     bool withdraw(uint32_t src_router_id, const Route6 &route);
