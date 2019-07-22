@@ -112,12 +112,17 @@ void BgpFilterRules::append(const BgpFilterRule &rule) {
  * @return BgpFilterOP The operation to take.
  */
 BgpFilterOP BgpFilterRules::apply(const Route &prefix) const {
-    BgpFilterOP op = default_op;
-    for (const BgpFilterRule &rule : rules) {
-        BgpFilterOP this_op = rule.apply(prefix);
-        if (this_op != NOP) op = this_op;
-    }
-    return op;
+    if (rules.size() == 0) return default_op;
+    
+    std::vector<BgpFilterRule>::const_iterator rule = rules.end();
+
+    do {
+        rule--;
+        BgpFilterOP this_op = rule->apply(prefix);
+        if (this_op != NOP) return this_op;
+    } while (rule != rules.begin());
+
+    return default_op;
 }
 
 /**
@@ -128,12 +133,17 @@ BgpFilterOP BgpFilterRules::apply(const Route &prefix) const {
  * @return BgpFilterOP The operation to take.
  */
 BgpFilterOP BgpFilterRules::apply(uint32_t prefix, uint32_t mask) const {
-    BgpFilterOP op = default_op;
-    for (const BgpFilterRule &rule : rules) {
-        BgpFilterOP this_op = rule.apply(prefix, mask);
-        if (this_op != NOP) op = this_op;
-    }
-    return op;
+    if (rules.size() == 0) return default_op;
+    
+    std::vector<BgpFilterRule>::const_iterator rule = rules.end();
+
+    do {
+        rule--;
+        BgpFilterOP this_op = rule->apply(prefix, mask);
+        if (this_op != NOP) return this_op;
+    } while (rule != rules.begin());
+
+    return default_op;
 }
 
 }
