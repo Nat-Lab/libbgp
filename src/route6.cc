@@ -1,4 +1,5 @@
 #include <string.h>
+#include <arpa/inet.h>
 #include "route6.h"
 
 namespace libbgp {
@@ -170,10 +171,32 @@ bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]) 
 }
 
 /**
+ * @brief Construct a new Route6 object
+ * 
+ * @param prefix Prefix as bytes array.
+ * @param length Netmask of the prefix in CIDR notation.
+ */
+Route6::Route6 (const uint8_t prefix[16], uint8_t length) {
+    this->length = length;
+    memcpy(this->prefix, prefix, 16);
+}
+
+/**
+ * @brief Construct a new Route6 object
+ * 
+ * @param prefix Prefix as IPv6 string.
+ * @param length Netmask of the prefix in CIDR notation.
+ */
+Route6::Route6 (const char* prefix, uint8_t length) {
+    this->length = length;
+    inet_pton(AF_INET6, prefix, this->prefix);
+}
+
+/**
  * @brief Test if an address is inside a prefix.
  * 
  * @param prefix The prefix.
- * @param length The netmask of prefix in CIDR notation.
+ * @param length The netmask of the prefix in CIDR notation.
  * @param address The address to test against.
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
@@ -185,6 +208,87 @@ bool Route6::Includes (const uint8_t prefix[16], uint8_t length, const uint8_t a
     if (!mask_ipv6(address, length, masked_address)) return false;
 
     return memcmp(prefix, masked_address, 16) == 0;
+}
+
+/**
+ * @brief Test if a prefix is inside another prefix.
+ * 
+ * @param prefix_a The prefix.
+ * @param length_a The netmask of the prefix in CIDR notation.
+ * @param prefix_b The orefix to test against.
+ * @param length_b The netmask of the prefix to test against in CIDR notation.
+ * @return true prefix_b is in prefix_a.
+ * @return false  prefix_b is not in prefix_a.
+ */
+bool Route6::Includes (const uint8_t prefix_a[16], uint8_t length_a, const uint8_t prefix_b[16], uint8_t length_b) {
+    if (length_a > 128 || length_b > 128) return false;
+    if (length_b < length_a) return false;
+
+    uint8_t masked_prefix[16];
+    if (!mask_ipv6(prefix_b, length_a, masked_prefix)) return false;
+
+    return memcmp(prefix_a, masked_prefix, 16) == 0;
+}
+
+/**
+ * @brief Test if an address is inside this prefix.
+ * 
+ * @param address The address.
+ * @return true The address is in the prefix.
+ * @return false The address in not in the prefix.
+ */
+bool Route6::includes (const uint8_t address[16]) const {
+    return Includes(prefix, length, address);
+}
+
+/**
+ * @brief Test if an address is inside this prefix.
+ * 
+ * @param address The address in IPv6 string format.
+ * @return true The address is in the prefix.
+ * @return false The address in not in the prefix.
+ */
+bool Route6::includes (const char* address) const {
+    uint8_t address_arr[16];
+    if (inet_pton(AF_INET6, address, address_arr) <= 0) return false;
+    return includes (address_arr);
+}
+
+/**
+ * @brief Test if another prefix is inside this prefix.
+ * 
+ * @param other The other prefix.
+ * @return true The other prefix is in this prefix.
+ * @return false The other prefix is not in this prefix.
+ */
+bool Route6::includes (const Route6 &other) const {
+    return includes(other.prefix, other.length);
+}
+
+/**
+ * @brief Test if another prefix is inside this prefix.
+ * 
+ * @param prefix The other prefix.
+ * @param length Netmask of the other prefix in CIDR notation.
+ * @return true The other prefix is in this prefix.
+ * @return false The other prefix is not in this prefix.
+ */
+bool Route6::includes (const uint8_t prefix[16], uint8_t length) const {
+    return Includes(this->prefix, this->length, prefix, length);
+}
+
+/**
+ * @brief Test if another prefix is inside this prefix.
+ * 
+ * @param prefix The other prefix in IPv6 string notation.
+ * @param length Netmask of the other prefix in CIDR notation.
+ * @return true The other prefix is in this prefix.
+ * @return false The other prefix is not in this prefix.
+ */
+bool Route6::includes (const char* prefix, uint8_t length) const {
+    uint8_t prefix_arr[16];
+    if (inet_pton(AF_INET6, prefix, prefix_arr) <= 0) return false;
+    return Includes(this->prefix, this->length, prefix_arr, length);
 }
 
 }
