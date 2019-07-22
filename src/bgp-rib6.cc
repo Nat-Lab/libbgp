@@ -1,3 +1,13 @@
+/**
+ * @file bgp-rib6.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief The IPv6 BGP Routing Information Base.
+ * @version 0.1
+ * @date 2019-07-21
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <string.h>
 #include <arpa/inet.h>
 #include "bgp-rib6.h"

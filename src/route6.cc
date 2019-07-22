@@ -1,3 +1,13 @@
+/**
+ * @file route6.cc
+ * @author Nato Morichika <nat@nat.moe>
+ * @brief IPv6 Route/Prefix related utilities.
+ * @version 0.1
+ * @date 2019-07-21
+ * 
+ * @copyright Copyright (c) 2019
+ * 
+ */
 #include <string.h>
 #include <arpa/inet.h>
 #include "route6.h"
