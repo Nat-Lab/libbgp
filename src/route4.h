@@ -1,9 +1,9 @@
 /**
- * @file route.h
+ * @file route4.h
  * @author Nato Morichika <nat@nat.moe>
- * @brief Route/Prefix related utilities.
- * @version 0.1
- * @date 2019-07-04
+ * @brief IPv4 Route/Prefix related utilities.
+ * @version 0.2
+ * @date 2019-07-21
  * 
  * @copyright Copyright (c) 2019
  * 
@@ -17,13 +17,13 @@ namespace libbgp {
 uint32_t cidr_to_mask(uint8_t cidr);
 
 /**
- * @brief Route/Prefix related utilities.
+ * @brief IPv4 Route/Prefix related utilities.
  * 
  */
-class Route {
+class Route4 {
 public:
-    Route(uint32_t prefix, uint8_t length);
-    Route(const char* prefix, uint8_t length);
+    Route4(uint32_t prefix, uint8_t length);
+    Route4(const char* prefix, uint8_t length);
 
     // static utility functions for route include test
     static bool Includes (uint32_t prefix, uint8_t length, uint32_t address);
@@ -34,24 +34,24 @@ public:
     bool includes (const char* address) const;
 
     // test if route other is sub-prefix
-    bool includes (const Route &other) const;
+    bool includes (const Route4 &other) const;
     bool includes (uint32_t prefix, uint8_t length) const;
     bool includes (const char* prefix, uint8_t length) const;
 
     // test if length & prefix equals to other
-    bool operator== (const Route &other) const;
+    bool operator== (const Route4 &other) const;
 
     // test if length smaller (prefix size bigger) then other. prefix must be
     // same to do this.
-    bool operator> (const Route &other) const;
+    bool operator> (const Route4 &other) const;
 
     // test if length bigger (prefix size smaller) then other. prefix must be
     // same to do this.
-    bool operator< (const Route &other) const;
+    bool operator< (const Route4 &other) const;
 
-    bool operator>= (const Route &other) const;
-    bool operator<= (const Route &other) const;
-    bool operator!= (const Route &other) const;
+    bool operator>= (const Route4 &other) const;
+    bool operator<= (const Route4 &other) const;
+    bool operator!= (const Route4 &other) const;
 
     bool set(uint32_t prefix, uint8_t length);
     bool setPrefix(uint32_t prefix);
