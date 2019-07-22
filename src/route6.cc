@@ -322,4 +322,67 @@ bool Route6::operator!= (const Route6 &other) const {
     return !(*this == other);
 }
 
+/**
+ * @brief Set route.
+ * 
+ * @param prefix Prefix.
+ * @param length The netmask in CIDR notation.
+ * @return true Route set.
+ * @return false Failed to set route.s
+ */
+bool Route6::set(const uint8_t prefix[16], uint8_t length) {
+
+}
+
+/**
+ * @brief Set prefix
+ * 
+ * @param prefix Prefix to set.
+ * @return true Prefix set.
+ * @return false Failed to set prefix.
+ */
+bool Route6::setPrefix(const uint8_t prefix[16]) {
+
+}
+
+/**
+ * @brief Set netmask.
+ * 
+ * @param length The netmask in CIDR notation.
+ * @return true Netmask set.
+ * @return false Failed to set netmask.
+ */
+bool Route6::setLength(uint8_t length) {
+
+}
+
+/**
+ * @brief Get prefix.
+ * 
+ * @param prefix Bytes array to store the prefix.
+ */
+void Route6::getPrefix(uint8_t prefix[16]) const {
+    memcpy(prefix, this->prefix, 16);
+}
+
+/**
+ * @brief Get netmask.
+ * 
+ * @return uint8_t The netmask in CIDR notation.
+ */
+uint8_t Route6::getLength() const {
+    return length;
+}
+
+/**
+ * @brief Get netmask.
+ * 
+ * @param mask Bytes array to store the netmask.
+ * @throws "bad_route_length" Netmask invalid.
+ */
+void Route6::getMask(uint8_t mask[16]) const {
+    if (length > 128) throw "bad_route_length";
+    cidr_to_mask6(length, mask);
+}
+
 }
