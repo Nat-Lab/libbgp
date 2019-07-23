@@ -434,12 +434,13 @@ public:
 };
 
 /**
- * @brief MP-BGP ReachNlri base class.
+ * @brief MP-BGP Reach/Unreach NLRI base class.
  * 
  */
-class BgpPathAttribMpReachNlri : public BgpPathAttrib {
+class BgpPathAttribMpNlriBase : public BgpPathAttrib {
 public:
-    BgpPathAttribMpReachNlri(BgpLogHandler *logger);
+    BgpPathAttribMpNlriBase(BgpLogHandler *logger);
+    static int16_t GetAfiFromBuffer(const uint8_t *buffer, size_t length);
 
     /**
      * @brief Address Family Identifier
@@ -461,7 +462,7 @@ protected:
  * @brief MP-BGP ReachNlri IPv6 NLRI class.
  * 
  */
-class BgpPathAttribMpReachNlriIpv6 : public BgpPathAttribMpReachNlri {
+class BgpPathAttribMpReachNlriIpv6 : public BgpPathAttribMpNlriBase {
 public:
     BgpPathAttribMpReachNlriIpv6(BgpLogHandler *logger);
 
@@ -480,7 +481,7 @@ public:
  * @brief MP-BGP ReachNlri container for unknow AFI/SAFI.
  * 
  */
-class BgpPathAttribMpReachNlriUnknow : public BgpPathAttribMpReachNlri {
+class BgpPathAttribMpReachNlriUnknow : public BgpPathAttribMpNlriBase {
 public:
     BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger);
 
@@ -502,34 +503,10 @@ private:
 };
 
 /**
- * @brief MP-BGP UnreachNlri base class.
- * 
- */
-class BgpPathAttributeMpUnreachNlri : public BgpPathAttrib {
-public:
-    BgpPathAttributeMpUnreachNlri(BgpLogHandler *logger);
-
-    /**
-     * @brief Address Family Identifier
-     * 
-     */
-    uint16_t afi;
-
-    /**
-     * @brief Subsequent Address Family Identifier
-     * 
-     */
-    uint8_t safi;
-
-protected:
-    ssize_t parseHeader(const uint8_t *buffer, size_t length);
-};
-
-/**
  * @brief MP-BGP UnreachNlri IPv6 class.
  * 
  */
-class BgpPathAttribMpUnreachNlriIpv6 : public BgpPathAttributeMpUnreachNlri {
+class BgpPathAttribMpUnreachNlriIpv6 : public BgpPathAttribMpNlriBase {
 public:
     BgpPathAttribMpUnreachNlriIpv6(BgpLogHandler *logger);
     std::vector<Prefix6> withdrawn_routes;
@@ -545,7 +522,7 @@ public:
  * @brief MP-BGP UnreachNlri container for unknow AFI/SAFI.
  * 
  */
-class BgpPathAttribMpUnreachNlriUnknow : public BgpPathAttributeMpUnreachNlri {
+class BgpPathAttribMpUnreachNlriUnknow : public BgpPathAttribMpNlriBase {
 public:
     BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger);
 
