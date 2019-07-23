@@ -103,6 +103,41 @@ public:
 };
 
 /**
+ * @brief Address Family Identifiers.
+ * 
+ */
+enum Afi {
+    IPv4 = 1,
+    IPv6 = 2
+};
+
+enum Safi {
+    UNICAST = 1,
+    MULTICAST = 2,
+    UNICAST_AND_MULTICAST = 3
+};
+
+class BgpCapabilityMpBgp : public BgpCapability {
+    BgpCapabilityMpBgp(BgpLogHandler *logger);
+
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t parse(const uint8_t *from, size_t msg_sz);
+    ssize_t write(uint8_t *to, size_t buf_sz) const;
+
+    /**
+     * @brief Address Family Identifier.
+     * 
+     */
+    uint16_t afi;
+
+    /**
+     * @brief Subsequent Address Family Identifier
+     * 
+     */
+    uint8_t safi;
+};
+
+/**
  * @brief The BgpCapabilityUnknow class.
  * 
  */
