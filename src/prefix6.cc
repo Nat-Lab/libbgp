@@ -11,6 +11,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "prefix6.h"
+#include "value-op.h"
 
 namespace libbgp {
 
@@ -181,6 +182,15 @@ bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]) 
 }
 
 /**
+ * @brief Construct a new Prefix6 object.
+ * 
+ */
+Prefix6::Prefix6() {
+    this->length = 0;
+    memset(prefix, 0, 16);
+}
+
+/**
  * @brief Construct a new Prefix6 object
  * 
  * @param prefix Prefix as bytes array.
@@ -200,6 +210,25 @@ Prefix6::Prefix6 (const uint8_t prefix[16], uint8_t length) {
 Prefix6::Prefix6 (const char* prefix, uint8_t length) {
     this->length = length;
     inet_pton(AF_INET6, prefix, this->prefix);
+}
+
+/**
+ * @brief Parse a IPv6 NLRI prefix from buffer.
+ * 
+ * @param buffer Buffer to parse from.
+ * @param buf_sz Size of the buffer.
+ * @return ssize_t Bytes read.
+ * @retval -1 Failed to parse prefix.
+ * @retval >=0 Bytes read.
+ */
+ssize_t Prefix6::parse(const uint8_t *buffer, size_t buf_sz) {
+    if (buf_sz < 1) return -1;
+    length = getValue<uint8_t>(&buffer);
+    if (length > 128) return -1;
+    size_t prefix_buf_sz = (length + 7) / 8;
+    if (buf_sz < prefix_buf_sz + 1) return -1;
+    memcpy(prefix, buffer, prefix_buf_sz);
+    return 1 + prefix_buf_sz;
 }
 
 /**

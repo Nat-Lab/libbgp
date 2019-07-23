@@ -23,8 +23,11 @@ bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]);
  */
 class Prefix6 {
 public:
+    Prefix6();
     Prefix6(const uint8_t prefix[16], uint8_t length);
     Prefix6(const char* prefix, uint8_t length);
+
+    ssize_t parse(const uint8_t *buffer, size_t buf_sz);
 
     // static utility functions for route include test
     static bool Includes (const uint8_t prefix[16], uint8_t length, const uint8_t address[16]);
