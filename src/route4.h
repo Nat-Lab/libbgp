@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2019
  * 
  */
-#ifndef BGP_ROUTE_H_
-#define BGP_ROUTE_H_
+#ifndef BGP_ROUTE4_H_
+#define BGP_ROUTE4_H_
 #include <stdint.h>
 
 namespace libbgp {
@@ -67,4 +67,4 @@ private:
 
 }
 
-#endif // BGP_ROUTE_H
+#endif // BGP_ROUTE4_H_

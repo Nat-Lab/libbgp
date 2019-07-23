@@ -68,4 +68,4 @@ private:
 
 }
 
-#endif // BGP_ROUTE6_H
+#endif // BGP_ROUTE6_H_

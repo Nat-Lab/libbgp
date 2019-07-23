@@ -55,7 +55,7 @@ public:
     uint32_t src_router_id;
 
     /**
-     * @brief The update ID. BgpRibEntry with same update ID are received from
+     * @brief The update ID. BgpRib6Entry with same update ID are received from
      * the same update and their path attributes are therefore same. Note that
      * entries with different update_id may still have same path attributes.
      * 

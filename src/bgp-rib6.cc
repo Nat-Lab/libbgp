@@ -338,7 +338,7 @@ const BgpRib6Entry* BgpRib6::lookup(uint32_t src_router_id, const uint8_t dest[1
 /**
  * @brief Get the RIB.
  * 
- * @return const std::vector<BgpRibEntry>& The RIB.
+ * @return const std::vector<BgpRib6Entry>& The RIB.
  */
 const std::vector<BgpRib6Entry>& BgpRib6::get() const {
     return rib;
