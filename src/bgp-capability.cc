@@ -125,8 +125,8 @@ ssize_t BgpCapabilityMpBgp::doPrint(size_t indent, uint8_t **to, size_t *buf_sz)
         const char* safi_name = NULL;
 
         switch (afi) {
-            case IPv4: afi_name = "IPv4"; break;
-            case IPv6: afi_name = "IPv6"; break;
+            case IPV4: afi_name = "IPv4"; break;
+            case IPV6: afi_name = "IPv6"; break;
             default: afi_name = "Unknow"; break;
         }
 
