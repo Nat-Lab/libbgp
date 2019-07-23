@@ -54,7 +54,7 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn) {
     in_sink.setLogger(logger);
 
     if (!config.rib) {
-        rib = new BgpRib(logger);
+        rib = new BgpRib4(logger);
         rib_local = true;
     } else {
         rib = config.rib;
@@ -94,7 +94,7 @@ uint16_t BgpFsm::getHoldTimer() const {
     return hold_timer;
 }
 
-BgpRib& BgpFsm::getRib() const {
+BgpRib4& BgpFsm::getRib() const {
     return rib_local ? *rib : *(config.rib);
 }
 
@@ -586,8 +586,8 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     setState(ESTABLISHED);
     if(!writeMessage(keep)) return -1;
 
-    std::vector<BgpRibEntry>::const_iterator iter = rib->get().begin();
-    const std::vector<BgpRibEntry>::const_iterator end = rib->get().end();
+    std::vector<BgpRib4Entry>::const_iterator iter = rib->get().begin();
+    const std::vector<BgpRib4Entry>::const_iterator end = rib->get().end();
 
     // group routes and and updates
     while (iter != end) {

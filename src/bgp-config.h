@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include "clock.h"
 #include "bgp-rib4.h"
-#include "bgp-filter.h"
+#include "bgp-filter4.h"
 #include "bgp-out-handler.h"
 #include "bgp-log-handler.h"
 #include "route-event-bus.h"

@@ -1,14 +1,14 @@
 /**
- * @file bgp-filter.cc
+ * @file bgp-filter4.cc
  * @author Nato Morichika <nat@nat.moe>
- * @brief The Route filtering engine.
- * @version 0.1
- * @date 2019-07-06
+ * @brief The IPv4 Route filtering engine.
+ * @version 0.2
+ * @date 2019-07-21
  * 
  * @copyright Copyright (c) 2019
  * 
  */
-#include "bgp-filter.h"
+#include "bgp-filter4.h"
 
 namespace libbgp {
 
@@ -45,7 +45,7 @@ BgpFilterRule::BgpFilterRule(BgpFilterType type, BgpFilterOP op, const char *pre
  * @param op Action to take
  * @param p Prefix to match.
  */
-BgpFilterRule::BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route &p) : prefix(p) {
+BgpFilterRule::BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route4 &p) : prefix(p) {
     this->type = type;
     this->op = op;
 }
@@ -56,7 +56,7 @@ BgpFilterRule::BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route &p)
  * @param prefix The prefix to run this rule on.
  * @return BgpFilterOP The operation to take.
  */
-BgpFilterOP BgpFilterRule::apply(const Route &prefix) const {
+BgpFilterOP BgpFilterRule::apply(const Route4 &prefix) const {
     if (type == STRICT && this->prefix == prefix) return op;
     if (type == LOOSE && this->prefix.includes(prefix)) return op;
     return NOP;
@@ -111,7 +111,7 @@ void BgpFilterRules::append(const BgpFilterRule &rule) {
  * @param prefix The prefix to run rules set on.
  * @return BgpFilterOP The operation to take.
  */
-BgpFilterOP BgpFilterRules::apply(const Route &prefix) const {
+BgpFilterOP BgpFilterRules::apply(const Route4 &prefix) const {
     BgpFilterOP op = default_op;
     for (const BgpFilterRule &rule : rules) {
         BgpFilterOP this_op = rule.apply(prefix);

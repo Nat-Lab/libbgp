@@ -1,18 +1,18 @@
 /**
- * @file bgp-filter.h
+ * @file bgp-filter4.h
  * @author Nato Morichika <nat@nat.moe>
- * @brief The Route filtering engine.
- * @version 0.1
- * @date 2019-07-06
+ * @brief The IPv4 Route filtering engine.
+ * @version 0.2
+ * @date 2019-07-21
  * 
  * @copyright Copyright (c) 2019
  * 
  */
-#ifndef BGP_FILTER_H_
-#define BGP_FILTER_H_
+#ifndef BGP_FILTER4_H_
+#define BGP_FILTER4_H_
 #include <stdint.h>
 #include <vector>
-#include "route.h"
+#include "route4.h"
 
 namespace libbgp {
 
@@ -45,14 +45,14 @@ class BgpFilterRule {
 public:
     BgpFilterRule(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
     BgpFilterRule(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask);
-    BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route &prefix);
+    BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route4 &prefix);
     BgpFilterOP apply(uint32_t prefix, uint8_t mask) const;
-    BgpFilterOP apply(const Route &prefix) const;
+    BgpFilterOP apply(const Route4 &prefix) const;
 
 private:
     BgpFilterType type;
     BgpFilterOP op;
-    Route prefix;
+    Route4 prefix;
 };
 
 /**
@@ -68,7 +68,7 @@ public:
 
     void append(const BgpFilterRule &rule);
     BgpFilterOP apply(uint32_t prefix, uint32_t mask) const;
-    BgpFilterOP apply(const Route &prefix) const;
+    BgpFilterOP apply(const Route4 &prefix) const;
 
 private:
     BgpFilterOP default_op;
@@ -83,4 +83,4 @@ private:
 
 }
 
-#endif // BGP_FILTER_H_
+#endif // BGP_FILTER4_H_
