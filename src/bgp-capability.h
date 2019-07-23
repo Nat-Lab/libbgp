@@ -10,6 +10,7 @@
  */
 #ifndef BGP_CAP_H_
 #define BGP_CAP_H_
+#include "bgp-afi.h"
 #include "serializable.h"
 #include <stdint.h>
 
@@ -100,25 +101,6 @@ public:
      * 
      */
     uint32_t my_asn;
-};
-
-/**
- * @brief Address Family Identifiers.
- * 
- */
-enum Afi {
-    IPv4 = 1,
-    IPv6 = 2
-};
-
-/**
- * @brief Subsequent Address Family Identifiers
- * 
- */
-enum Safi {
-    UNICAST = 1,
-    MULTICAST = 2,
-    UNICAST_AND_MULTICAST = 3
 };
 
 /**
