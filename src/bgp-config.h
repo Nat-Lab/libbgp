@@ -122,12 +122,22 @@ typedef struct BgpConfig {
     bool use_4b_asn;
 
     /**
+     * @brief Enable MP-BGP IPv4 support.
+     * 
+     * Set this parameter to true will enable IPv4 support with MP-BGP. Note
+     * that even without MP-BGP IPv4, IPv4 routing information will still be
+     * exchanged with normal BGP session.
+     * 
+     */
+    bool mp_bgp_ipv4;
+
+    /**
      * @brief Enable MP-BGP IPv6 support.
      * 
      * Set this parameter to true will enable IPv6 support with MP-BGP.
      * 
      */
-    bool enable_ipv6;
+    bool mp_bgp_ipv6;
 
     /**
      * @brief Local ASN.
