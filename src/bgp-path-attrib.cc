@@ -10,6 +10,7 @@
  */
 #include "bgp-path-attrib.h"
 #include "bgp-errcode.h"
+#include "bgp-afi.h"
 #include "value-op.h"
 #include <stdlib.h>
 #include <arpa/inet.h>
@@ -1437,6 +1438,115 @@ ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
 
 ssize_t BgpPathAttribCommunity::length() const {
     return 7;
+}
+
+BgpPathAttribMpNlriBase::BgpPathAttribMpNlriBase(BgpLogHandler *logger) : BgpPathAttrib(logger) {}
+
+ssize_t BgpPathAttribMpNlriBase::parseHeader(const uint8_t *from, size_t length) {
+    size_t hdr_len = BgpPathAttrib::parseHeader(from, length);
+
+    if (hdr_len < 0) return -1;
+
+    if (type_code != MP_REACH_NLRI) {
+        logger->log(FATAL, "BgpPathAttribMpNlriBase::parseHeader: type in header mismatch.\n");
+        throw "bad_type";
+    }
+
+    if (value_len < 5) {
+        logger->log(ERROR, "BgpPathAttribMpNlriBase::parseHeader: incompete attribute.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    const uint8_t *buffer = from + hdr_len;
+    afi = ntohs(getValue<uint16_t>(&buffer));
+    safi = getValue<uint8_t>(&buffer);
+
+    return hdr_len + 3;
+}
+
+BgpPathAttribMpReachNlriIpv6::BgpPathAttribMpReachNlriIpv6(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    afi = IPV6;
+}
+
+BgpPathAttrib* BgpPathAttribMpReachNlriIpv6::clone() const {
+    if (hasError()) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
+    return new BgpPathAttribMpReachNlriIpv6(*this);
+}
+
+ssize_t BgpPathAttribMpReachNlriIpv6::parse(const uint8_t *from, size_t length) {
+    ssize_t hdr_len = parseHeader(from, length);
+
+    if (hdr_len < 0) return -1;
+
+    if (afi != IPV6) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::parse: afi mismatch.\n");
+        throw "bad_type";
+    }
+
+    const uint8_t *buffer = from + hdr_len;
+    uint8_t nexthop_length = getValue<uint8_t>(&buffer);
+
+    if (nexthop_length != 16 || nexthop_length != 32) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: bad nexthop length %d (want 16 or 32).\n", nexthop_length);
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    ssize_t buf_left = value_len - hdr_len - 1;
+
+    if (buf_left < (ssize_t) nexthop_length) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: nexthop overflows buffer.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    memcpy(nexthop_global, buffer, 16); buffer += 16;
+    if (nexthop_length == 32) {
+        memcpy(nexthop_linklocal, buffer, 16); buffer += 16;
+    } else memset(nexthop_linklocal, 0, 16);
+    
+    buf_left -= nexthop_length;
+
+    if (buf_left < 1) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: reserved bits overflows buffer.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    uint8_t res = getValue<uint8_t>(&buffer);
+    buf_left--;
+
+    if (res != 0) {
+        logger->log(WARN, "BgpPathAttribMpReachNlriIpv6::parse: reserved bits != 0\n");
+    }
+
+    while (buf_left > 0) {
+        uint8_t prefix_len = getValue<uint8_t>(&buffer);
+        size_t prefix_buf_len = 0;
+        Prefix6 this_prefix = Prefix6();
+        ssize_t pfx_read_len = this_prefix.parse(buffer, buf_left);
+
+        if (pfx_read_len < 0) {
+            logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: error parsing nlri entry.\n");
+            setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+            return -1;
+        }
+
+        buffer += pfx_read_len;
+        buf_left -= pfx_read_len;
+        nlri.push_back(this_prefix);
+    }
+
+    if (buf_left != 0) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::parse: parsed end with non-zero buf_left (%d).\n", buf_left);
+        throw "bad_parse";
+    }
+
+    return value_len + hdr_len;
 }
 
 }
