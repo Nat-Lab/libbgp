@@ -14,6 +14,7 @@
 
 #include "clock.h"
 #include "bgp-rib4.h"
+#include "bgp-rib6.h"
 #include "bgp-config.h"
 #include "bgp-sink.h"
 #include "route-event-receiver.h"
@@ -87,11 +88,18 @@ public:
     uint16_t getHoldTimer() const;
 
     /**
-     * @brief Get the Routing Information Base.
+     * @brief Get the IPv4 Routing Information Base.
      * 
-     * @return BgpRib& reference to the RIB.
+     * @return BgpRib4& reference to the RIB.
      */
-    BgpRib4& getRib() const;
+    BgpRib4& getRib4() const;
+
+    /**
+     * @brief Get the IPv6 Routing Information Base.
+     * 
+     * @return BgpRib6& reference to the RIB.
+     */
+    BgpRib6& getRib6() const;
 
     /**
      * @brief Get current FSM state.
@@ -225,7 +233,8 @@ private:
     BgpSink in_sink;
     BgpState state;
     BgpConfig config;
-    BgpRib4 *rib;
+    BgpRib4 *rib4;
+    BgpRib6 *rib6;
     Clock *clock;
     BgpLogHandler *logger;
 

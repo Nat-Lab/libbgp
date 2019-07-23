@@ -53,11 +53,11 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn) {
 
     in_sink.setLogger(logger);
 
-    if (!config.rib) {
-        rib = new BgpRib4(logger);
+    if (!config.rib4) {
+        rib4 = new BgpRib4(logger);
         rib_local = true;
     } else {
-        rib = config.rib;
+        rib4 = config.rib4;
         rib_local = false;
     }
 
@@ -68,7 +68,7 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn) {
 
 BgpFsm::~BgpFsm() {
     free(out_buffer);
-    if (rib_local) delete rib;
+    if (rib_local) delete rib4;
     if (clock_local) delete clock;
     if (rev_bus_exist) config.rev_bus->unsubscribe(this);
     if (log_local) delete logger;
@@ -94,8 +94,8 @@ uint16_t BgpFsm::getHoldTimer() const {
     return hold_timer;
 }
 
-BgpRib4& BgpFsm::getRib() const {
-    return rib_local ? *rib : *(config.rib);
+BgpRib4& BgpFsm::getRib4() const {
+    return rib_local ? *rib4 : *(config.rib4);
 }
 
 BgpState BgpFsm::getState() const {
@@ -435,7 +435,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     update.setAttribs(ev.attribs);
 
     for (const Route4 &route : ev.routes) {
-        if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
+        if (config.out_filters4.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             update.addNlri(route);
         } else {
             LIBBGP_LOG(logger, INFO) {
@@ -586,8 +586,8 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     setState(ESTABLISHED);
     if(!writeMessage(keep)) return -1;
 
-    std::vector<BgpRib4Entry>::const_iterator iter = rib->get().begin();
-    const std::vector<BgpRib4Entry>::const_iterator end = rib->get().end();
+    std::vector<BgpRib4Entry>::const_iterator iter = rib4->get().begin();
+    const std::vector<BgpRib4Entry>::const_iterator end = rib4->get().end();
 
     // group routes and and updates
     while (iter != end) {
@@ -605,7 +605,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
 
         for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
             const Route4 &r = iter->route;
-            if (config.out_filters.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
+            if (config.out_filters4.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
                 msg_len += 1 + (r.getLength() + 7) / 8;
                 if (msg_len > 4096) {
                     // size too big, roll back and break.
@@ -637,7 +637,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
 
     for (const Route4 &route : update->withdrawn_routes) {
-        rib->withdraw(peer_bgp_id, route);
+        rib4->withdraw(peer_bgp_id, route);
     }
 
     if (update->nlri.size() > 0) {
@@ -668,20 +668,20 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
     std::vector<Route4> routes = std::vector<Route4> ();
     for (const Route4 &route : update->nlri) {
-        if(config.in_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
+        if(config.in_filters4.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             routes.push_back(route);
         } else {
             LIBBGP_LOG(logger, INFO) {
                 uint32_t prefix = route.getPrefix();
                 char ip_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                logger->log(INFO, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters.\n", ip_str, route.getLength());
+                logger->log(INFO, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters4.\n", ip_str, route.getLength());
             }
         }
     }
 
     if (routes.size() > 0) {
-        rib->insert(peer_bgp_id, routes, update->path_attribute);
+        rib4->insert(peer_bgp_id, routes, update->path_attribute);
     }
 
     if (rev_bus_exist) {
@@ -704,7 +704,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
 void BgpFsm::dropAllRoutes() {
     if (peer_bgp_id != 0) {
-        std::vector<Route4> dropped_routes = rib->discard(peer_bgp_id);
+        std::vector<Route4> dropped_routes = rib4->discard(peer_bgp_id);
         if (rev_bus_exist && dropped_routes.size() > 0) {
             RouteWithdrawEvent wev;
             wev.routes = dropped_routes;

@@ -13,7 +13,9 @@
 #include <stdint.h>
 #include "clock.h"
 #include "bgp-rib4.h"
+#include "bgp-rib6.h"
 #include "bgp-filter4.h"
+#include "bgp-filter6.h"
 #include "bgp-out-handler.h"
 #include "bgp-log-handler.h"
 #include "route-event-bus.h"
@@ -26,18 +28,32 @@ namespace libbgp {
  */
 typedef struct BgpConfig {
     /**
-     * @brief Ingress route filters.
+     * @brief IPv4 Ingress route filters.
      * 
      * Ingress route filters are applied on the routes received from the peer. 
      */
-    BgpFilterRules in_filters;
+    BgpFilterRules4 in_filters4;
 
     /**
-     * @brief Egress route filters.
+     * @brief IPv4 Egress route filters.
      * 
      * Egress route filters are applied when sending routes to the peer. 
      */
-    BgpFilterRules out_filters;
+    BgpFilterRules4 out_filters4;
+
+    /**
+     * @brief IPv6 Ingress route filters.
+     * 
+     * Ingress route filters are applied on the routes received from the peer. 
+     */
+    BgpFilterRules6 in_filters6;
+
+    /**
+     * @brief IPv6 Ingress route filters.
+     * 
+     * Egress route filters are applied when sending routes to the peer. 
+     */
+    BgpFilterRules6 out_filter6;
 
     /**
      * @brief The output handler.
@@ -61,9 +77,20 @@ typedef struct BgpConfig {
      * would like to share RIB across different BGP FSMs, or pre-fill the RIB 
      * with some routes, you can create the RIB object yourself and pass it as 
      * configuration parameter here. If you set this to NULL, a new RIB will be 
-     * created by BGP FSM. You can get it by calling `BgpFsm::getRib`.
+     * created by BGP FSM. You can get it by calling `BgpFsm::getRib4`.
      */
-    BgpRib4 *rib;
+    BgpRib4 *rib4;
+
+    /**
+     * @brief Pointer to the IPv6 Routing Information Base object.
+     * 
+     * BGP FSM will use this RIB object to store routing information. If you 
+     * would like to share RIB across different BGP FSMs, or pre-fill the RIB 
+     * with some routes, you can create the RIB object yourself and pass it as 
+     * configuration parameter here. If you set this to NULL, a new RIB will be 
+     * created by BGP FSM. You can get it by calling `BgpFsm::getRib6`.
+     */
+    BgpRib6 *rib6;
 
     // pointer to event bus, route add/withdraw events will be sent to other
     // FSM thru event bus, won't use if NULL
@@ -93,6 +120,14 @@ typedef struct BgpConfig {
      * Set this parameter to true will eable four octets ASN support.
      */
     bool use_4b_asn;
+
+    /**
+     * @brief Enable MP-BGP IPv6 support.
+     * 
+     * Set this parameter to true will enable IPv6 support with MP-BGP.
+     * 
+     */
+    bool enable_ipv6;
 
     /**
      * @brief Local ASN.

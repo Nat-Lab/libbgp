@@ -12,40 +12,22 @@
 #define BGP_FILTER4_H_
 #include <stdint.h>
 #include <vector>
+#include "bgp-filter.h"
 #include "route4.h"
 
 namespace libbgp {
 
 /**
- * @brief The filter operation.
+ * @brief The BgpFilterRule4 class.
+ * 
+ * A BGP IPv4 route filtering rule.
  * 
  */
-enum BgpFilterOP {
-    NOP, /*!< No Operation (Prefix does not match) */
-    ACCEPT, /*!< Accept */
-    REJECT /*!< Reject */
-};
-
-/**
- * @brief The types of filter.
- * 
- */
-enum BgpFilterType {
-    STRICT, /*!< Only match if the target subnet is an exact match */
-    LOOSE /*!< Match if the taeget subnet is a sub-prefix */
-};
-
-/**
- * @brief The BgpFilterRule class.
- * 
- * A BGP route filtering rule.
- * 
- */
-class BgpFilterRule {
+class BgpFilterRule4 {
 public:
-    BgpFilterRule(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
-    BgpFilterRule(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask);
-    BgpFilterRule(BgpFilterType type, BgpFilterOP op, const Route4 &prefix);
+    BgpFilterRule4(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
+    BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask);
+    BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Route4 &prefix);
     BgpFilterOP apply(uint32_t prefix, uint8_t mask) const;
     BgpFilterOP apply(const Route4 &prefix) const;
 
@@ -56,23 +38,23 @@ private:
 };
 
 /**
- * @brief The BgpFilterRules class.
+ * @brief The BgpFilterRules4 class.
  * 
- * A list of BGP route filtering rules.
+ * A list of BGP IPv4 route filtering rules.
  * 
  */
-class BgpFilterRules {
+class BgpFilterRules4 {
 public:
-    BgpFilterRules();
-    BgpFilterRules(BgpFilterOP default_op);
+    BgpFilterRules4();
+    BgpFilterRules4(BgpFilterOP default_op);
 
-    void append(const BgpFilterRule &rule);
+    void append(const BgpFilterRule4 &rule);
     BgpFilterOP apply(uint32_t prefix, uint32_t mask) const;
     BgpFilterOP apply(const Route4 &prefix) const;
 
 private:
     BgpFilterOP default_op;
-    std::vector<BgpFilterRule> rules;
+    std::vector<BgpFilterRule4> rules;
 };
 
 /**
