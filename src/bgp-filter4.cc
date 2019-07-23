@@ -45,7 +45,7 @@ BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *p
  * @param op Action to take
  * @param p Prefix to match.
  */
-BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Route4 &p) : prefix(p) {
+BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Prefix4 &p) : prefix(p) {
     this->type = type;
     this->op = op;
 }
@@ -56,7 +56,7 @@ BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Route4 
  * @param prefix The prefix to run this rule on.
  * @return BgpFilterOP The operation to take.
  */
-BgpFilterOP BgpFilterRule4::apply(const Route4 &prefix) const {
+BgpFilterOP BgpFilterRule4::apply(const Prefix4 &prefix) const {
     if (type == STRICT && this->prefix == prefix) return op;
     if (type == LOOSE && this->prefix.includes(prefix)) return op;
     return NOP;
@@ -111,7 +111,7 @@ void BgpFilterRules4::append(const BgpFilterRule4 &rule) {
  * @param prefix The prefix to run rules set on.
  * @return BgpFilterOP The operation to take.
  */
-BgpFilterOP BgpFilterRules4::apply(const Route4 &prefix) const {
+BgpFilterOP BgpFilterRules4::apply(const Prefix4 &prefix) const {
     BgpFilterOP op = default_op;
     for (const BgpFilterRule4 &rule : rules) {
         BgpFilterOP this_op = rule.apply(prefix);

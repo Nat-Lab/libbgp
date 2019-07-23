@@ -14,7 +14,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include "route4.h"
+#include "prefix4.h"
 #include "bgp-path-attrib.h"
 
 namespace libbgp {
@@ -25,13 +25,13 @@ namespace libbgp {
  */
 class BgpRib4Entry {
 public:
-    BgpRib4Entry (Route4 r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
+    BgpRib4Entry (Prefix4 r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
 
     /**
      * @brief The prefix of this entry.
      * 
      */
-    Route4 route;
+    Prefix4 route;
 
     /**
      * @brief The originating BGP speaker's ID of this entry. (network bytes order)
@@ -69,24 +69,24 @@ public:
     BgpRib4(BgpLogHandler *logger);
 
     // insert a route as local routing information
-    const BgpRib4Entry* insert(BgpLogHandler *logger, const Route4 &route, uint32_t nexthop);
+    const BgpRib4Entry* insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop);
 
     // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Route4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+    bool insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Route4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // remove a route from RIB, return true if route removed, false if not exist.
-    bool withdraw(uint32_t src_router_id, const Route4 &route);
+    bool withdraw(uint32_t src_router_id, const Prefix4 &route);
 
     // remove routes from RIB, return number of routes removed on success, -1
     // on error
-    ssize_t withdraw(uint32_t src_router_id, const std::vector<Route4> &routes);
+    ssize_t withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes);
 
     // remove all routes from a peer, return all discarded routes on success.
-    std::vector<Route4> discard(uint32_t src_router_id);
+    std::vector<Prefix4> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
     const BgpRib4Entry* lookup(uint32_t dest) const;

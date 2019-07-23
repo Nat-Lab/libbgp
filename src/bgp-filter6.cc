@@ -45,7 +45,7 @@ BgpFilterRule6::BgpFilterRule6(BgpFilterType type, BgpFilterOP op, const char *p
  * @param op Action to take
  * @param p Prefix to match.
  */
-BgpFilterRule6::BgpFilterRule6(BgpFilterType type, BgpFilterOP op, const Route6 &p) : prefix(p) {
+BgpFilterRule6::BgpFilterRule6(BgpFilterType type, BgpFilterOP op, const Prefix6 &p) : prefix(p) {
     this->type = type;
     this->op = op;
 }
@@ -56,7 +56,7 @@ BgpFilterRule6::BgpFilterRule6(BgpFilterType type, BgpFilterOP op, const Route6 
  * @param prefix The prefix to run this rule on.
  * @return BgpFilterOP The operation to take.
  */
-BgpFilterOP BgpFilterRule6::apply(const Route6 &prefix) const {
+BgpFilterOP BgpFilterRule6::apply(const Prefix6 &prefix) const {
     if (type == STRICT && this->prefix == prefix) return op;
     if (type == LOOSE && this->prefix.includes(prefix)) return op;
     return NOP;
@@ -71,7 +71,7 @@ BgpFilterOP BgpFilterRule6::apply(const Route6 &prefix) const {
  */
 BgpFilterOP BgpFilterRule6::apply(const uint8_t prefix[16], uint8_t mask) const {
     if (mask > 128) return NOP;
-    Route6 prefix_obj(prefix, mask);
+    Prefix6 prefix_obj(prefix, mask);
     return apply(prefix_obj);
 }
 
@@ -110,7 +110,7 @@ void BgpFilterRules6::append(const BgpFilterRule6 &rule) {
  * @param prefix The prefix to run rules set on.
  * @return BgpFilterOP The operation to take.
  */
-BgpFilterOP BgpFilterRules6::apply(const Route6 &prefix) const {
+BgpFilterOP BgpFilterRules6::apply(const Prefix6 &prefix) const {
     BgpFilterOP op = default_op;
     for (const BgpFilterRule6 &rule : rules) {
         BgpFilterOP this_op = rule.apply(prefix);

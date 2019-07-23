@@ -1,5 +1,5 @@
 /**
- * @file route4.h
+ * @file prefix4.h
  * @author Nato Morichika <nat@nat.moe>
  * @brief IPv4 Route/Prefix related utilities.
  * @version 0.2
@@ -8,8 +8,8 @@
  * @copyright Copyright (c) 2019
  * 
  */
-#ifndef BGP_ROUTE4_H_
-#define BGP_ROUTE4_H_
+#ifndef BGP_PREFIX4_H_
+#define BGP_PREFIX4_H_
 #include <stdint.h>
 
 namespace libbgp {
@@ -20,10 +20,10 @@ uint32_t cidr_to_mask(uint8_t cidr);
  * @brief IPv4 Route/Prefix related utilities.
  * 
  */
-class Route4 {
+class Prefix4 {
 public:
-    Route4(uint32_t prefix, uint8_t length);
-    Route4(const char* prefix, uint8_t length);
+    Prefix4(uint32_t prefix, uint8_t length);
+    Prefix4(const char* prefix, uint8_t length);
 
     // static utility functions for route include test
     static bool Includes (uint32_t prefix, uint8_t length, uint32_t address);
@@ -34,24 +34,24 @@ public:
     bool includes (const char* address) const;
 
     // test if route other is sub-prefix
-    bool includes (const Route4 &other) const;
+    bool includes (const Prefix4 &other) const;
     bool includes (uint32_t prefix, uint8_t length) const;
     bool includes (const char* prefix, uint8_t length) const;
 
     // test if length & prefix equals to other
-    bool operator== (const Route4 &other) const;
+    bool operator== (const Prefix4 &other) const;
 
     // test if length smaller (prefix size bigger) then other. prefix must be
     // same to do this.
-    bool operator> (const Route4 &other) const;
+    bool operator> (const Prefix4 &other) const;
 
     // test if length bigger (prefix size smaller) then other. prefix must be
     // same to do this.
-    bool operator< (const Route4 &other) const;
+    bool operator< (const Prefix4 &other) const;
 
-    bool operator>= (const Route4 &other) const;
-    bool operator<= (const Route4 &other) const;
-    bool operator!= (const Route4 &other) const;
+    bool operator>= (const Prefix4 &other) const;
+    bool operator<= (const Prefix4 &other) const;
+    bool operator!= (const Prefix4 &other) const;
 
     bool set(uint32_t prefix, uint8_t length);
     bool setPrefix(uint32_t prefix);
@@ -67,4 +67,4 @@ private:
 
 }
 
-#endif // BGP_ROUTE4_H_
+#endif // BGP_PREFIX4_H_

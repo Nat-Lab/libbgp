@@ -12,7 +12,7 @@
 #define BGP_PATH_ATTR_H
 
 #include "serializable.h"
-#include "route6.h"
+#include "prefix6.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <vector>
@@ -464,7 +464,7 @@ public:
 
     uint8_t nexthop_global[16];
     uint8_t nexthop_linklocal[16];
-    std::vector<Route6> nlri;
+    std::vector<Prefix6> nlri;
 
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
@@ -526,7 +526,7 @@ public:
 class BgpPathAttribMpUnreachNlriIpv6 : public BgpPathAttributeMpUnreachNlri {
 public:
     BgpPathAttribMpUnreachNlriIpv6(BgpLogHandler *logger);
-    std::vector<Route6> withdrawn_routes;
+    std::vector<Prefix6> withdrawn_routes;
 
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);

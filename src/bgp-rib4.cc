@@ -20,7 +20,7 @@ namespace libbgp {
  * @param src Originating BGP speaker's ID in network bytes order.
  * @param as Path attributes for this entry.
  */
-BgpRib4Entry::BgpRib4Entry(Route4 r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> as) : route(r), attribs(as) {
+BgpRib4Entry::BgpRib4Entry(Prefix4 r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> as) : route(r), attribs(as) {
     src_router_id = src;
 }
 
@@ -84,12 +84,12 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
  * To remove an entry inserted with this method, use 0 as `src_router_id`.
  * 
  * @param logger Pointer to logger for the created path attributes to use. 
- * @param route Route4.
+ * @param route Prefix4.
  * @param nexthop Nexthop for the route.
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
-const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Route4 &route, uint32_t nexthop) {
+const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop) {
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
     BgpPathAttribNexthop *nexhop_attr = new BgpPathAttribNexthop(logger);
@@ -133,12 +133,12 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Route4 &route, 
  * @brief Insert a new entry into RIB.
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param route Route4.
+ * @param route Prefix4.
  * @param attrib Path attribute.
- * @return true Route4 inserted/replaced.
- * @return false Route4 already exist and the existing one has lower metric. 
+ * @return true Prefix4 inserted/replaced.
+ * @return false Prefix4 already exist and the existing one has lower metric. 
  */
-bool BgpRib4::insert(uint32_t src_router_id, const Route4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
+bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
     BgpRib4Entry new_entry(route, src_router_id, attrib);
 
     for (std::vector<BgpRib4Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
@@ -186,10 +186,10 @@ bool BgpRib4::insert(uint32_t src_router_id, const Route4 &route, const std::vec
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
-ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Route4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
+ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
     size_t inserted = 0;
     uint64_t hold_id = update_id;
-    for (const Route4 &r : routes) {
+    for (const Prefix4 &r : routes) {
         if (insert(src_router_id, r, attrib)) inserted++;
         update_id = hold_id;
     }
@@ -201,11 +201,11 @@ ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Route4> &route
  * @brief Withdraw a route from RIB.
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param route Route4.
- * @return true Route4 dropped.
- * @return false Route4 not dropped. Likely becuase such route does not exist.
+ * @param route Prefix4.
+ * @return true Prefix4 dropped.
+ * @return false Prefix4 not dropped. Likely becuase such route does not exist.
  */
-bool BgpRib4::withdraw(uint32_t src_router_id, const Route4 &route) {
+bool BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     for (std::vector<BgpRib4Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
@@ -233,9 +233,9 @@ bool BgpRib4::withdraw(uint32_t src_router_id, const Route4 &route) {
  * @retval -1 Failed to drop routes.
  * @retval >=0 Number of routes dropped.
  */
-ssize_t BgpRib4::withdraw(uint32_t src_router_id, const std::vector<Route4> &routes) {
+ssize_t BgpRib4::withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes) {
     size_t dropped = 0;
-    for (const Route4 &r : routes) {
+    for (const Prefix4 &r : routes) {
         if (withdraw(src_router_id, r)) dropped++;
     }
     return dropped;
@@ -245,11 +245,11 @@ ssize_t BgpRib4::withdraw(uint32_t src_router_id, const std::vector<Route4> &rou
  * @brief Drop all routes from RIB that originated from a BGP speaker.
  * 
  * @param src_router_id src_router_id Originating BGP speaker's ID in network bytes order.
- * @return std::vector<Route4> Dropped routes.
+ * @return std::vector<Prefix4> Dropped routes.
  */
-std::vector<Route4> BgpRib4::discard(uint32_t src_router_id) {
+std::vector<Prefix4> BgpRib4::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    std::vector<Route4> dropped_routes;
+    std::vector<Prefix4> dropped_routes;
     for (std::vector<BgpRib4Entry>::const_iterator entry = rib.begin(); entry != rib.end();) {
         if (entry->src_router_id == src_router_id) {
             dropped_routes.push_back(entry->route);
@@ -271,8 +271,8 @@ const BgpRib4Entry* BgpRib4::selectEntry(const BgpRib4Entry *a, const BgpRib4Ent
     if (a == NULL) return b;
     if (b == NULL) return a;
 
-    const Route4 &ra = a->route;
-    const Route4 &rb = b->route;
+    const Prefix4 &ra = a->route;
+    const Prefix4 &rb = b->route;
 
     // a is more specific, use a
     if (ra.getLength() > rb.getLength()) return a;
@@ -299,7 +299,7 @@ const BgpRib4Entry* BgpRib4::lookup(uint32_t dest) const {
     const BgpRib4Entry *selected_entry = NULL;
 
     for (const BgpRib4Entry &entry : rib) {
-        const Route4 &route = entry.route;
+        const Prefix4 &route = entry.route;
         if (route.includes(dest)) 
             selected_entry = selectEntry(&entry, selected_entry);
     }
@@ -324,7 +324,7 @@ const BgpRib4Entry* BgpRib4::lookup(uint32_t src_router_id, uint32_t dest) const
 
     for (const BgpRib4Entry &entry : rib) {
         if (entry.src_router_id != src_router_id) continue;
-        const Route4 &route = entry.route;
+        const Prefix4 &route = entry.route;
         if (route.includes(dest)) 
             selected_entry = selectEntry(&entry, selected_entry);
     }

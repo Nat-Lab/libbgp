@@ -59,7 +59,7 @@ public:
      * @brief Routes to add.
      * 
      */
-    std::vector<Route4> routes;
+    std::vector<Prefix4> routes;
 };
 
 /**
@@ -74,7 +74,7 @@ public:
      * @brief Routes to withdraw.
      * 
      */
-    std::vector<Route4> routes;
+    std::vector<Prefix4> routes;
 };
 
 /**

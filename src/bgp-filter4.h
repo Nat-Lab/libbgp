@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <vector>
 #include "bgp-filter.h"
-#include "route4.h"
+#include "prefix4.h"
 
 namespace libbgp {
 
@@ -27,14 +27,14 @@ class BgpFilterRule4 {
 public:
     BgpFilterRule4(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
     BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask);
-    BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Route4 &prefix);
+    BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Prefix4 &prefix);
     BgpFilterOP apply(uint32_t prefix, uint8_t mask) const;
-    BgpFilterOP apply(const Route4 &prefix) const;
+    BgpFilterOP apply(const Prefix4 &prefix) const;
 
 private:
     BgpFilterType type;
     BgpFilterOP op;
-    Route4 prefix;
+    Prefix4 prefix;
 };
 
 /**
@@ -50,7 +50,7 @@ public:
 
     void append(const BgpFilterRule4 &rule);
     BgpFilterOP apply(uint32_t prefix, uint32_t mask) const;
-    BgpFilterOP apply(const Route4 &prefix) const;
+    BgpFilterOP apply(const Prefix4 &prefix) const;
 
 private:
     BgpFilterOP default_op;

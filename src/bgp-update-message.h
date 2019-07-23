@@ -13,7 +13,7 @@
 #include <vector>
 #include <unistd.h>
 #include <memory>
-#include "route4.h"
+#include "prefix4.h"
 #include "bgp-message.h"
 #include "bgp-path-attrib.h"
 
@@ -27,9 +27,9 @@ namespace libbgp {
  */
 class BgpUpdateMessage : public BgpMessage {
 public:
-    std::vector<Route4> withdrawn_routes;
+    std::vector<Prefix4> withdrawn_routes;
     std::vector<std::shared_ptr<BgpPathAttrib>> path_attribute;
-    std::vector<Route4> nlri;
+    std::vector<Prefix4> nlri;
 
     BgpUpdateMessage(BgpLogHandler *logger, bool use_4b_asn);
 
@@ -80,22 +80,22 @@ public:
     bool downgradeAggregator();
 
     // replace withdrawn with routes
-    bool setWithdrawn(const std::vector<Route4> &routes);
+    bool setWithdrawn(const std::vector<Prefix4> &routes);
 
     // utility function to add a route to withdrawn list
     bool addWithdrawn(uint32_t prefix, uint8_t length);
 
     // utility function to add a route to withdrawn list
-    bool addWithdrawn(const Route4 &route);
+    bool addWithdrawn(const Prefix4 &route);
 
     // replace NLRI with routes
-    bool setNlri(const std::vector<Route4> &routes);
+    bool setNlri(const std::vector<Prefix4> &routes);
 
     // utility function to add a route to NLRI
     bool addNlri(uint32_t prefix, uint8_t length);
 
     // utility function to add a route to NLRI
-    bool addNlri(const Route4 &route);
+    bool addNlri(const Prefix4 &route);
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t parse(const uint8_t *from, size_t msg_sz);
