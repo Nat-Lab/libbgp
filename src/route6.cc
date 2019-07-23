@@ -341,7 +341,7 @@ bool Route6::operator!= (const Route6 &other) const {
  * @return false Failed to set route.s
  */
 bool Route6::set(const uint8_t prefix[16], uint8_t length) {
-
+    return setLength(length) && setPrefix(prefix);
 }
 
 /**
@@ -352,7 +352,8 @@ bool Route6::set(const uint8_t prefix[16], uint8_t length) {
  * @return false Failed to set prefix.
  */
 bool Route6::setPrefix(const uint8_t prefix[16]) {
-
+    memcpy(this->prefix, prefix, 16);
+    return true;
 }
 
 /**
@@ -363,7 +364,9 @@ bool Route6::setPrefix(const uint8_t prefix[16]) {
  * @return false Failed to set netmask.
  */
 bool Route6::setLength(uint8_t length) {
-
+    if (length > 128) return false;
+    this->length = length;
+    return true;
 }
 
 /**
