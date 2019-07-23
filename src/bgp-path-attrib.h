@@ -452,6 +452,9 @@ public:
      * 
      */
     uint8_t safi;
+
+protected:
+    ssize_t parseHeader(const uint8_t *buffer, size_t length);
 };
 
 /**
@@ -517,6 +520,9 @@ public:
      * 
      */
     uint8_t safi;
+
+protected:
+    ssize_t parseHeader(const uint8_t *buffer, size_t length);
 };
 
 /**
