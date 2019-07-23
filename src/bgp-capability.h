@@ -111,12 +111,20 @@ enum Afi {
     IPv6 = 2
 };
 
+/**
+ * @brief Subsequent Address Family Identifiers
+ * 
+ */
 enum Safi {
     UNICAST = 1,
     MULTICAST = 2,
     UNICAST_AND_MULTICAST = 3
 };
 
+/**
+ * @brief The BgpCapabilityMpBgp class.
+ * 
+ */
 class BgpCapabilityMpBgp : public BgpCapability {
     BgpCapabilityMpBgp(BgpLogHandler *logger);
 
