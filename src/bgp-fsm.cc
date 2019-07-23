@@ -55,10 +55,18 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn) {
 
     if (!config.rib4) {
         rib4 = new BgpRib4(logger);
-        rib_local = true;
+        rib4_local = true;
     } else {
         rib4 = config.rib4;
-        rib_local = false;
+        rib4_local = false;
+    }
+
+    if (!config.rib6) {
+        rib6 = new BgpRib6(logger);
+        rib6_local = true;
+    } else {
+        rib6 = config.rib6;
+        rib6_local = false;
     }
 
     hold_timer = 0;
@@ -68,7 +76,8 @@ BgpFsm::BgpFsm(const BgpConfig &config) : in_sink(config.use_4b_asn) {
 
 BgpFsm::~BgpFsm() {
     free(out_buffer);
-    if (rib_local) delete rib4;
+    if (rib4_local) delete rib4;
+    if (rib6_local) delete rib6;
     if (clock_local) delete clock;
     if (rev_bus_exist) config.rev_bus->unsubscribe(this);
     if (log_local) delete logger;
@@ -95,7 +104,7 @@ uint16_t BgpFsm::getHoldTimer() const {
 }
 
 BgpRib4& BgpFsm::getRib4() const {
-    return rib_local ? *rib4 : *(config.rib4);
+    return rib4_local ? *rib4 : *(config.rib4);
 }
 
 BgpState BgpFsm::getState() const {

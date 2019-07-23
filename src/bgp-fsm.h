@@ -187,7 +187,8 @@ public:
     void resetHard();
 
 private:
-    bool rib_local;
+    bool rib4_local;
+    bool rib6_local;
     bool clock_local;
     bool log_local;
     bool rev_bus_exist;
