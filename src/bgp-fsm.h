@@ -13,7 +13,7 @@
 #define BGP_FSM_BUFFER_SIZE 4096
 
 #include "clock.h"
-#include "bgp-rib.h"
+#include "bgp-rib4.h"
 #include "bgp-config.h"
 #include "bgp-sink.h"
 #include "route-event-receiver.h"
@@ -91,7 +91,7 @@ public:
      * 
      * @return BgpRib& reference to the RIB.
      */
-    BgpRib& getRib() const;
+    BgpRib4& getRib() const;
 
     /**
      * @brief Get current FSM state.
@@ -225,7 +225,7 @@ private:
     BgpSink in_sink;
     BgpState state;
     BgpConfig config;
-    BgpRib *rib;
+    BgpRib4 *rib;
     Clock *clock;
     BgpLogHandler *logger;
 

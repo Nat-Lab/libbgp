@@ -12,7 +12,7 @@
 #define BGP_CONFIG_H_
 #include <stdint.h>
 #include "clock.h"
-#include "bgp-rib.h"
+#include "bgp-rib4.h"
 #include "bgp-filter.h"
 #include "bgp-out-handler.h"
 #include "bgp-log-handler.h"
@@ -55,7 +55,7 @@ typedef struct BgpConfig {
     BgpLogHandler *log_handler;
 
     /**
-     * @brief Pointer to the Routing Information Base object.
+     * @brief Pointer to the IPv4 Routing Information Base object.
      * 
      * BGP FSM will use this RIB object to store routing information. If you 
      * would like to share RIB across different BGP FSMs, or pre-fill the RIB 
@@ -63,7 +63,7 @@ typedef struct BgpConfig {
      * configuration parameter here. If you set this to NULL, a new RIB will be 
      * created by BGP FSM. You can get it by calling `BgpFsm::getRib`.
      */
-    BgpRib *rib;
+    BgpRib4 *rib;
 
     // pointer to event bus, route add/withdraw events will be sent to other
     // FSM thru event bus, won't use if NULL

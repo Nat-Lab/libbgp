@@ -434,7 +434,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
 
-    for (const Route &route : ev.routes) {
+    for (const Route4 &route : ev.routes) {
         if (config.out_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             update.addNlri(route);
         } else {
@@ -483,7 +483,7 @@ void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
         update.setNextHop(config.nexthop);
     } else {
         BgpPathAttribNexthop &nh = dynamic_cast<BgpPathAttribNexthop &> (update.getAttrib(NEXT_HOP));
-        if (!Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+        if (!Route4::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
             LIBBGP_LOG(logger, INFO) {
                 char def_nexthop[INET_ADDRSTRLEN];
                 char cur_nexthop[INET_ADDRSTRLEN];
@@ -604,7 +604,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
         }
 
         for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
-            const Route &r = iter->route;
+            const Route4 &r = iter->route;
             if (config.out_filters.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
                 msg_len += 1 + (r.getLength() + 7) / 8;
                 if (msg_len > 4096) {
@@ -636,7 +636,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
     const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
 
-    for (const Route &route : update->withdrawn_routes) {
+    for (const Route4 &route : update->withdrawn_routes) {
         rib->withdraw(peer_bgp_id, route);
     }
 
@@ -652,7 +652,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             return 1;
         }
     
-        if (!config.no_nexthop_check && !Route::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+        if (!config.no_nexthop_check && !Route4::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
             LIBBGP_LOG(logger, WARN) {
                 char ip_str_nh[INET_ADDRSTRLEN];
                 char ip_str_lan[INET_ADDRSTRLEN];
@@ -666,8 +666,8 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     }
     
 
-    std::vector<Route> routes = std::vector<Route> ();
-    for (const Route &route : update->nlri) {
+    std::vector<Route4> routes = std::vector<Route4> ();
+    for (const Route4 &route : update->nlri) {
         if(config.in_filters.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
             routes.push_back(route);
         } else {
@@ -704,7 +704,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
 void BgpFsm::dropAllRoutes() {
     if (peer_bgp_id != 0) {
-        std::vector<Route> dropped_routes = rib->discard(peer_bgp_id);
+        std::vector<Route4> dropped_routes = rib->discard(peer_bgp_id);
         if (rev_bus_exist && dropped_routes.size() > 0) {
             RouteWithdrawEvent wev;
             wev.routes = dropped_routes;
