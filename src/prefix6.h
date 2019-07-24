@@ -11,6 +11,7 @@
 #ifndef BGP_PREFIX6_H_
 #define BGP_PREFIX6_H_
 #include <stdint.h>
+#include <unistd.h>
 
 namespace libbgp {
 
