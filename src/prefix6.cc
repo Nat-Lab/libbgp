@@ -181,6 +181,21 @@ bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]) 
     return true;
 }
 
+const uint16_t zero_prefix[16] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
+/**
+ * @brief Test if a IPv6 addresss is all zero.
+ * 
+ * @param prefix The prefix to test.
+ * @return true Address is all zero;
+ * @return false Address is not all zero.
+ */
+bool v6addr_is_zero(const uint8_t prefix[16]) {
+    return memcmp(zero_prefix, prefix, 16) == 0;
+}
+
 /**
  * @brief Construct a new Prefix6 object.
  * 

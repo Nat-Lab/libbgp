@@ -17,6 +17,7 @@ namespace libbgp {
 
 bool cidr_to_mask6(uint8_t src, uint8_t dst[16]);
 bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]);
+bool v6addr_is_zero(const uint8_t prefix[16]);
 
 /**
  * @brief IPv6 Route/Prefix related utilities.
