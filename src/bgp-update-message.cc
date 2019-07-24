@@ -686,21 +686,16 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     size_t written_withdrawn_length = 0;
 
     for (const Prefix4 &route : withdrawn_routes) {
-        uint8_t route_len = route.getLength();
-        uint32_t route_prefix = route.getPrefix();
-        size_t pfx_buf_sz = (route_len + 7) / 8;
+        size_t buf_avali = buf_sz - (written_withdrawn_length + tot_written);
+        ssize_t route_write_ret = route.write(buffer, buf_avali);
 
-        // 1: this prefix len field
-        if (1 + written_withdrawn_length + pfx_buf_sz + tot_written > buf_sz) {
-            logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
+        if (route_write_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::write: failed to write withdraw entry.\n");
             return -1;
         }
 
-        putValue<uint8_t>(&buffer, route_len);
-        memcpy(buffer, &route_prefix, pfx_buf_sz);
-
-        buffer += pfx_buf_sz;
-        written_withdrawn_length += 1 + pfx_buf_sz;
+        buffer += route_write_ret;
+        written_withdrawn_length += route_write_ret;
     }
 
     // now, put the length
@@ -736,22 +731,16 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
     size_t written_nlri_len = 0;
 
     for (const Prefix4 &route : nlri) {
-        uint8_t route_len = route.getLength();
-        uint32_t route_prefix = route.getPrefix();
+        size_t buf_avali = buf_sz - (written_nlri_len + tot_written);
+        ssize_t route_write_ret = route.write(buffer, buf_avali);
 
-        size_t pfx_buf_sz = (route_len + 7) / 8;
-
-        // 1: this prefix len field
-        if (1 + written_nlri_len + pfx_buf_sz + tot_written > buf_sz) {
-            logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
+        if (route_write_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::write: failed to write nlri entry.\n");
             return -1;
         }
 
-        putValue<uint8_t>(&buffer, route_len);
-        memcpy(buffer, &route_prefix, pfx_buf_sz);
-
-        buffer += pfx_buf_sz;
-        written_nlri_len += 1 + pfx_buf_sz;
+        buffer += route_write_ret;
+        written_nlri_len += route_write_ret;
     }
 
     tot_written += written_nlri_len;
