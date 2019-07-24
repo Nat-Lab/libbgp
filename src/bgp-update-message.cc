@@ -565,28 +565,17 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
-        parsed_withdrawn_len++;
-        if (route_len > 32) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
+        Prefix4 route = Prefix4();
+        ssize_t route_read_ret = route.parse(buffer, withdrawn_len - parsed_withdrawn_len);
+        if (route_read_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::parse: error parsing route len in withdrawn routes.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
+        parsed_withdrawn_len += route_read_ret;
+        buffer += route_read_ret;
 
-        size_t route_buffer_len = (route_len + 7) / 8;
-        if (parsed_withdrawn_len + route_buffer_len > withdrawn_len) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
-            setError(E_UPDATE, E_UNSPEC, NULL, 0);
-            return -1;
-        }
-
-        uint32_t prefix = 0;
-        memcpy(&prefix, buffer, route_buffer_len);
-        Prefix4 route(prefix, route_len);
         withdrawn_routes.push_back(route);
-
-        buffer += route_buffer_len; // len2: route_buffer_len
-        parsed_withdrawn_len += route_buffer_len;
     }
 
     if (parsed_withdrawn_len != withdrawn_len) throw "bad_parse";
@@ -659,28 +648,17 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
-        parsed_nlri_len++;
-        if (route_len > 32) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
+        Prefix4 route = Prefix4();
+        ssize_t route_read_ret = route.parse(buffer, nlri_len - parsed_nlri_len);
+        if (route_read_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::parse: error parsing route len in nlri routes.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
+        parsed_nlri_len += route_read_ret;
+        buffer += route_read_ret;
 
-        size_t route_buffer_len = (route_len + 7) / 8;
-        if (parsed_nlri_len + route_buffer_len > nlri_len) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: nlri route overflows routes list.\n");
-            setError(E_UPDATE, E_UNSPEC, NULL, 0);
-            return -1;
-        }
-
-        uint32_t prefix = 0;
-        memcpy(&prefix, buffer, route_buffer_len);
-        Prefix4 route(prefix, route_len);
         nlri.push_back(route);
-
-        buffer += route_buffer_len; // len2: route_buffer_len
-        parsed_nlri_len += route_buffer_len;
     }
 
     if (parsed_nlri_len + parsed_attribute_len + parsed_withdrawn_len + 4 != msg_sz) {
