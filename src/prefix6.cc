@@ -227,6 +227,7 @@ ssize_t Prefix6::parse(const uint8_t *buffer, size_t buf_sz) {
     if (length > 128) return -1;
     size_t prefix_buf_sz = (length + 7) / 8;
     if (buf_sz < prefix_buf_sz + 1) return -1;
+    memset(prefix, 0, 16);
     memcpy(prefix, buffer, prefix_buf_sz);
     return 1 + prefix_buf_sz;
 }
