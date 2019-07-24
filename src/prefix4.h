@@ -28,6 +28,7 @@ public:
     Prefix4(const char* prefix, uint8_t length);
 
     ssize_t parse(const uint8_t *buffer, size_t buf_sz);
+    ssize_t write(uint8_t *buffer, size_t buf_sz) const;
 
     // static utility functions for route include test
     static bool Includes (uint32_t prefix, uint8_t length, uint32_t address);
