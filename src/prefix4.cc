@@ -9,6 +9,7 @@
  * 
  */
 #include "prefix4.h"
+#include "value-op.h"
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -37,6 +38,14 @@ uint32_t cidr_to_mask(uint8_t cidr) {
 /**
  * @brief Construct a new Prefix4 object
  * 
+ */
+Prefix4::Prefix4() {
+    prefix = length = 0;
+}
+
+/**
+ * @brief Construct a new Prefix4 object
+ * 
  * @param prefix Prefix in network bytes order.
  * @param length Netmask in CIDR notation.
  * @throws "bad_route_length" Netmask invalid.
@@ -58,6 +67,25 @@ Prefix4::Prefix4(const char* prefix, uint8_t length) {
     if (length > 32) throw "bad_route_length";
     this->length = length;
     inet_pton(AF_INET, prefix, &(this->prefix));
+}
+
+/**
+ * @brief Parse a IPv4 NLRI prefix from buffer.
+ * 
+ * @param buffer Buffer to parse from.
+ * @param buf_sz Size of the buffer.
+ * @return ssize_t Bytes read.
+ * @retval -1 Failed to parse prefix.
+ * @retval >=0 Bytes read.
+ */
+ssize_t Prefix4::parse(const uint8_t *buffer, size_t buf_sz) {
+    if (buf_sz < 1) return -1;
+    length = getValue<uint8_t>(&buffer);
+    size_t prefix_buf_len = (length + 7) / 8;
+    if (prefix_buf_len + 1 > buf_sz) return -1;
+    prefix = 0;
+    memcpy(&prefix, buffer, prefix_buf_len);
+    return prefix_buf_len + 1;
 }
 
 /**

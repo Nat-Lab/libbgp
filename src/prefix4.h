@@ -22,8 +22,11 @@ uint32_t cidr_to_mask(uint8_t cidr);
  */
 class Prefix4 {
 public:
+    Prefix4();
     Prefix4(uint32_t prefix, uint8_t length);
     Prefix4(const char* prefix, uint8_t length);
+
+    ssize_t parse(const uint8_t *buffer, size_t buf_sz);
 
     // static utility functions for route include test
     static bool Includes (uint32_t prefix, uint8_t length, uint32_t address);
