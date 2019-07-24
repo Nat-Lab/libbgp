@@ -91,7 +91,7 @@ ssize_t Prefix4::parse(const uint8_t *buffer, size_t buf_sz) {
 /**
  * @brief Write a IPv4 prefix to NLRI buffer.
  * 
- * @param buffer Buffer to write to/
+ * @param buffer Buffer to write to.
  * @param buf_sz Size of the buffer (max write size).
  * @return ssize_t Bytes written.
  * @retval -1 Failed to write.
