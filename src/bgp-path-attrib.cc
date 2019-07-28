@@ -1561,7 +1561,7 @@ ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const
         return -1;
     }
 
-    size_t written_len = header_len;
+    size_t written_len = header_len + 1;
 
     putValue<uint16_t>(&buffer, htons(afi));
     putValue<uint8_t>(&buffer, safi);
@@ -1582,6 +1582,7 @@ ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const
     }
 
     putValue<uint8_t>(&buffer, 0);
+    written_len++;
 
     for (const Prefix6 &route : nlri) {
         ssize_t rou_wrt_len = route.write(buffer, buffer_sz - written_len);
@@ -1594,6 +1595,11 @@ ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const
     }
 
     putValue<uint8_t>(&attr_len_field, written_len);
+
+    if (written_len != buffer - to) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::write: inconsistent written size (len=%d, diff=%d)\n", written_len, buffer - to);
+        return -1;
+    }
 
     return written_len;
 }
@@ -1638,6 +1644,16 @@ ssize_t BgpPathAttribMpReachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_
     written += _print(indent, to, buf_sz, "}\n");
 
     return written;
+}
+
+ssize_t BgpPathAttribMpReachNlriIpv6::length() const {
+    size_t len = 3 + 5; // 3: attribute headers, 5: afi, safi, nh_len, res
+    bool has_linklocak = !v6addr_is_zero(nexthop_linklocal);
+    len += (has_linklocak ? 32 : 16);
+    for (const Prefix6 &route : nlri) {
+        len += (1 + (route.getLength() + 7) / 8);
+    }
+    return len;
 }
 
 }
