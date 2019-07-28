@@ -484,6 +484,8 @@ public:
 class BgpPathAttribMpReachNlriUnknow : public BgpPathAttribMpNlriBase {
 public:
     BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger);
+    BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger, const uint8_t *nexthop, size_t nexthop_len, const uint8_t *nlri, size_t nlri_len);
+    ~BgpPathAttribMpReachNlriUnknow();
 
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);

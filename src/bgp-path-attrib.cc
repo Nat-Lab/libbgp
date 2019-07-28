@@ -1656,4 +1656,25 @@ ssize_t BgpPathAttribMpReachNlriIpv6::length() const {
     return len;
 }
 
+BgpPathAttribMpReachNlriUnknow::BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    nexthop = NULL;
+    nexthop_len = 0;
+    nlri = NULL;
+    nlri_len = 0;
+}
+
+BgpPathAttribMpReachNlriUnknow::BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger, const uint8_t *nexthop, size_t nexthop_len, const uint8_t *nlri, size_t nlri_len) : BgpPathAttribMpNlriBase(logger) {
+    this->nexthop = (uint8_t *) malloc(nexthop_len);
+    this->nlri = (uint8_t *) malloc(nlri_len);
+    this->nexthop_len = nexthop_len;
+    this->nlri_len = nlri_len;
+    memcpy(this->nexthop, nexthop, nexthop_len);
+    memcpy(this->nlri, nlri, nlri_len);
+}
+
+BgpPathAttribMpReachNlriUnknow::~BgpPathAttribMpReachNlriUnknow() {
+    if (nlri_len != 0) free(nlri);
+    if (nexthop_len != 0) free(nexthop);
+}
+
 }
