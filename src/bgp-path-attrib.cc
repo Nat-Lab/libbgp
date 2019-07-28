@@ -1598,4 +1598,46 @@ ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const
     return written_len;
 }
 
+ssize_t BgpPathAttribMpReachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MpReachNlriAttribute {\n");
+    indent++; {
+        const char *safi_str = "Unknow";
+        if (safi == UNICAST) safi_str = "Unicast";
+        if (safi == MULTICAST) safi_str = "Multicast";
+        written += _print(indent, to, buf_sz, "Afi { IPv6 }\n");
+        written += _print(indent, to, buf_sz, "Safi { %s }\n");
+        char nh_global_str[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, nexthop_global, nh_global_str, INET6_ADDRSTRLEN);
+
+        written += _print(indent, to, buf_sz, "Nexthops {\n");
+        indent++; {
+            written += _print(indent, to, buf_sz, "%s\n", nh_global_str);
+            if (!v6addr_is_zero(nexthop_linklocal)) {
+                char nh_linklocal_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, nexthop_linklocal, nh_linklocal_str, INET6_ADDRSTRLEN);
+                written += _print(indent, to, buf_sz, "%s\n", nh_linklocal_str);
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
+
+        written += _print(indent, to, buf_sz, "Nlri {\n");
+        indent++; {
+            for (const Prefix6 &route : nlri) {
+                uint8_t prefix[16];
+                route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, prefix, prefix_str, INET6_ADDRSTRLEN);
+                written += _print(indent, to, buf_sz, "%s/%d\n", prefix_str, route.getLength());
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
+        
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 }
