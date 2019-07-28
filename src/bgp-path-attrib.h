@@ -499,7 +499,9 @@ public:
 
 private:
     uint8_t *nexthop;
+    size_t nexthop_len;
     uint8_t *nlri;
+    size_t nlri_len;
 };
 
 /**
