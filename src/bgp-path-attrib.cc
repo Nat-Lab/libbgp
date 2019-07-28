@@ -1677,4 +1677,13 @@ BgpPathAttribMpReachNlriUnknow::~BgpPathAttribMpReachNlriUnknow() {
     if (nexthop_len != 0) free(nexthop);
 }
 
+BgpPathAttrib* BgpPathAttribMpReachNlriUnknow::clone() const {
+    if (hasError()) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriUnknow::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
+
+    return new BgpPathAttribMpReachNlriUnknow(logger, nexthop, nexthop_len, nlri, nlri_len);
+}
+
 }
