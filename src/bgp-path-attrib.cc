@@ -1549,4 +1549,53 @@ ssize_t BgpPathAttribMpReachNlriIpv6::parse(const uint8_t *from, size_t length) 
     return value_len + hdr_len;
 }
 
+ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const {
+    ssize_t header_len = writeHeader(to, buffer_sz);
+
+    if (header_len < 0) return -1;
+    uint8_t *attr_len_field = to + header_len;
+    uint8_t *buffer = attr_len_field + 1;
+
+    if (buffer_sz - header_len < 5) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    size_t written_len = header_len;
+
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+
+    bool has_linklocak = !v6addr_is_zero(nexthop_linklocal);
+
+    putValue<uint8_t>(&buffer, has_linklocak ? 32 : 16);
+    written_len += 4;
+    
+    if ((has_linklocak && buffer_sz - written_len < 32) || (!has_linklocak && buffer_sz - written_len < 16)) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::write: dst buffer too small.\n");
+        return -1;
+    }
+    
+    memcpy(buffer, nexthop_global, 16); buffer += 16; written_len += 16;
+    if (has_linklocak) {
+        memcpy(buffer, nexthop_linklocal, 16); buffer += 16; written_len += 16;
+    }
+
+    putValue<uint8_t>(&buffer, 0);
+
+    for (const Prefix6 &route : nlri) {
+        ssize_t rou_wrt_len = route.write(buffer, buffer_sz - written_len);
+        if (rou_wrt_len < 0) {
+            logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::write: failed to write nlri.\n");
+            return -1;
+        }
+        written_len += rou_wrt_len;
+        buffer += rou_wrt_len;
+    }
+
+    putValue<uint8_t>(&attr_len_field, written_len);
+
+    return written_len;
+}
+
 }
