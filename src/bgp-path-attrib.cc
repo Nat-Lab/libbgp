@@ -1993,4 +1993,12 @@ ssize_t BgpPathAttribMpUnreachNlriUnknow::length() const {
     return 3 + 3 + withdrawn_routes_len;
 }
 
+const uint8_t* BgpPathAttribMpUnreachNlriUnknow::getWithdrawnRoutes() const {
+    return withdrawn_routes;
+}
+
+size_t BgpPathAttribMpUnreachNlriUnknow::getWithdrawnRoutesLength() const {
+    return withdrawn_routes_len;
+}
+
 }
