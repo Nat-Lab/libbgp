@@ -1450,6 +1450,12 @@ BgpPathAttribMpNlriBase::BgpPathAttribMpNlriBase(BgpLogHandler *logger) : BgpPat
     optional = true;
 }
 
+int16_t BgpPathAttribMpNlriBase::GetAfiFromBuffer(const uint8_t *buffer, size_t length) {
+    if (length < 3) return -1;
+    const uint8_t *ptr = buffer + 3;
+    return ntohs(getValue<uint16_t>(&ptr));
+}
+
 ssize_t BgpPathAttribMpNlriBase::parseHeader(const uint8_t *from, size_t length) {
     size_t hdr_len = BgpPathAttrib::parseHeader(from, length);
 
@@ -1461,7 +1467,7 @@ ssize_t BgpPathAttribMpNlriBase::parseHeader(const uint8_t *from, size_t length)
         return -1;
     }
 
-    if (type_code != MP_REACH_NLRI) {
+    if (type_code != MP_REACH_NLRI && type_code != MP_UNREACH_NLRI) {
         logger->log(FATAL, "BgpPathAttribMpNlriBase::parseHeader: type in header mismatch.\n");
         throw "bad_type";
     }
@@ -1504,13 +1510,13 @@ ssize_t BgpPathAttribMpReachNlriIpv6::parse(const uint8_t *from, size_t length) 
     const uint8_t *buffer = from + hdr_len;
     uint8_t nexthop_length = getValue<uint8_t>(&buffer);
 
-    if (nexthop_length != 16 || nexthop_length != 32) {
+    if (nexthop_length != 16 && nexthop_length != 32) {
         logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: bad nexthop length %d (want 16 or 32).\n", nexthop_length);
         setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
         return -1;
     }
 
-    ssize_t buf_left = value_len - hdr_len - 1;
+    ssize_t buf_left = value_len - hdr_len - 1 + 3; // 3: attr headers
 
     if (buf_left < (ssize_t) nexthop_length) {
         logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: nexthop overflows buffer.\n");
@@ -1558,7 +1564,7 @@ ssize_t BgpPathAttribMpReachNlriIpv6::parse(const uint8_t *from, size_t length) 
         throw "bad_parse";
     }
 
-    return value_len + hdr_len;
+    return value_len + hdr_len - 3; // 3: afi/safi, already part of "value_len"
 }
 
 ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const {
@@ -1620,11 +1626,12 @@ ssize_t BgpPathAttribMpReachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_
     size_t written = 0;
     written += _print(indent, to, buf_sz, "MpReachNlriAttribute {\n");
     indent++; {
+        written += printFlags(indent, to, buf_sz);
         const char *safi_str = "Unknow";
         if (safi == UNICAST) safi_str = "Unicast";
         if (safi == MULTICAST) safi_str = "Multicast";
-        written += _print(indent, to, buf_sz, "Afi { IPv6 }\n");
-        written += _print(indent, to, buf_sz, "Safi { %s }\n");
+        written += _print(indent, to, buf_sz, "AFI { IPv6 }\n");
+        written += _print(indent, to, buf_sz, "SAFI { %s }\n", safi_str);
         char nh_global_str[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET6, nexthop_global, nh_global_str, INET6_ADDRSTRLEN);
 
@@ -1639,7 +1646,7 @@ ssize_t BgpPathAttribMpReachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_
         }; indent--;
         written += _print(indent, to, buf_sz, "}\n");
 
-        written += _print(indent, to, buf_sz, "Nlri {\n");
+        written += _print(indent, to, buf_sz, "NLRI {\n");
         indent++; {
             for (const Prefix6 &route : nlri) {
                 uint8_t prefix[16];
@@ -1734,7 +1741,7 @@ ssize_t BgpPathAttribMpReachNlriUnknow::parse(const uint8_t *from, size_t length
 
     if (nlri_len != 0) free(nlri);
 
-    nlri_len = value_len - parsed_len;
+    nlri_len = value_len - parsed_len - 3; // 3: attr header
     parsed_len += nlri_len;
     nlri = (uint8_t *) malloc(nlri_len);
     memcpy(nlri, buffer, nlri_len);
@@ -1774,8 +1781,9 @@ ssize_t BgpPathAttribMpReachNlriUnknow::doPrint(size_t indent, uint8_t **to, siz
     size_t written = 0;
     written += _print(indent, to, buf_sz, "MpReachNlriAttribute {\n");
     indent++; {
-        written += _print(indent, to, buf_sz, "Afi { %d }\n", afi);
-        written += _print(indent, to, buf_sz, "Safi { %d }\n", safi);
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "AFI { %d }\n", afi);
+        written += _print(indent, to, buf_sz, "SAFI { %d }\n", safi);
     }; indent--;
     written += _print(indent, to, buf_sz, "}\n");
     return written;
@@ -1823,7 +1831,7 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::parse(const uint8_t *from, size_t length
         throw "bad_type";
     }
 
-    size_t buf_left = value_len - hdr_len;
+    size_t buf_left = value_len - hdr_len + 3; // 3: attrib headers
     const uint8_t *buffer = from + hdr_len;
 
     while (buf_left > 0) {
@@ -1846,7 +1854,7 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::parse(const uint8_t *from, size_t length
         throw "bad_parse";
     }
 
-    return hdr_len + value_len;
+    return hdr_len + value_len - 3; // 3: afi/safi, already part of "value_len"
 }
 
 ssize_t BgpPathAttribMpUnreachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const {
@@ -1884,11 +1892,12 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::doPrint(size_t indent, uint8_t **to, siz
 
     written += _print(indent, to, buf_sz, "MpUnreachNlriAttribute {\n");
     indent++; {
+        written += printFlags(indent, to, buf_sz);
         const char *safi_str = "Unknow";
         if (safi == UNICAST) safi_str = "Unicast";
         if (safi == MULTICAST) safi_str = "Multicast";
-        written += _print(indent, to, buf_sz, "Afi { IPv6 }\n");
-        written += _print(indent, to, buf_sz, "Safi { %s }\n");
+        written += _print(indent, to, buf_sz, "AFI { IPv6 }\n");
+        written += _print(indent, to, buf_sz, "SAFI { %s }\n", safi_str);
         written += _print(indent, to, buf_sz, "WithdrawnRoutes {\n");
         indent++; {
             for (const Prefix6 &route : withdrawn_routes) {
@@ -1954,7 +1963,7 @@ ssize_t BgpPathAttribMpUnreachNlriUnknow::parse(const uint8_t *from, size_t leng
     withdrawn_routes = (uint8_t *) malloc(withdrawn_routes_len);
     memcpy(withdrawn_routes, buffer, withdrawn_routes_len);
 
-    return hdr_len + value_len;
+    return hdr_len + value_len - 3;  // 3: afi/safi, already part of "value_len"
 }
 
 ssize_t BgpPathAttribMpUnreachNlriUnknow::write(uint8_t *to, size_t buffer_sz) const {
@@ -1980,8 +1989,9 @@ ssize_t BgpPathAttribMpUnreachNlriUnknow::doPrint(size_t indent, uint8_t **to, s
     size_t written = 0;
     written += _print(indent, to, buf_sz, "MpUnreachNlriAttribute {\n");
     indent++; {
-        written += _print(indent, to, buf_sz, "Afi { %d }\n", afi);
-        written += _print(indent, to, buf_sz, "Safi { %d }\n", safi);
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "AFI { %d }\n", afi);
+        written += _print(indent, to, buf_sz, "SAFI { %d }\n", safi);
     }; indent--;
     written += _print(indent, to, buf_sz, "}\n");
     return written;

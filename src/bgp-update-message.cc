@@ -543,7 +543,7 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 4) {
         uint8_t _err_data = msg_sz;
         setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
-        logger->log(ERROR, "BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
+        logger->log(ERROR, "BgpUpdateMessage::parse: invalid update message size: %d.\n", msg_sz);
         return -1;
     }
 
