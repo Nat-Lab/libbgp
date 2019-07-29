@@ -1832,4 +1832,34 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::parse(const uint8_t *from, size_t length
     return hdr_len + value_len;
 }
 
+ssize_t BgpPathAttribMpUnreachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 3 + 3) {
+        logger->log(ERROR, "BgpPathAttribMpUnreachNlriIpv6::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    size_t hdr_len = writeHeader(to, buffer_sz);
+    if (hdr_len < 0) return -1;
+
+    uint8_t *len_field = to + hdr_len;
+    uint8_t *buffer = len_field + 1; 
+
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+    size_t written_val_len = 3;
+
+    for (const Prefix6 &route : withdrawn_routes) {
+        ssize_t pfx_wrt_ret = route.write(buffer, buffer_sz - 3 - written_val_len);
+        if (pfx_wrt_ret < 0) {
+            logger->log(ERROR, "BgpPathAttribMpUnreachNlriIpv6::write: error writing withdrawn routes.\n");
+            return -1;
+        }
+
+        buffer += pfx_wrt_ret;
+        written_val_len += pfx_wrt_ret;
+    }
+
+    return 3 + written_val_len;
+}
+
 }
