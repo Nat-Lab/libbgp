@@ -1440,12 +1440,20 @@ ssize_t BgpPathAttribCommunity::length() const {
     return 7;
 }
 
-BgpPathAttribMpNlriBase::BgpPathAttribMpNlriBase(BgpLogHandler *logger) : BgpPathAttrib(logger) {}
+BgpPathAttribMpNlriBase::BgpPathAttribMpNlriBase(BgpLogHandler *logger) : BgpPathAttrib(logger) {
+    optional = true;
+}
 
 ssize_t BgpPathAttribMpNlriBase::parseHeader(const uint8_t *from, size_t length) {
     size_t hdr_len = BgpPathAttrib::parseHeader(from, length);
 
     if (hdr_len < 0) return -1;
+
+    if (!optional || transitive || extended || extended) {
+        logger->log(ERROR, "BgpPathAttribMpNlriBase::parse: bad flag bits, must be optional, !extended, !partial, !transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from , value_len + hdr_len);
+        return -1;
+    }
 
     if (type_code != MP_REACH_NLRI) {
         logger->log(FATAL, "BgpPathAttribMpNlriBase::parseHeader: type in header mismatch.\n");
