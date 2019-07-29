@@ -1905,4 +1905,19 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::length() const {
     return len;
 }
 
+BgpPathAttribMpUnreachNlriUnknow::BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    withdrawn_routes_len = 0;
+    withdrawn_routes = NULL;
+}
+
+BgpPathAttribMpUnreachNlriUnknow::BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger, const uint8_t *withdrawn, size_t len) : BgpPathAttribMpNlriBase(logger) {
+    withdrawn_routes_len = len;
+    withdrawn_routes = (uint8_t *) malloc(len);
+    memcpy(withdrawn_routes, withdrawn, len);
+}
+
+BgpPathAttribMpUnreachNlriUnknow::~BgpPathAttribMpUnreachNlriUnknow() {
+    if (withdrawn_routes_len > 0) free(withdrawn_routes);
+}
+
 }

@@ -529,6 +529,8 @@ public:
 class BgpPathAttribMpUnreachNlriUnknow : public BgpPathAttribMpNlriBase {
 public:
     BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger);
+    BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger, const uint8_t *withdrawn, size_t len);
+    ~BgpPathAttribMpUnreachNlriUnknow();
 
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
@@ -540,6 +542,7 @@ public:
     size_t getWithdrawnRoutesLength() const;
 private:
     uint8_t *withdrawn_routes;
+    size_t withdrawn_routes_len;
 };
 
 }
