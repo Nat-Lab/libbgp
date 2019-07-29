@@ -10,6 +10,7 @@
  */
 #include "bgp-update-message.h"
 #include "bgp-errcode.h"
+#include "bgp-afi.h"
 #include "value-op.h"
 #include <arpa/inet.h>
 
@@ -617,6 +618,30 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             case COMMUNITY: attrib = new BgpPathAttribCommunity(logger); break;
             case AS4_PATH: attrib = new BgpPathAttribAs4Path(logger); break;
             case AS4_AGGREGATOR: attrib = new BgpPathAttribAs4Aggregator(logger); break;
+            case MP_REACH_NLRI: 
+            case MP_UNREACH_NLRI: {
+                int16_t afi = BgpPathAttribMpNlriBase::GetAfiFromBuffer(buffer, attribute_len - parsed_attribute_len);
+                if (afi < 0) {
+                    logger->log(ERROR, "BgpUpdateMessage::parse: failed to parse mp-bgp afi.\n");
+                    setError(E_UPDATE, E_UNSPEC, NULL, 0);
+                    return -1;
+                }
+
+                if (afi == IPV6 && attr_type == MP_REACH_NLRI) {
+                    attrib = new BgpPathAttribMpReachNlriIpv6(logger);
+                    break;
+                }
+                
+                if (afi == IPV6 && attr_type == MP_UNREACH_NLRI) {
+                    attrib = new BgpPathAttribMpUnreachNlriIpv6(logger);
+                    break;
+                }
+
+                if (attr_type == MP_REACH_NLRI) attrib = new BgpPathAttribMpReachNlriUnknow(logger);
+                else attrib = new BgpPathAttribMpUnreachNlriUnknow(logger);
+                
+                break;
+            }
             default: attrib = new BgpPathAttrib(logger); break;
         }
 
