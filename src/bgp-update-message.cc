@@ -82,7 +82,7 @@ bool BgpUpdateMessage::hasAttrib(uint8_t type) const {
 bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
     if (hasAttrib(attrib.type_code)) return false;
 
-    path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib.clone()));
+    path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib.clone(logger)));
     return true;
 }
 
@@ -96,7 +96,7 @@ bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
 bool BgpUpdateMessage::setAttribs(const std::vector<std::shared_ptr<BgpPathAttrib>> &attrs) {
     path_attribute.clear();
     for (const std::shared_ptr<BgpPathAttrib> &attrib : attrs) {
-        path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib->clone()));
+        path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib->clone(logger)));
     }
     return true;
 }
