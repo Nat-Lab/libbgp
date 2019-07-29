@@ -115,6 +115,16 @@ public:
     virtual ssize_t length() const;
 
     /**
+     * @brief Clone the attribute and replace logger.
+     * 
+     * @param new_logger New logger to use.
+     * @return BgpPathAttrib* Pointer to the cloned attribute.
+     * @throws "has_error" There's error in the attribute and the attribute can
+     * not be clone.
+     */
+    BgpPathAttrib* clone(BgpLogHandler *new_logger) const;
+
+    /**
      * @brief Clone the attribute.
      * 
      * @return BgpPathAttrib* Pointer to the cloned attribute.

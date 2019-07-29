@@ -66,6 +66,12 @@ BgpPathAttrib::~BgpPathAttrib() {
     if (value_ptr != NULL) free(value_ptr);
 }
 
+BgpPathAttrib* BgpPathAttrib::clone(BgpLogHandler *new_logger) const {
+    BgpPathAttrib* cloned = clone();
+    cloned->setLogger(new_logger);
+    return cloned;
+}
+
 BgpPathAttrib* BgpPathAttrib::clone() const {
     if(hasError()) {
         logger->log(FATAL, "BgpPathAttrib::clone: can't clone an attribute with error.\n");
