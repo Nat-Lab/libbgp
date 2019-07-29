@@ -1870,4 +1870,31 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::write(uint8_t *to, size_t buffer_sz) con
     return 3 + written_val_len;
 }
 
+ssize_t BgpPathAttribMpUnreachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+
+    written += _print(indent, to, buf_sz, "MpUnreachNlriAttribute {\n");
+    indent++; {
+        const char *safi_str = "Unknow";
+        if (safi == UNICAST) safi_str = "Unicast";
+        if (safi == MULTICAST) safi_str = "Multicast";
+        written += _print(indent, to, buf_sz, "Afi { IPv6 }\n");
+        written += _print(indent, to, buf_sz, "Safi { %s }\n");
+        written += _print(indent, to, buf_sz, "WithdrawnRoutes {\n");
+        indent++; {
+            for (const Prefix6 &route : withdrawn_routes) {
+                uint8_t prefix[16];
+                route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, prefix, prefix_str, INET6_ADDRSTRLEN);
+                written += _print(indent, to, buf_sz, "%s/%d\n", prefix_str, route.getLength());
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
+    }; indent--;
+    _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
 }
