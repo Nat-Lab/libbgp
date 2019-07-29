@@ -150,8 +150,7 @@ protected:
      * @brief Attribute length. 
      * Length field is only used in deserialization for parseHeader() to pass
      * length field in header to the underlying deserializers. The length field
-     * is ignored when serialize. (except BgpPathAttrib base, which acts as the
-     * container for unknow attribute)
+     * is ignored when serialize. 
      */
     uint16_t value_len;
 
