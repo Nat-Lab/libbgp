@@ -1897,4 +1897,12 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::doPrint(size_t indent, uint8_t **to, siz
     return written;
 }
 
+ssize_t BgpPathAttribMpUnreachNlriIpv6::length() const {
+    size_t len = 3 + 3; // 3: attribute headers, 3: afi, safi
+    for (const Prefix6 &route : withdrawn_routes) {
+        len += (1 + (route.getLength() + 7) / 8);
+    }
+    return len;
+}
+
 }
