@@ -1594,7 +1594,7 @@ ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const
         buffer += rou_wrt_len;
     }
 
-    putValue<uint8_t>(&attr_len_field, written_len);
+    putValue<uint8_t>(&attr_len_field, written_len - 3);
 
     if (written_len != buffer - to) {
         logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::write: inconsistent written size (len=%d, diff=%d)\n", written_len, buffer - to);
@@ -1735,9 +1735,8 @@ ssize_t BgpPathAttribMpReachNlriUnknow::write(uint8_t *to, size_t buffer_sz) con
     ssize_t hdr_len = writeHeader(to, buffer_sz);
     if (hdr_len < 0) return -1;
     uint8_t *buffer = to + hdr_len;
-    uint8_t *len_field = buffer;
-    buffer++;
-
+    
+    putValue<uint8_t>(&buffer, expected_len - 3);
     putValue<uint16_t>(&buffer, htons(afi));
     putValue<uint8_t>(&buffer, safi);
     putValue<uint8_t>(&buffer, nexthop_len);
