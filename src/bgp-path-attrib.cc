@@ -1539,8 +1539,6 @@ ssize_t BgpPathAttribMpReachNlriIpv6::parse(const uint8_t *from, size_t length) 
     }
 
     while (buf_left > 0) {
-        uint8_t prefix_len = getValue<uint8_t>(&buffer);
-        size_t prefix_buf_len = 0;
         Prefix6 this_prefix = Prefix6();
         ssize_t pfx_read_len = this_prefix.parse(buffer, buf_left);
 
@@ -1610,7 +1608,7 @@ ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const
 
     putValue<uint8_t>(&attr_len_field, written_len - 3);
 
-    if (written_len != buffer - to) {
+    if (written_len != (size_t) (buffer - to)) {
         logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::write: inconsistent written size (len=%d, diff=%d)\n", written_len, buffer - to);
         return -1;
     }
@@ -1764,7 +1762,7 @@ ssize_t BgpPathAttribMpReachNlriUnknow::write(uint8_t *to, size_t buffer_sz) con
     putValue<uint8_t>(&buffer, 0);
     memcpy(buffer, nlri, nlri_len);
 
-    if (buffer - to != expected_len) {
+    if ((size_t) (buffer - to) != expected_len) {
         logger->log(ERROR, "BgpPathAttribMpReachNlriUnknow::write: unexpected written length.\n");
         return -1;
     }
@@ -1780,6 +1778,7 @@ ssize_t BgpPathAttribMpReachNlriUnknow::doPrint(size_t indent, uint8_t **to, siz
         written += _print(indent, to, buf_sz, "Safi { %d }\n", safi);
     }; indent--;
     written += _print(indent, to, buf_sz, "}\n");
+    return written;
 }
 
 ssize_t BgpPathAttribMpReachNlriUnknow::length() const {
@@ -1828,8 +1827,6 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::parse(const uint8_t *from, size_t length
     const uint8_t *buffer = from + hdr_len;
 
     while (buf_left > 0) {
-        uint8_t prefix_len = getValue<uint8_t>(&buffer);
-        size_t prefix_buf_len = 0;
         Prefix6 this_prefix = Prefix6();
         ssize_t pfx_read_len = this_prefix.parse(buffer, buf_left);
 
@@ -1987,6 +1984,7 @@ ssize_t BgpPathAttribMpUnreachNlriUnknow::doPrint(size_t indent, uint8_t **to, s
         written += _print(indent, to, buf_sz, "Safi { %d }\n", safi);
     }; indent--;
     written += _print(indent, to, buf_sz, "}\n");
+    return written;
 }
 
 ssize_t BgpPathAttribMpUnreachNlriUnknow::length() const {
