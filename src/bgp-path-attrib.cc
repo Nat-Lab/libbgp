@@ -1716,7 +1716,7 @@ ssize_t BgpPathAttribMpReachNlriUnknow::parse(const uint8_t *from, size_t length
 
     if (nlri_len != 0) free(nlri);
 
-    nlri_len = length - parsed_len;
+    nlri_len = value_len - parsed_len;
     parsed_len += nlri_len;
     nlri = (uint8_t *) malloc(nlri_len);
     memcpy(nlri, buffer, nlri_len);
@@ -1796,6 +1796,41 @@ BgpPathAttrib* BgpPathAttribMpUnreachNlriIpv6::clone() const {
     return new BgpPathAttribMpUnreachNlriIpv6(*this);
 }
 
+ssize_t BgpPathAttribMpUnreachNlriIpv6::parse(const uint8_t *from, size_t length) {
+    ssize_t hdr_len = parseHeader(from ,length);
+    if (hdr_len < 0) return -1;
 
+    if (afi != IPV6) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriIpv6::parse: afi mismatch.\n");
+        throw "bad_type";
+    }
+
+    size_t buf_left = value_len - hdr_len;
+    const uint8_t *buffer = from + hdr_len;
+
+    while (buf_left > 0) {
+        uint8_t prefix_len = getValue<uint8_t>(&buffer);
+        size_t prefix_buf_len = 0;
+        Prefix6 this_prefix = Prefix6();
+        ssize_t pfx_read_len = this_prefix.parse(buffer, buf_left);
+
+        if (pfx_read_len < 0) {
+            logger->log(ERROR, "BgpPathAttribMpUnreachNlriIpv6::parse: error parsing withdrawn entry.\n");
+            setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+            return -1;
+        }
+
+        buffer += pfx_read_len;
+        buf_left -= pfx_read_len;
+        withdrawn_routes.push_back(this_prefix);
+    }
+
+    if (buf_left != 0) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriIpv6::parse: parsed end with non-zero buf_left (%d).\n", buf_left);
+        throw "bad_parse";
+    }
+
+    return hdr_len + value_len;
+}
 
 }
