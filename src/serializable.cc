@@ -179,4 +179,13 @@ ssize_t Serializable::length() const {
     return write(buffer, 4096);
 }
 
+/**
+ * @brief Replace logger for this object.
+ * 
+ * @param logger The new logger.
+ */
+void Serializable::setLogger(BgpLogHandler *logger) {
+    this->logger = logger;
+}
+
 }
