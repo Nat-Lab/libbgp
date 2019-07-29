@@ -436,7 +436,7 @@ bool BgpUpdateMessage::downgradeAggregator() {
  * @return true Withdrawn routes set.
  * @return false Failed to set withdrawn routes.
  */
-bool BgpUpdateMessage::setWithdrawn(const std::vector<Prefix4> &routes) {
+bool BgpUpdateMessage::setWithdrawn4(const std::vector<Prefix4> &routes) {
     withdrawn_routes = routes;
     return true;
 }
@@ -449,7 +449,7 @@ bool BgpUpdateMessage::setWithdrawn(const std::vector<Prefix4> &routes) {
  * @return true Withdrawn route added.
  * @return false Failed to add withdrawn route.
  */
-bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
+bool BgpUpdateMessage::addWithdrawn4(uint32_t prefix, uint8_t length) {
     Prefix4 route (prefix, length);
     withdrawn_routes.push_back(route);
     return true;
@@ -462,7 +462,7 @@ bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
  * @return true Withdrawn route added.
  * @return false Failed to add withdrawn route.
  */
-bool BgpUpdateMessage::addWithdrawn(const Prefix4 &route) {
+bool BgpUpdateMessage::addWithdrawn4(const Prefix4 &route) {
     withdrawn_routes.push_back(route);
     return true;
 }
@@ -474,7 +474,7 @@ bool BgpUpdateMessage::addWithdrawn(const Prefix4 &route) {
  * @return true Routes set.
  * @return false Failed to set routes.
  */
-bool BgpUpdateMessage::setNlri(const std::vector<Prefix4> &routes) {
+bool BgpUpdateMessage::setNlri4(const std::vector<Prefix4> &routes) {
     nlri = routes;
     return true;
 }
@@ -487,7 +487,7 @@ bool BgpUpdateMessage::setNlri(const std::vector<Prefix4> &routes) {
  * @return true Route added.
  * @return false Failed to add route.
  */
-bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
+bool BgpUpdateMessage::addNlri4(uint32_t prefix, uint8_t length) {
     Prefix4 route(prefix, length);
     nlri.push_back(route);
     return true;
@@ -500,7 +500,7 @@ bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
  * @return true Route added.
  * @return false Failed to add route.
  */
-bool BgpUpdateMessage::addNlri(const Prefix4 &route) {
+bool BgpUpdateMessage::addNlri4(const Prefix4 &route) {
     nlri.push_back(route);
     return true;
 }

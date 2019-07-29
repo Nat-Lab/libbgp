@@ -80,22 +80,22 @@ public:
     bool downgradeAggregator();
 
     // replace withdrawn with routes
-    bool setWithdrawn(const std::vector<Prefix4> &routes);
+    bool setWithdrawn4(const std::vector<Prefix4> &routes);
 
     // utility function to add a route to withdrawn list
-    bool addWithdrawn(uint32_t prefix, uint8_t length);
+    bool addWithdrawn4(uint32_t prefix, uint8_t length);
 
     // utility function to add a route to withdrawn list
-    bool addWithdrawn(const Prefix4 &route);
+    bool addWithdrawn4(const Prefix4 &route);
 
     // replace NLRI with routes
-    bool setNlri(const std::vector<Prefix4> &routes);
+    bool setNlri4(const std::vector<Prefix4> &routes);
 
     // utility function to add a route to NLRI
-    bool addNlri(uint32_t prefix, uint8_t length);
+    bool addNlri4(uint32_t prefix, uint8_t length);
 
     // utility function to add a route to NLRI
-    bool addNlri(const Prefix4 &route);
+    bool addNlri4(const Prefix4 &route);
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t parse(const uint8_t *from, size_t msg_sz);

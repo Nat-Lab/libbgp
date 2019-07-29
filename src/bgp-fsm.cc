@@ -445,7 +445,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 
     for (const Prefix4 &route : ev.routes) {
         if (config.out_filters4.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
-            update.addNlri(route);
+            update.addNlri4(route);
         } else {
             LIBBGP_LOG(logger, INFO) {
                 uint32_t prefix = route.getPrefix();
@@ -471,7 +471,7 @@ bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
 
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
-    withdraw.setWithdrawn(ev.routes);
+    withdraw.setWithdrawn4(ev.routes);
 
     if(!writeMessage(withdraw)) return false;
     return true;
@@ -621,7 +621,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                     iter--;
                     break;
                 }
-                update.addNlri(r);
+                update.addNlri4(r);
             } else {
                 LIBBGP_LOG(logger, INFO) {
                     uint32_t prefix = r.getPrefix();
