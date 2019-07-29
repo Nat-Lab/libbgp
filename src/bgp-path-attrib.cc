@@ -1767,4 +1767,20 @@ ssize_t BgpPathAttribMpReachNlriUnknow::length() const {
     return 3 + 5 + nexthop_len + nlri_len;
 }
 
+const uint8_t* BgpPathAttribMpReachNlriUnknow::getNexthop() const {
+    return nexthop;
+}
+
+const uint8_t* BgpPathAttribMpReachNlriUnknow::getNlri() const {
+    return nlri;
+}
+
+size_t BgpPathAttribMpReachNlriUnknow::getNexthopLength() const {
+    return nexthop_len;
+}
+
+size_t BgpPathAttribMpReachNlriUnknow::getNlriLength() const {
+    return nlri_len;
+}
+
 }
