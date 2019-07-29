@@ -1686,4 +1686,42 @@ BgpPathAttrib* BgpPathAttribMpReachNlriUnknow::clone() const {
     return new BgpPathAttribMpReachNlriUnknow(logger, nexthop, nexthop_len, nlri, nlri_len);
 }
 
+ssize_t BgpPathAttribMpReachNlriUnknow::parse(const uint8_t *from, size_t length) {
+    ssize_t hdr_len = parseHeader(from, length);
+    if (hdr_len < 0) return -1;
+
+    if (nexthop_len != 0) free(nexthop);
+
+    const uint8_t *buffer = from + hdr_len;
+    nexthop_len = getValue<uint8_t>(&buffer);
+    size_t parsed_len = hdr_len + 1;
+
+    if (length < parsed_len + nexthop_len) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriUnknow::parse: unexpected end of attribute.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    parsed_len += nexthop_len;
+    nexthop = (uint8_t *) malloc(nexthop_len);
+    memcpy(nexthop, buffer, nexthop_len);
+    buffer += nexthop_len;
+
+    uint8_t res = getValue<uint8_t>(&buffer);
+    parsed_len++;
+
+    if (res != 0) {
+        logger->log(WARN, "BgpPathAttribMpReachNlriIpv6::parse: reserved bits != 0\n");
+    }
+
+    if (nlri_len != 0) free(nlri);
+
+    nlri_len = length - parsed_len;
+    parsed_len += nlri_len;
+    nlri = (uint8_t *) malloc(nlri_len);
+    memcpy(nlri, buffer, nlri_len);
+
+    return parsed_len;
+}
+
 }
