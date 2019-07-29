@@ -1753,4 +1753,18 @@ ssize_t BgpPathAttribMpReachNlriUnknow::write(uint8_t *to, size_t buffer_sz) con
     return expected_len;
 }
 
+ssize_t BgpPathAttribMpReachNlriUnknow::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MpReachNlriAttribute {\n");
+    indent++; {
+        written += _print(indent, to, buf_sz, "Afi { %d }\n", afi);
+        written += _print(indent, to, buf_sz, "Safi { %d }\n", safi);
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+}
+
+ssize_t BgpPathAttribMpReachNlriUnknow::length() const {
+    return 3 + 5 + nexthop_len + nlri_len;
+}
+
 }
