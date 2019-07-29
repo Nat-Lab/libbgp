@@ -1724,4 +1724,33 @@ ssize_t BgpPathAttribMpReachNlriUnknow::parse(const uint8_t *from, size_t length
     return parsed_len;
 }
 
+ssize_t BgpPathAttribMpReachNlriUnknow::write(uint8_t *to, size_t buffer_sz) const {
+    size_t expected_len = 3 + 5 + nexthop_len + nlri_len;
+
+    if (buffer_sz < expected_len) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriUnknow::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    ssize_t hdr_len = writeHeader(to, buffer_sz);
+    if (hdr_len < 0) return -1;
+    uint8_t *buffer = to + hdr_len;
+    uint8_t *len_field = buffer;
+    buffer++;
+
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+    putValue<uint8_t>(&buffer, nexthop_len);
+    memcpy(buffer, nexthop, nexthop_len); buffer += nexthop_len;
+    putValue<uint8_t>(&buffer, 0);
+    memcpy(buffer, nlri, nlri_len);
+
+    if (buffer - to != expected_len) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriUnknow::write: unexpected written length.\n");
+        return -1;
+    }
+
+    return expected_len;
+}
+
 }
