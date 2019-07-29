@@ -1783,4 +1783,19 @@ size_t BgpPathAttribMpReachNlriUnknow::getNlriLength() const {
     return nlri_len;
 }
 
+BgpPathAttribMpUnreachNlriIpv6::BgpPathAttribMpUnreachNlriIpv6(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    afi = IPV6;
+}
+
+BgpPathAttrib* BgpPathAttribMpUnreachNlriIpv6::clone() const {
+    if (hasError()) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriIpv6::clone: can clone attribute with error.\n");
+        throw "has_error";
+    }
+
+    return new BgpPathAttribMpUnreachNlriIpv6(*this);
+}
+
+
+
 }
