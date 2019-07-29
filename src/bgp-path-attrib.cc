@@ -1945,4 +1945,52 @@ BgpPathAttrib* BgpPathAttribMpUnreachNlriUnknow::clone() const {
     return new BgpPathAttribMpUnreachNlriUnknow(logger, withdrawn_routes, withdrawn_routes_len);
 }
 
+ssize_t BgpPathAttribMpUnreachNlriUnknow::parse(const uint8_t *from, size_t length) {
+    size_t hdr_len = parseHeader(from, length);
+    if (hdr_len < 0) return -1;
+
+    if (withdrawn_routes_len > 0) free(withdrawn_routes);
+
+    withdrawn_routes_len = value_len - hdr_len;
+    const uint8_t *buffer = from + hdr_len;
+
+    withdrawn_routes = (uint8_t *) malloc(withdrawn_routes_len);
+    memcpy(withdrawn_routes, buffer, withdrawn_routes_len);
+
+    return hdr_len + value_len;
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::write(uint8_t *to, size_t buffer_sz) const {
+    size_t expected_len = 3 + 3 + withdrawn_routes_len;
+    if (buffer_sz < expected_len) {
+        logger->log(ERROR, "BgpPathAttribMpUnreachNlriUnknow::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    size_t hdr_len = writeHeader(to, buffer_sz);
+    if (hdr_len < 0) return -1;
+
+    uint8_t *buffer = to + hdr_len;
+    putValue<uint8_t>(&buffer, expected_len - 3);
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+    memcpy(buffer, withdrawn_routes, withdrawn_routes_len);
+
+    return expected_len;
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MpUnreachNlriAttribute {\n");
+    indent++; {
+        written += _print(indent, to, buf_sz, "Afi { %d }\n", afi);
+        written += _print(indent, to, buf_sz, "Safi { %d }\n", safi);
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::length() const {
+    return 3 + 3 + withdrawn_routes_len;
+}
+
 }
