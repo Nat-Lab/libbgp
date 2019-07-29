@@ -1920,4 +1920,14 @@ BgpPathAttribMpUnreachNlriUnknow::~BgpPathAttribMpUnreachNlriUnknow() {
     if (withdrawn_routes_len > 0) free(withdrawn_routes);
 }
 
+BgpPathAttrib* BgpPathAttribMpUnreachNlriUnknow::clone() const {
+    if (hasError()) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriUnknow::clone: can clone attribute with error.\n");
+        throw "has_error";
+    }
+
+    if (withdrawn_routes_len == 0) return new BgpPathAttribMpUnreachNlriUnknow(logger);
+    return new BgpPathAttribMpUnreachNlriUnknow(logger, withdrawn_routes, withdrawn_routes_len);
+}
+
 }
