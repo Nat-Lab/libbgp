@@ -1672,12 +1672,17 @@ BgpPathAttribMpReachNlriUnknow::BgpPathAttribMpReachNlriUnknow(BgpLogHandler *lo
 }
 
 BgpPathAttribMpReachNlriUnknow::BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger, const uint8_t *nexthop, size_t nexthop_len, const uint8_t *nlri, size_t nlri_len) : BgpPathAttribMpNlriBase(logger) {
-    this->nexthop = (uint8_t *) malloc(nexthop_len);
-    this->nlri = (uint8_t *) malloc(nlri_len);
+    if (nexthop_len > 0) {
+        this->nexthop = (uint8_t *) malloc(nexthop_len);
+        memcpy(this->nexthop, nexthop, nexthop_len);
+    }
+
+    if (nlri_len > 0) {
+        this->nlri = (uint8_t *) malloc(nlri_len);
+        memcpy(this->nlri, nlri, nlri_len);
+    }
     this->nexthop_len = nexthop_len;
     this->nlri_len = nlri_len;
-    memcpy(this->nexthop, nexthop, nexthop_len);
-    memcpy(this->nlri, nlri, nlri_len);
 }
 
 BgpPathAttribMpReachNlriUnknow::~BgpPathAttribMpReachNlriUnknow() {
@@ -1691,6 +1696,7 @@ BgpPathAttrib* BgpPathAttribMpReachNlriUnknow::clone() const {
         throw "has_error";
     }
 
+    if (nexthop_len == 0 && nlri_len == 0) return new BgpPathAttribMpReachNlriUnknow(logger);
     return new BgpPathAttribMpReachNlriUnknow(logger, nexthop, nexthop_len, nlri, nlri_len);
 }
 
@@ -1912,8 +1918,11 @@ BgpPathAttribMpUnreachNlriUnknow::BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler
 
 BgpPathAttribMpUnreachNlriUnknow::BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger, const uint8_t *withdrawn, size_t len) : BgpPathAttribMpNlriBase(logger) {
     withdrawn_routes_len = len;
-    withdrawn_routes = (uint8_t *) malloc(len);
-    memcpy(withdrawn_routes, withdrawn, len);
+
+    if (len > 0) {
+        withdrawn_routes = (uint8_t *) malloc(len);
+        memcpy(withdrawn_routes, withdrawn, len);
+    }
 }
 
 BgpPathAttribMpUnreachNlriUnknow::~BgpPathAttribMpUnreachNlriUnknow() {
