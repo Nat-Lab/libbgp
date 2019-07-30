@@ -85,6 +85,8 @@ int main(void) {
     local_bgp_config.asn = 65000; // set local ASN
     local_bgp_config.peer_asn = 65001; // set peer ASN
     local_bgp_config.use_4b_asn = true; // enable RFC 6793
+    local_bgp_config.mp_bgp_ipv4 = false; // not using mp-bgp
+    local_bgp_config.mp_bgp_ipv6 = false; // not using mp-bgp
     local_bgp_config.hold_timer = 120; // hold timer
     local_bgp_config.out_handler = &pipe_local; // handle output with bridge
     local_bgp_config.no_collision_detection = true; // no need for that
@@ -114,6 +116,8 @@ int main(void) {
     remote_bgp_config.asn = 65001;
     remote_bgp_config.peer_asn = 65000;
     remote_bgp_config.use_4b_asn = true;
+    remote_bgp_config.mp_bgp_ipv4 = false;
+    remote_bgp_config.mp_bgp_ipv6 = false;
     remote_bgp_config.hold_timer = 120;
     remote_bgp_config.out_handler = &pipe_remote;
     remote_bgp_config.no_collision_detection = true;
