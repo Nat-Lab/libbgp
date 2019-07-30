@@ -108,6 +108,7 @@ public:
  * 
  */
 class BgpCapabilityMpBgp : public BgpCapability {
+public:
     BgpCapabilityMpBgp(BgpLogHandler *logger);
 
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
