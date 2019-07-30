@@ -158,6 +158,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
             switch(capa_code) {
                 case ASN_4B: cap = new BgpCapability4BytesAsn(logger); break;
+                case MP_BGP: cap = new BgpCapabilityMpBgp(logger); break;
                 default: cap = new BgpCapabilityUnknow(logger); break;
             }
 
