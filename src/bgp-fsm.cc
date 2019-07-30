@@ -475,7 +475,7 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
 
     if (update.nlri.size() <= 0) return false;
 
-    prepareUpdateMessage(update);
+    prepareUpdateMessage(update, true);
 
     if(!writeMessage(update)) return false;
     return true;
@@ -495,11 +495,11 @@ bool BgpFsm::handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev) {
     return true;
 }
 
-void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
+void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update, bool alter_v4_nexthop) {
     update.dropNonTransitive();
 
     // ipv4 nexthop related stuffs
-    if (send_ipv4_routes) {
+    if (alter_v4_nexthop) {
         if (config.forced_default_nexthop4 || !update.hasAttrib(NEXT_HOP)) {
             LIBBGP_LOG(logger, INFO) {
                 char ip_str[INET_ADDRSTRLEN];
@@ -641,7 +641,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             uint64_t cur_group_id = iter->update_id;
             BgpUpdateMessage update (logger, use_4b_asn);
             update.setAttribs(iter->attribs);
-            prepareUpdateMessage(update);
+            prepareUpdateMessage(update, true);
 
             // length of the update message, 19: headers, 4: length fields
             size_t msg_len = 19 + 4;
@@ -686,7 +686,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             const uint8_t *nh_linklocal = iter->nexthop_linklocal;
             BgpUpdateMessage update (logger, use_4b_asn);
             update.setAttribs(iter->attribs);
-            prepareUpdateMessage(update);
+            prepareUpdateMessage(update, false);
             std::vector<Prefix6> filtered_nlri;
 
             size_t msg_len = 19 + 4 + 8; // 8: mp-reach-nlri headers (attrib hdr: 3, afi/safi/nh_len/res: 5)

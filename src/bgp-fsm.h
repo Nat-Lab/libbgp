@@ -229,7 +229,7 @@ private:
 
     // prepare update message for advertisement (prepend my_asn, remove 
     // non-trans attrs)
-    void prepareUpdateMessage(BgpUpdateMessage &update);
+    void prepareUpdateMessage(BgpUpdateMessage &update, bool alter_v4_nexthop);
 
     BgpSink in_sink;
     BgpState state;
