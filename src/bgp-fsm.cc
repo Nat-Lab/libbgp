@@ -367,6 +367,22 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     peer_bgp_id = open_msg->bgp_id;
     peer_asn = open_msg->getAsn();
     use_4b_asn = open_msg->hasCapability(ASN_4B) && config.use_4b_asn;
+    if (open_msg->hasCapability(MP_BGP)) {
+        send_ipv4_routes = send_ipv6_routes = false;
+
+        const std::vector<std::shared_ptr<BgpCapability>> &capabilities = open_msg->getCapabilities();
+
+        for (const std::shared_ptr<BgpCapability> &cap : capabilities) {
+            if (cap->code == MP_BGP) {
+                const BgpCapabilityMpBgp &mp_cap = dynamic_cast<const BgpCapabilityMpBgp &> (*cap);
+                if (mp_cap.afi == IPV6) send_ipv6_routes = true;
+                if (mp_cap.afi == IPV4) send_ipv4_routes = true;
+            }
+        }
+    } else {
+        send_ipv4_routes = true;
+        send_ipv6_routes = false;
+    }
     
     return 1;
 }
@@ -437,6 +453,7 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
 
 bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     if (state != ESTABLISHED) return false;
+    if (!send_ipv4_routes) return false;
 
     logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add event with %zu routes.\n", ev.routes.size());
 
@@ -466,6 +483,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
 
 bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
+    if (!send_ipv4_routes) return false;
 
     logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw event with %zu routes.\n", ev.routes.size());
 
@@ -478,6 +496,8 @@ bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
 }
 
 void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
+    // TODO: IPv6
+
     update.dropNonTransitive();
     if (config.forced_default_nexthop || !update.hasAttrib(NEXT_HOP)) {
         LIBBGP_LOG(logger, INFO) {
@@ -595,46 +615,52 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     setState(ESTABLISHED);
     if(!writeMessage(keep)) return -1;
 
-    std::vector<BgpRib4Entry>::const_iterator iter = rib4->get().begin();
-    const std::vector<BgpRib4Entry>::const_iterator end = rib4->get().end();
+    if (send_ipv4_routes) {
+        std::vector<BgpRib4Entry>::const_iterator iter = rib4->get().begin();
+        const std::vector<BgpRib4Entry>::const_iterator end = rib4->get().end();
 
-    // group routes and and updates
-    while (iter != end) {
-        uint64_t cur_group_id = iter->update_id;
-        BgpUpdateMessage update (logger, use_4b_asn);
-        update.setAttribs(iter->attribs);
-        prepareUpdateMessage(update);
+        // group routes and and updates
+        while (iter != end) {
+            uint64_t cur_group_id = iter->update_id;
+            BgpUpdateMessage update (logger, use_4b_asn);
+            update.setAttribs(iter->attribs);
+            prepareUpdateMessage(update);
 
-        // length of the update message, 19: headers, 4: length fields
-        size_t msg_len = 19 + 4;
+            // length of the update message, 19: headers, 4: length fields
+            size_t msg_len = 19 + 4;
 
-        for (const std::shared_ptr<BgpPathAttrib> &attrib : update.path_attribute) {
-            msg_len += attrib->length(); // 2: attribute header
-        }
+            for (const std::shared_ptr<BgpPathAttrib> &attrib : update.path_attribute) {
+                msg_len += attrib->length(); // 2: attribute header
+            }
 
-        for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
-            const Prefix4 &r = iter->route;
-            if (config.out_filters4.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
-                msg_len += 1 + (r.getLength() + 7) / 8;
-                if (msg_len > 4096) {
-                    // size too big, roll back and break.
-                    iter--;
-                    break;
-                }
-                update.addNlri4(r);
-            } else {
-                LIBBGP_LOG(logger, INFO) {
-                    uint32_t prefix = r.getPrefix();
-                    char ip_str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                    logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
+            for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
+                const Prefix4 &r = iter->route;
+                if (config.out_filters4.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
+                    msg_len += 1 + (r.getLength() + 7) / 8;
+                    if (msg_len > 4096) {
+                        // size too big, roll back and break.
+                        iter--;
+                        break;
+                    }
+                    update.addNlri4(r);
+                } else {
+                    LIBBGP_LOG(logger, INFO) {
+                        uint32_t prefix = r.getPrefix();
+                        char ip_str[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                        logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
+                    }
                 }
             }
-        }
 
-        if (update.nlri.size() > 0) {
-            if(!writeMessage(update)) return -1;
+            if (update.nlri.size() > 0) {
+                if(!writeMessage(update)) return -1;
+            }
         }
+    }
+
+    if (send_ipv6_routes) {
+        // TODO
     }
 
     return 1;

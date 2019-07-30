@@ -259,6 +259,9 @@ private:
     // true if both peer & local support 4B ASN
     bool use_4b_asn;
 
+    bool send_ipv4_routes;
+    bool send_ipv6_routes;
+
     uint32_t peer_asn;
 
 };
