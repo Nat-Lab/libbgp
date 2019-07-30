@@ -849,8 +849,32 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             if (mp_reach.afi == IPV6 && mp_reach.safi == UNICAST) {
                 const BgpPathAttribMpReachNlriIpv6 &reach = dynamic_cast<const BgpPathAttribMpReachNlriIpv6 &>(mp_reach);
 
-                // TODO: route filter, rib insert, event publish, attrib filter MP_*, validAddr6
+                // filter toures
+                std::vector<Prefix6> filtered_routes;
+                for (const Prefix6 &route : reach.nlri) {
+                    if (config.in_filters6.apply(route) == ACCEPT) filtered_routes.push_back(route);
+                }
 
+                if (filtered_routes.size() <= 0) return 1;
+
+                // remove MP_* & nexthop attribute
+                std::vector<std::shared_ptr<BgpPathAttrib>> attrs;
+
+                for (const std::shared_ptr<BgpPathAttrib> &attr : update->path_attribute) {
+                    if (attr->type_code == MP_REACH_NLRI || attr->type_code == MP_UNREACH_NLRI || attr->type_code == NEXT_HOP) continue;
+                    attrs.push_back(attr);
+                }
+
+                // TODO: validAddr6 to check nexthop
+
+                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs);
+
+                if (rev_bus_exist) {
+                    Route6AddEvent aev = Route6AddEvent();
+                    aev.attribs = attrs;
+                    aev.routes = filtered_routes;
+                    config.rev_bus->publish(this, aev);
+                }
             }
         }
     }
