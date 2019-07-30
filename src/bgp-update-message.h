@@ -97,6 +97,12 @@ public:
     // utility function to add a route to NLRI
     bool addNlri4(const Prefix4 &route);
 
+    // replace withdrawn with routes
+    bool setWithdrawn6(const std::vector<Prefix6> &routes);
+
+    // replace NLRI with routes
+    bool setNlri6(const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16]);
+
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t parse(const uint8_t *from, size_t msg_sz);
     ssize_t write(uint8_t *to, size_t buf_sz) const;

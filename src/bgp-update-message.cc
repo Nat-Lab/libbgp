@@ -539,6 +539,28 @@ bool BgpUpdateMessage::validateAttribs() {
     return true;
 }
 
+bool BgpUpdateMessage::setWithdrawn6(const std::vector<Prefix6> &routes) {
+    BgpPathAttribMpUnreachNlriIpv6 unr6 (logger);
+    unr6.safi = UNICAST;
+    unr6.withdrawn_routes = routes;
+    updateAttribute(unr6);
+
+    return true;
+}
+
+bool BgpUpdateMessage::setNlri6(const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16]) {
+    BgpPathAttribMpReachNlriIpv6 r6 (logger);
+    r6.safi = UNICAST;
+    r6.nlri = routes;
+    memcpy(r6.nexthop_global, nexthop_global, 16);
+    if (nexthop_linklocal != NULL) {
+        memcpy(r6.nexthop_linklocal, nexthop_linklocal, 16);
+    } else memset(r6.nexthop_linklocal, 0, 16);
+    updateAttribute(r6);
+    
+    return true;
+}
+
 ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 4) {
         uint8_t _err_data = msg_sz;
