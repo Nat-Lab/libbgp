@@ -375,12 +375,12 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
         for (const std::shared_ptr<BgpCapability> &cap : capabilities) {
             if (cap->code == MP_BGP) {
                 const BgpCapabilityMpBgp &mp_cap = dynamic_cast<const BgpCapabilityMpBgp &> (*cap);
-                if (mp_cap.afi == IPV6) send_ipv6_routes = true;
-                if (mp_cap.afi == IPV4) send_ipv4_routes = true;
+                if (mp_cap.afi == IPV6) send_ipv6_routes = true && config.mp_bgp_ipv6;
+                if (mp_cap.afi == IPV4) send_ipv4_routes = true && config.mp_bgp_ipv4;
             }
         }
     } else {
-        send_ipv4_routes = true;
+        send_ipv4_routes = true && !(config.mp_bgp_ipv6 && !config.mp_bgp_ipv4);
         send_ipv6_routes = false;
     }
     
@@ -499,7 +499,7 @@ void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     update.dropNonTransitive();
 
     // ipv4 nexthop related stuffs
-    if (update.nlri.size() > 0) {
+    if (send_ipv4_routes) {
         if (config.forced_default_nexthop4 || !update.hasAttrib(NEXT_HOP)) {
             LIBBGP_LOG(logger, INFO) {
                 char ip_str[INET_ADDRSTRLEN];
