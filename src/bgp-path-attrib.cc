@@ -1952,7 +1952,7 @@ BgpPathAttrib* BgpPathAttribMpUnreachNlriUnknow::clone() const {
 }
 
 ssize_t BgpPathAttribMpUnreachNlriUnknow::parse(const uint8_t *from, size_t length) {
-    size_t hdr_len = parseHeader(from, length);
+    ssize_t hdr_len = parseHeader(from, length);
     if (hdr_len < 0) return -1;
 
     if (withdrawn_routes_len > 0) free(withdrawn_routes);
