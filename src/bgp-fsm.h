@@ -195,8 +195,8 @@ private:
 
     bool handleRouteEvent(const RouteEvent &ev);
     bool handleRouteCollisionEvent(const RouteCollisionEvent &ev);
-    bool handleRouteWithdrawEvent(const RouteWithdrawEvent &ev);
-    bool handleRouteAddEvent(const RouteAddEvent &ev);
+    bool handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev);
+    bool handleRoute4AddEvent(const Route4AddEvent &ev);
 
     int validateState(uint8_t type);
     int fsmEvalIdle(const BgpMessage *msg);

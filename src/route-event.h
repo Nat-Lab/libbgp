@@ -21,8 +21,8 @@ namespace libbgp {
  * 
  */
 enum RouteEventType {
-    ADD, 
-    WITHDRAW,
+    ADD4, 
+    WITHDRAW4,
     COLLISION
 };
 
@@ -42,12 +42,12 @@ public:
 };
 
 /**
- * @brief An RouteAddEvent.
+ * @brief An Route4AddEvent.
  * 
  */
-class RouteAddEvent : public RouteEvent {
+class Route4AddEvent : public RouteEvent {
 public:
-    RouteAddEvent () { type = ADD; }
+    Route4AddEvent () { type = ADD4; }
 
     /**
      * @brief Path attribues of the route.
@@ -63,12 +63,12 @@ public:
 };
 
 /**
- * @brief An RouteWithdrawEvent. 
+ * @brief An Route4WithdrawEvent. 
  * 
  */
-class RouteWithdrawEvent : public RouteEvent {
+class Route4WithdrawEvent : public RouteEvent {
 public:
-    RouteWithdrawEvent () { type = WITHDRAW; }
+    Route4WithdrawEvent () { type = WITHDRAW4; }
 
     /**
      * @brief Routes to withdraw.

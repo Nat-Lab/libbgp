@@ -435,8 +435,8 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
 }
 
 bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
-    if (ev.type == ADD) return handleRouteAddEvent(dynamic_cast <const RouteAddEvent&>(ev));
-    if (ev.type == WITHDRAW) return handleRouteWithdrawEvent(dynamic_cast <const RouteWithdrawEvent&>(ev));
+    if (ev.type == ADD4) return handleRoute4AddEvent(dynamic_cast <const Route4AddEvent&>(ev));
+    if (ev.type == WITHDRAW4) return handleRoute4WithdrawEvent(dynamic_cast <const Route4WithdrawEvent&>(ev));
     if (ev.type == COLLISION) return handleRouteCollisionEvent(dynamic_cast <const RouteCollisionEvent&>(ev));
 
     return false;
@@ -451,11 +451,11 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
     return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
 
-bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
+bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
     if (state != ESTABLISHED) return false;
     if (!send_ipv4_routes) return false;
 
-    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-add event with %zu routes.\n", ev.routes.size());
+    logger->log(INFO, "BgpFsm::handleRoute4AddEvent: got route-add event with %zu routes.\n", ev.routes.size());
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -468,7 +468,7 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
                 uint32_t prefix = route.getPrefix();
                 char ip_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                logger->log(INFO, "BgpFsm::handleRouteAddEvent: route %s/%d filtered by out_filter.\n", ip_str, route.getLength());
+                logger->log(INFO, "BgpFsm::handleRoute4AddEvent: route %s/%d filtered by out_filter.\n", ip_str, route.getLength());
             }
         }
     }
@@ -481,11 +481,11 @@ bool BgpFsm::handleRouteAddEvent(const RouteAddEvent &ev) {
     return true;
 }
 
-bool BgpFsm::handleRouteWithdrawEvent(const RouteWithdrawEvent &ev) {
+bool BgpFsm::handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
     if (!send_ipv4_routes) return false;
 
-    logger->log(INFO, "BgpFsm::handleRouteAddEvent: got route-withdraw event with %zu routes.\n", ev.routes.size());
+    logger->log(INFO, "BgpFsm::handleRoute4AddEvent: got route-withdraw event with %zu routes.\n", ev.routes.size());
 
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
@@ -724,13 +724,13 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
         if (rev_bus_exist) {
             if (update->withdrawn_routes.size() > 0) {
-                RouteWithdrawEvent wev = RouteWithdrawEvent();
+                Route4WithdrawEvent wev = Route4WithdrawEvent();
                 wev.routes = update->withdrawn_routes;
                 config.rev_bus->publish(this, wev);
             }
 
             if (routes.size() > 0) {
-                RouteAddEvent aev = RouteAddEvent();
+                Route4AddEvent aev = Route4AddEvent();
                 aev.routes = routes;
                 aev.attribs = update->path_attribute;
                 config.rev_bus->publish(this, aev);
@@ -749,7 +749,7 @@ void BgpFsm::dropAllRoutes() {
     if (peer_bgp_id != 0) {
         std::vector<Prefix4> dropped_routes = rib4->discard(peer_bgp_id);
         if (rev_bus_exist && dropped_routes.size() > 0) {
-            RouteWithdrawEvent wev;
+            Route4WithdrawEvent wev;
             wev.routes = dropped_routes;
             config.rev_bus->publish(this, wev);
         }
