@@ -69,15 +69,16 @@ public:
         base_config.asn = my_asn; // set local ASN
         base_config.peer_asn = 0; // 0: accept peer with any ASN.
         base_config.use_4b_asn = true; // Enable four octets ASN support.
+        base_config.mp_bgp_ipv4 = true; // enable mp-bgp
+        base_config.mp_bgp_ipv6 = true; // also allow ipv6 route over ipv4 session
         base_config.hold_timer = 120; // hold timer
-        base_config.rib = &rib; // all FSMs will share an RIB.
+        base_config.rib4 = &rib; // all FSMs will share an RIB.
         base_config.rev_bus = &bus; // all FSMs should be communicating using the event bus.
         base_config.clock = NULL; // use system clock to check time-based evetns.
-        base_config.peering_lan_length = peering_lan_length;
-        base_config.forced_default_nexthop = false;
+        base_config.peering_lan4 = libbgp::Prefix4(peering_lan_prefix, peering_lan_length);
+        base_config.forced_default_nexthop4 = false;
 
         inet_pton(AF_INET, bgp_id, &(base_config.router_id));
-        inet_pton(AF_INET, peering_lan_prefix, &(base_config.peering_lan_prefix));
 
         root_logger.setSelf();
         log_level = libbgp::INFO;
@@ -217,7 +218,7 @@ private:
 
     RouteServerLogHandler root_logger;
 
-    libbgp::BgpRib rib;
+    libbgp::BgpRib4 rib;
     libbgp::BgpConfig base_config;
     libbgp::RouteEventBus bus;
     libbgp::LogLevel log_level;
