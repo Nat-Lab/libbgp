@@ -53,7 +53,7 @@ typedef struct BgpConfig {
      * 
      * Egress route filters are applied when sending routes to the peer. 
      */
-    BgpFilterRules6 out_filter6;
+    BgpFilterRules6 out_filters6;
 
     /**
      * @brief The output handler.
@@ -219,14 +219,27 @@ typedef struct BgpConfig {
     bool no_nexthop_check6;
 
     /**
-     * @brief The default IPv6 nexthop to use.
+     * @brief The default global IPv6 nexthop to use.
      * 
      * Default nexthop is used when sending routes to the peer. The nexthop 
      * value will remain unchanged if it is inside peering LAN. Default nexthop 
      * is used only when the nexthop attribute of an egress route is not in 
      * peering LAN. 
      */
-    uint8_t default_nexthop6[16];
+    uint8_t default_nexthop6_global[16];
+
+    /**
+     * @brief The default link-local IPv6 nexthop to use.
+     * 
+     * The link local nexhop. You may set this to all-zero if you don't want
+     * to send a link-local nexthop.
+     * 
+     * Default nexthop is used when sending routes to the peer. The nexthop 
+     * value will remain unchanged if it is inside peering LAN. Default nexthop 
+     * is used only when the nexthop attribute of an egress route is not in 
+     * peering LAN. 
+     */
+    uint8_t default_nexthop6_linklocal[16];
 
     /**
      * @brief Forced IPv6 default nexthop.

@@ -632,7 +632,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             size_t msg_len = 19 + 4;
 
             for (const std::shared_ptr<BgpPathAttrib> &attrib : update.path_attribute) {
-                msg_len += attrib->length(); // 2: attribute header
+                msg_len += attrib->length(); 
             }
 
             for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
@@ -662,7 +662,66 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     }
 
     if (send_ipv6_routes) {
-        // TODO
+        std::vector<BgpRib6Entry>::const_iterator iter = rib6->get().begin();
+        std::vector<BgpRib6Entry>::const_iterator end = rib6->get().end();
+
+        while (iter != end) {
+            uint64_t cur_group_id = iter->update_id;
+            const uint8_t *nh_global = iter->nexthop_global;
+            const uint8_t *nh_linklocal = iter->nexthop_linklocal;
+            BgpUpdateMessage update (logger, use_4b_asn);
+            update.setAttribs(iter->attribs);
+            prepareUpdateMessage(update);
+            std::vector<Prefix6> filtered_nlri;
+
+            size_t msg_len = 19 + 4 + 8; // 8: mp-reach-nlri headers (attrib hdr: 3, afi/safi/nh_len/res: 5)
+            for (const std::shared_ptr<BgpPathAttrib> &attrib : update.path_attribute) {
+                msg_len += attrib->length(); 
+            }
+
+            for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
+                const Prefix6 &r = iter->route;
+                if (config.out_filters6.apply(r) == ACCEPT) {
+                    msg_len += 1 + (r.getLength() + 7) / 8;
+                    if (msg_len > 4096) {
+                        // size too big, roll back and break.
+                        iter--;
+                        break;
+                    }
+                    filtered_nlri.push_back(r);
+                } else {
+                    LIBBGP_LOG(logger, INFO) {
+                        uint8_t prefix[16]; 
+                        r.getPrefix(prefix);
+                        char ip_str[INET6_ADDRSTRLEN];
+                        inet_ntop(AF_INET6, &prefix, ip_str, INET6_ADDRSTRLEN);
+                        logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
+                    }
+                }
+            }
+
+            if (filtered_nlri.size() > 0) {
+                if (config.forced_default_nexthop6 && !config.peering_lan6.includes(nh_global)) {
+                    LIBBGP_LOG(logger, INFO) {
+                        char nh_old_str[INET6_ADDRSTRLEN];
+                        char nh_def_str[INET6_ADDRSTRLEN];
+                        inet_ntop(AF_INET6, &nh_global, nh_old_str, INET6_ADDRSTRLEN);
+                        inet_ntop(AF_INET6, &nh_def_str, nh_def_str, INET6_ADDRSTRLEN);
+
+                        if (config.forced_default_nexthop6) {
+                            logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: forced_default_nexthop6 set, default (%s) will be used.\n", nh_def_str);
+                        }
+                        else logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: nexthop %s is not in peering lan, default (%s) will be used.\n", nh_old_str, nh_def_str);
+                    }
+
+                    update.setNlri6(filtered_nlri, config.default_nexthop6_global, config.default_nexthop6_linklocal);
+                } else update.setNlri6(filtered_nlri, nh_global, nh_linklocal);
+
+                
+                if(!writeMessage(update)) return -1;
+            }
+
+        }
     }
 
     return 1;
