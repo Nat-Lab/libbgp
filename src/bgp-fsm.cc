@@ -589,8 +589,23 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
 
     uint16_t my_asn_2b = config.asn >= 0xffff ? 23456 : config.asn;
     BgpOpenMessage open_reply (logger, use_4b_asn, my_asn_2b, hold_timer, config.router_id);
+
     if (use_4b_asn) {
         open_reply.setAsn(config.asn);
+    }
+
+    if (config.mp_bgp_ipv4) {
+        BgpCapabilityMpBgp *cap = new BgpCapabilityMpBgp(logger);
+        cap->afi = IPV4;
+        cap->afi = UNICAST;
+        open_reply.addCapability(std::shared_ptr<BgpCapability>(cap));
+    }
+
+    if (config.mp_bgp_ipv6) {
+        BgpCapabilityMpBgp *cap = new BgpCapabilityMpBgp(logger);
+        cap->afi = IPV6;
+        cap->afi = UNICAST;
+        open_reply.addCapability(std::shared_ptr<BgpCapability>(cap));
     }
 
     setState(OPEN_CONFIRM);

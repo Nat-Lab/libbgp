@@ -361,4 +361,16 @@ const std::vector<std::shared_ptr<BgpCapability>>& BgpOpenMessage::getCapabiliti
     return capabilities;
 }
 
+/**
+ * @brief Add a capability.
+ * 
+ * @param capability The capability.
+ * @return true Capability added.
+ * @return false Failed to add capability.
+ */
+bool BgpOpenMessage::addCapability(std::shared_ptr<BgpCapability> capability) {
+    capabilities.push_back(capability);
+    return true;
+}
+
 }
