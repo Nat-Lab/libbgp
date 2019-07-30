@@ -499,28 +499,28 @@ void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
     // TODO: IPv6
 
     update.dropNonTransitive();
-    if (config.forced_default_nexthop || !update.hasAttrib(NEXT_HOP)) {
+    if (config.forced_default_nexthop4 || !update.hasAttrib(NEXT_HOP)) {
         LIBBGP_LOG(logger, INFO) {
             char ip_str[INET_ADDRSTRLEN];
-            inet_ntop(AF_INET, &(config.nexthop), ip_str, INET_ADDRSTRLEN);
-            if (config.forced_default_nexthop) {
-                logger->log(INFO, "BgpFsm::prepareUpdateMessage: forced_default_nexthop set, using %s as nexthop.\n", ip_str);
+            inet_ntop(AF_INET, &(config.default_nexthop4), ip_str, INET_ADDRSTRLEN);
+            if (config.forced_default_nexthop4) {
+                logger->log(INFO, "BgpFsm::prepareUpdateMessage: forced_default_nexthop4 set, using %s as nexthop.\n", ip_str);
             } else {
                 logger->log(INFO, "BgpFsm::prepareUpdateMessage: no nethop attribute set, using %s as nexthop.\n", ip_str);
             }
         }
-        update.setNextHop(config.nexthop);
+        update.setNextHop(config.default_nexthop4);
     } else {
         BgpPathAttribNexthop &nh = dynamic_cast<BgpPathAttribNexthop &> (update.getAttrib(NEXT_HOP));
-        if (!Prefix4::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+        if (!config.peering_lan4.includes(nh.next_hop)) {
             LIBBGP_LOG(logger, INFO) {
                 char def_nexthop[INET_ADDRSTRLEN];
                 char cur_nexthop[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &(config.nexthop), def_nexthop, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(config.default_nexthop4), def_nexthop, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &(nh.next_hop), cur_nexthop, INET_ADDRSTRLEN);
                 logger->log(INFO, "BgpFsm::prepareUpdateMessage: nexthop %s not in peering lan, using %s.\n", cur_nexthop, def_nexthop);
             }
-            nh.next_hop = config.nexthop;
+            nh.next_hop = config.default_nexthop4;
         }
     }
 
@@ -687,14 +687,15 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             return 1;
         }
     
-        if (!config.no_nexthop_check && !Prefix4::Includes(config.peering_lan_prefix, config.peering_lan_length, nh.next_hop)) {
+        if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop)) {
             LIBBGP_LOG(logger, WARN) {
                 char ip_str_nh[INET_ADDRSTRLEN];
                 char ip_str_lan[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &(nh.next_hop), ip_str_nh, INET_ADDRSTRLEN);
-                inet_ntop(AF_INET, &(config.peering_lan_prefix), ip_str_lan, INET_ADDRSTRLEN);
+                uint32_t peering_lan_pfx = config.peering_lan4.getPrefix();
+                inet_ntop(AF_INET, &peering_lan_pfx, ip_str_lan, INET_ADDRSTRLEN);
                 logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with nexthop outside peering LAN. (%s not in %s/%d)\n", 
-                    update->nlri.size(), ip_str_nh, ip_str_lan, config.peering_lan_length);
+                    update->nlri.size(), ip_str_nh, ip_str_lan, peering_lan_pfx);
             }
             return 1;
         };
@@ -766,7 +767,7 @@ void BgpFsm::setState(BgpState new_state) {
 }
 
 bool BgpFsm::validAddr(uint32_t addr) const {
-    if (addr == config.nexthop || addr == config.router_id) {
+    if (addr == config.default_nexthop4 || addr == config.router_id) {
         return false;
     }
 
