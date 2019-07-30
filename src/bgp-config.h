@@ -161,48 +161,80 @@ typedef struct BgpConfig {
     uint32_t router_id;
 
     /**
-     * @brief The prefix of the peering LAN in network-byte order.
+     * @brief The prefix of the IPv4 peering LAN.
      * 
      * Peering LAN information is used to check the validity of the nexthop 
      * attribute of the received routes. Routes received from the peer with a 
-     * nexthop outside the peering LAN will be ignored.
+     * nexthop outside the peering LAN will be ignored. When sending routes to
+     * peer, if nexthop attribute in RIB is not in peering LAN, default nexthop
+     * will be used.
+     * 
      */
-    uint32_t peering_lan_prefix;
+    Prefix4 peering_lan4;
 
     /**
-     * @brief The netmask of the peering LAN in CIDR notation.
+     * @brief The prefix of the IPv6 peering LAN.
      * 
      * Peering LAN information is used to check the validity of the nexthop 
      * attribute of the received routes. Routes received from the peer with a 
-     * nexthop outside the peering LAN will be ignored.
+     * nexthop outside the peering LAN will be ignored. When sending routes to
+     * peer, if nexthop attribute in RIB is not in peering LAN, default nexthop
+     * will be used.
+     * 
      */
-    uint8_t peering_lan_length;
+    Prefix6 peering_lan6;
 
     /**
-     * @brief Disable ingress nexthop validation.
+     * @brief Disable IPv4 ingress nexthop validation.
      * 
      * If true, BGP FSM will accept route with any nexthop, regardless of the 
      * peering LAN.
      */
-    bool no_nexthop_check;
+    bool no_nexthop_check4;
 
     /**
-     * @brief The default nexthop to use.
+     * @brief The default IPv4 nexthop to use.
      * 
      * Default nexthop is used when sending routes to the peer. The nexthop 
      * value will remain unchanged if it is inside peering LAN. Default nexthop 
      * is used only when the nexthop attribute of an egress route is not in 
      * peering LAN. 
      */
-    uint32_t nexthop;
+    uint32_t default_nexthop4;
 
     /**
-     * @brief Forced default nexthop.
+     * @brief Forced IPv4 default nexthop.
      * 
-     * If this is set to true, the `nexthop` configuration parameter will always
-     * be used as nexthop, regardless of the peering LAN.
+     * If this is set to true, the `default_nexthop4` configuration parameter 
+     * will always be used as nexthop, regardless of the peering LAN.
      */
-    bool forced_default_nexthop;
+    bool forced_default_nexthop4;
+
+    /**
+     * @brief Disable IPv6 ingress nexthop validation.
+     * 
+     * If true, BGP FSM will accept route with any nexthop, regardless of the 
+     * peering LAN.
+     */
+    bool no_nexthop_check6;
+
+    /**
+     * @brief The default IPv6 nexthop to use.
+     * 
+     * Default nexthop is used when sending routes to the peer. The nexthop 
+     * value will remain unchanged if it is inside peering LAN. Default nexthop 
+     * is used only when the nexthop attribute of an egress route is not in 
+     * peering LAN. 
+     */
+    uint8_t default_nexthop6[16];
+
+    /**
+     * @brief Forced IPv6 default nexthop.
+     * 
+     * If this is set to true, the `default_nexthop6` configuration parameter 
+     * will always be used as nexthop, regardless of the peering LAN.
+     */
+    bool forced_default_nexthop6;
 
     /**
      * @brief The hold timer.
