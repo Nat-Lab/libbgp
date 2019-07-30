@@ -389,6 +389,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
         for (const std::shared_ptr<BgpCapability> &cap : capabilities) {
             if (cap->code == MP_BGP) {
                 const BgpCapabilityMpBgp &mp_cap = dynamic_cast<const BgpCapabilityMpBgp &> (*cap);
+                if (mp_cap.safi != UNICAST) continue;
                 if (mp_cap.afi == IPV6) send_ipv6_routes = true && config.mp_bgp_ipv6;
                 if (mp_cap.afi == IPV4) send_ipv4_routes = true && config.mp_bgp_ipv4;
             }
