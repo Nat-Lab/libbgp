@@ -126,7 +126,9 @@ typedef struct BgpConfig {
      * 
      * Set this parameter to true will enable IPv4 support with MP-BGP. Note
      * that even without MP-BGP IPv4, IPv4 routing information will still be
-     * exchanged with normal BGP session.
+     * exchanged with normal BGP session. This should only be set when 
+     * mp_bgp_ipv6 is set and you want to carry ipv4 routing infromation on the
+     * same session.
      * 
      */
     bool mp_bgp_ipv4;
@@ -134,7 +136,8 @@ typedef struct BgpConfig {
     /**
      * @brief Enable MP-BGP IPv6 support.
      * 
-     * Set this parameter to true will enable IPv6 support with MP-BGP.
+     * Set this parameter to true will enable IPv6 support with MP-BGP. Setting
+     * this to true will disable IPv4 unless mp_bgp_ipv4 is also set to true.
      * 
      */
     bool mp_bgp_ipv6;
