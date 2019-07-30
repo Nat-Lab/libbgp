@@ -352,4 +352,13 @@ bool BgpOpenMessage::hasCapability(uint8_t code) const {
     return false;
 }
 
+/**
+ * @brief Get capabilities list.
+ * 
+ * @return const std::vector<std::shared_ptr<BgpCapability>>& Capabilities.
+ */
+const std::vector<std::shared_ptr<BgpCapability>>& BgpOpenMessage::getCapabilities() const {
+    return capabilities;
+}
+
 }
