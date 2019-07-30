@@ -74,6 +74,9 @@ public:
     // get length of error payload
     size_t getErrorLength() const;
 
+    // replace logger
+    void setLogger(BgpLogHandler *logger);
+
 protected:
     // print helper. print string with format to pointer to buffer. will change
     // buffer pointer and buf_left after write. return bytes written

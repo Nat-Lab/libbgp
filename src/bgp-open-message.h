@@ -48,6 +48,8 @@ public:
     // utility function for testing capability
     bool hasCapability(uint8_t code) const;
 
+    bool addCapability(std::shared_ptr<BgpCapability> capability);
+
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
 
     ssize_t parse(const uint8_t *from, size_t msg_sz);

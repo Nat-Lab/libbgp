@@ -1,9 +1,9 @@
 /**
- * @file bgp-rib.h
+ * @file bgp-rib4.h
  * @author Nato Morichika <nat@nat.moe>
- * @brief The BGP Routing Information Base.
- * @version 0.1
- * @date 2019-07-04
+ * @brief The IPv4 BGP Routing Information Base.
+ * @version 0.2
+ * @date 2019-07-21
  * 
  * @copyright Copyright (c) 2019
  * 
@@ -14,24 +14,24 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include "route.h"
+#include "prefix4.h"
 #include "bgp-path-attrib.h"
 
 namespace libbgp {
 
 /**
- * @brief The BgpRibEntry class.
+ * @brief The BgpRib4Entry class.
  * 
  */
-class BgpRibEntry {
+class BgpRib4Entry {
 public:
-    BgpRibEntry (Route r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
+    BgpRib4Entry (Prefix4 r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
 
     /**
      * @brief The prefix of this entry.
      * 
      */
-    Route route;
+    Prefix4 route;
 
     /**
      * @brief The originating BGP speaker's ID of this entry. (network bytes order)
@@ -40,7 +40,7 @@ public:
     uint32_t src_router_id;
 
     /**
-     * @brief The update ID. BgpRibEntry with same update ID are received from
+     * @brief The update ID. BgpRib4Entry with same update ID are received from
      * the same update and their path attributes are therefore same. Note that
      * entries with different update_id may still have same path attributes.
      * 
@@ -61,45 +61,45 @@ public:
 };
 
 /**
- * @brief The BgpRib (BGP Routing Information Base) class.
+ * @brief The BgpRib4 (IPv4 BGP Routing Information Base) class.
  * 
  */
-class BgpRib {
+class BgpRib4 {
 public:
-    BgpRib(BgpLogHandler *logger);
+    BgpRib4(BgpLogHandler *logger);
 
     // insert a route as local routing information
-    const BgpRibEntry* insert(BgpLogHandler *logger, const Route &route, uint32_t nexthop);
+    const BgpRib4Entry* insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop);
 
     // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Route &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+    bool insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Route> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // remove a route from RIB, return true if route removed, false if not exist.
-    bool withdraw(uint32_t src_router_id, const Route &route);
+    bool withdraw(uint32_t src_router_id, const Prefix4 &route);
 
     // remove routes from RIB, return number of routes removed on success, -1
     // on error
-    ssize_t withdraw(uint32_t src_router_id, const std::vector<Route> &routes);
+    ssize_t withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes);
 
     // remove all routes from a peer, return all discarded routes on success.
-    std::vector<Route> discard(uint32_t src_router_id);
+    std::vector<Prefix4> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
-    const BgpRibEntry* lookup(uint32_t dest) const;
+    const BgpRib4Entry* lookup(uint32_t dest) const;
 
     // scoped lookup in rib, return null if not found
-    const BgpRibEntry* lookup(uint32_t src_router_id, uint32_t dest) const;
+    const BgpRib4Entry* lookup(uint32_t src_router_id, uint32_t dest) const;
 
     // get RIB
-    const std::vector<BgpRibEntry> &get() const;
+    const std::vector<BgpRib4Entry> &get() const;
 private:
 
-    static const BgpRibEntry* selectEntry(const BgpRibEntry *a, const BgpRibEntry *b);
-    std::vector<BgpRibEntry> rib;
+    static const BgpRib4Entry* selectEntry(const BgpRib4Entry *a, const BgpRib4Entry *b);
+    std::vector<BgpRib4Entry> rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;
     uint64_t update_id;
@@ -117,7 +117,7 @@ private:
  * 
  * @example route-server.cc
  * Simple BGP route server implements with libbgp. Use of RouteEventBus and 
- * shared BgpRib is demoed in this example. This example also shows how you can
+ * shared BgpRib4 is demoed in this example. This example also shows how you can
  * implement your own BgpLogHandler.
  * 
  */

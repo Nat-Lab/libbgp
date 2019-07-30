@@ -10,6 +10,7 @@
  */
 #include "bgp-update-message.h"
 #include "bgp-errcode.h"
+#include "bgp-afi.h"
 #include "value-op.h"
 #include <arpa/inet.h>
 
@@ -82,7 +83,7 @@ bool BgpUpdateMessage::hasAttrib(uint8_t type) const {
 bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
     if (hasAttrib(attrib.type_code)) return false;
 
-    path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib.clone()));
+    path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib.clone(logger)));
     return true;
 }
 
@@ -96,7 +97,7 @@ bool BgpUpdateMessage::addAttrib(const BgpPathAttrib &attrib) {
 bool BgpUpdateMessage::setAttribs(const std::vector<std::shared_ptr<BgpPathAttrib>> &attrs) {
     path_attribute.clear();
     for (const std::shared_ptr<BgpPathAttrib> &attrib : attrs) {
-        path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib->clone()));
+        path_attribute.push_back(std::shared_ptr<BgpPathAttrib>(attrib->clone(logger)));
     }
     return true;
 }
@@ -436,7 +437,7 @@ bool BgpUpdateMessage::downgradeAggregator() {
  * @return true Withdrawn routes set.
  * @return false Failed to set withdrawn routes.
  */
-bool BgpUpdateMessage::setWithdrawn(const std::vector<Route> &routes) {
+bool BgpUpdateMessage::setWithdrawn4(const std::vector<Prefix4> &routes) {
     withdrawn_routes = routes;
     return true;
 }
@@ -449,8 +450,8 @@ bool BgpUpdateMessage::setWithdrawn(const std::vector<Route> &routes) {
  * @return true Withdrawn route added.
  * @return false Failed to add withdrawn route.
  */
-bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
-    Route route (prefix, length);
+bool BgpUpdateMessage::addWithdrawn4(uint32_t prefix, uint8_t length) {
+    Prefix4 route (prefix, length);
     withdrawn_routes.push_back(route);
     return true;
 }
@@ -462,7 +463,7 @@ bool BgpUpdateMessage::addWithdrawn(uint32_t prefix, uint8_t length) {
  * @return true Withdrawn route added.
  * @return false Failed to add withdrawn route.
  */
-bool BgpUpdateMessage::addWithdrawn(const Route &route) {
+bool BgpUpdateMessage::addWithdrawn4(const Prefix4 &route) {
     withdrawn_routes.push_back(route);
     return true;
 }
@@ -474,7 +475,7 @@ bool BgpUpdateMessage::addWithdrawn(const Route &route) {
  * @return true Routes set.
  * @return false Failed to set routes.
  */
-bool BgpUpdateMessage::setNlri(const std::vector<Route> &routes) {
+bool BgpUpdateMessage::setNlri4(const std::vector<Prefix4> &routes) {
     nlri = routes;
     return true;
 }
@@ -487,8 +488,8 @@ bool BgpUpdateMessage::setNlri(const std::vector<Route> &routes) {
  * @return true Route added.
  * @return false Failed to add route.
  */
-bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
-    Route route(prefix, length);
+bool BgpUpdateMessage::addNlri4(uint32_t prefix, uint8_t length) {
+    Prefix4 route(prefix, length);
     nlri.push_back(route);
     return true;
 }
@@ -500,7 +501,7 @@ bool BgpUpdateMessage::addNlri(uint32_t prefix, uint8_t length) {
  * @return true Route added.
  * @return false Failed to add route.
  */
-bool BgpUpdateMessage::addNlri(const Route &route) {
+bool BgpUpdateMessage::addNlri4(const Prefix4 &route) {
     nlri.push_back(route);
     return true;
 }
@@ -538,11 +539,33 @@ bool BgpUpdateMessage::validateAttribs() {
     return true;
 }
 
+bool BgpUpdateMessage::setWithdrawn6(const std::vector<Prefix6> &routes) {
+    BgpPathAttribMpUnreachNlriIpv6 unr6 (logger);
+    unr6.safi = UNICAST;
+    unr6.withdrawn_routes = routes;
+    updateAttribute(unr6);
+
+    return true;
+}
+
+bool BgpUpdateMessage::setNlri6(const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16]) {
+    BgpPathAttribMpReachNlriIpv6 r6 (logger);
+    r6.safi = UNICAST;
+    r6.nlri = routes;
+    memcpy(r6.nexthop_global, nexthop_global, 16);
+    if (nexthop_linklocal != NULL) {
+        memcpy(r6.nexthop_linklocal, nexthop_linklocal, 16);
+    } else memset(r6.nexthop_linklocal, 0, 16);
+    updateAttribute(r6);
+    
+    return true;
+}
+
 ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
     if (msg_sz < 4) {
         uint8_t _err_data = msg_sz;
         setError(E_HEADER, E_LENGTH, &_err_data, sizeof(uint8_t));
-        logger->log(ERROR, "BgpUpdateMessage::parse: invalid open message size: %d.\n", msg_sz);
+        logger->log(ERROR, "BgpUpdateMessage::parse: invalid update message size: %d.\n", msg_sz);
         return -1;
     }
 
@@ -565,28 +588,17 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
-        parsed_withdrawn_len++;
-        if (route_len > 32) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: invalid route len in withdrawn routes: %d\n", route_len);
+        Prefix4 route = Prefix4();
+        ssize_t route_read_ret = route.parse(buffer, withdrawn_len - parsed_withdrawn_len);
+        if (route_read_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::parse: error parsing route len in withdrawn routes.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
+        parsed_withdrawn_len += route_read_ret;
+        buffer += route_read_ret;
 
-        size_t route_buffer_len = (route_len + 7) / 8;
-        if (parsed_withdrawn_len + route_buffer_len > withdrawn_len) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: withdrawn route overflows routes list.\n");
-            setError(E_UPDATE, E_UNSPEC, NULL, 0);
-            return -1;
-        }
-
-        uint32_t prefix = 0;
-        memcpy(&prefix, buffer, route_buffer_len);
-        Route route(prefix, route_len);
         withdrawn_routes.push_back(route);
-
-        buffer += route_buffer_len; // len2: route_buffer_len
-        parsed_withdrawn_len += route_buffer_len;
     }
 
     if (parsed_withdrawn_len != withdrawn_len) throw "bad_parse";
@@ -628,6 +640,30 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             case COMMUNITY: attrib = new BgpPathAttribCommunity(logger); break;
             case AS4_PATH: attrib = new BgpPathAttribAs4Path(logger); break;
             case AS4_AGGREGATOR: attrib = new BgpPathAttribAs4Aggregator(logger); break;
+            case MP_REACH_NLRI: 
+            case MP_UNREACH_NLRI: {
+                int16_t afi = BgpPathAttribMpNlriBase::GetAfiFromBuffer(buffer, attribute_len - parsed_attribute_len);
+                if (afi < 0) {
+                    logger->log(ERROR, "BgpUpdateMessage::parse: failed to parse mp-bgp afi.\n");
+                    setError(E_UPDATE, E_UNSPEC, NULL, 0);
+                    return -1;
+                }
+
+                if (afi == IPV6 && attr_type == MP_REACH_NLRI) {
+                    attrib = new BgpPathAttribMpReachNlriIpv6(logger);
+                    break;
+                }
+                
+                if (afi == IPV6 && attr_type == MP_UNREACH_NLRI) {
+                    attrib = new BgpPathAttribMpUnreachNlriIpv6(logger);
+                    break;
+                }
+
+                if (attr_type == MP_REACH_NLRI) attrib = new BgpPathAttribMpReachNlriUnknow(logger);
+                else attrib = new BgpPathAttribMpUnreachNlriUnknow(logger);
+                
+                break;
+            }
             default: attrib = new BgpPathAttrib(logger); break;
         }
 
@@ -659,28 +695,17 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        uint8_t route_len = getValue<uint8_t>(&buffer); // len2: 1
-        parsed_nlri_len++;
-        if (route_len > 32) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: invalid route len in nlri routes: %d\n", route_len);
+        Prefix4 route = Prefix4();
+        ssize_t route_read_ret = route.parse(buffer, nlri_len - parsed_nlri_len);
+        if (route_read_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::parse: error parsing route len in nlri routes.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;
         }
+        parsed_nlri_len += route_read_ret;
+        buffer += route_read_ret;
 
-        size_t route_buffer_len = (route_len + 7) / 8;
-        if (parsed_nlri_len + route_buffer_len > nlri_len) {
-            logger->log(ERROR, "BgpUpdateMessage::parse: nlri route overflows routes list.\n");
-            setError(E_UPDATE, E_UNSPEC, NULL, 0);
-            return -1;
-        }
-
-        uint32_t prefix = 0;
-        memcpy(&prefix, buffer, route_buffer_len);
-        Route route(prefix, route_len);
         nlri.push_back(route);
-
-        buffer += route_buffer_len; // len2: route_buffer_len
-        parsed_nlri_len += route_buffer_len;
     }
 
     if (parsed_nlri_len + parsed_attribute_len + parsed_withdrawn_len + 4 != msg_sz) {
@@ -707,22 +732,17 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     size_t written_withdrawn_length = 0;
 
-    for (const Route &route : withdrawn_routes) {
-        uint8_t route_len = route.getLength();
-        uint32_t route_prefix = route.getPrefix();
-        size_t pfx_buf_sz = (route_len + 7) / 8;
+    for (const Prefix4 &route : withdrawn_routes) {
+        size_t buf_avali = buf_sz - (written_withdrawn_length + tot_written);
+        ssize_t route_write_ret = route.write(buffer, buf_avali);
 
-        // 1: this prefix len field
-        if (1 + written_withdrawn_length + pfx_buf_sz + tot_written > buf_sz) {
-            logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
+        if (route_write_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::write: failed to write withdraw entry.\n");
             return -1;
         }
 
-        putValue<uint8_t>(&buffer, route_len);
-        memcpy(buffer, &route_prefix, pfx_buf_sz);
-
-        buffer += pfx_buf_sz;
-        written_withdrawn_length += 1 + pfx_buf_sz;
+        buffer += route_write_ret;
+        written_withdrawn_length += route_write_ret;
     }
 
     // now, put the length
@@ -757,23 +777,17 @@ ssize_t BgpUpdateMessage::write(uint8_t *to, size_t buf_sz) const {
 
     size_t written_nlri_len = 0;
 
-    for (const Route &route : nlri) {
-        uint8_t route_len = route.getLength();
-        uint32_t route_prefix = route.getPrefix();
+    for (const Prefix4 &route : nlri) {
+        size_t buf_avali = buf_sz - (written_nlri_len + tot_written);
+        ssize_t route_write_ret = route.write(buffer, buf_avali);
 
-        size_t pfx_buf_sz = (route_len + 7) / 8;
-
-        // 1: this prefix len field
-        if (1 + written_nlri_len + pfx_buf_sz + tot_written > buf_sz) {
-            logger->log(ERROR, "BgpUpdateMessage::write: destination buffer too small.\n");
+        if (route_write_ret < 0) {
+            logger->log(ERROR, "BgpUpdateMessage::write: failed to write nlri entry.\n");
             return -1;
         }
 
-        putValue<uint8_t>(&buffer, route_len);
-        memcpy(buffer, &route_prefix, pfx_buf_sz);
-
-        buffer += pfx_buf_sz;
-        written_nlri_len += 1 + pfx_buf_sz;
+        buffer += route_write_ret;
+        written_nlri_len += route_write_ret;
     }
 
     tot_written += written_nlri_len;
@@ -789,9 +803,9 @@ ssize_t BgpUpdateMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) c
         else {
             written += _print(indent, to, buf_sz, "WithdrawnRoutes {\n");
             indent++; {
-                for (const Route &route : withdrawn_routes) {
+                for (const Prefix4 &route : withdrawn_routes) {
                     uint32_t prefix = route.getPrefix();
-                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &prefix), route.getLength());
+                    written += _print(indent, to, buf_sz, "Prefix4 { %s/%d }\n", inet_ntoa(*(struct in_addr*) &prefix), route.getLength());
                 }
             }; indent--;
             written += _print(indent, to, buf_sz, "}\n");
@@ -812,9 +826,9 @@ ssize_t BgpUpdateMessage::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) c
         else {
             written += _print(indent, to, buf_sz, "NLRI {\n");
             indent++; {
-                for (const Route &route : nlri) {
+                for (const Prefix4 &route : nlri) {
                     uint32_t prefix = route.getPrefix();
-                    written += _print(indent, to, buf_sz, "Route { %s/%d }\n", inet_ntoa(*(struct in_addr*) &prefix), route.getLength());
+                    written += _print(indent, to, buf_sz, "Prefix4 { %s/%d }\n", inet_ntoa(*(struct in_addr*) &prefix), route.getLength());
                 }
             }; indent--;
             written += _print(indent, to, buf_sz, "}\n");

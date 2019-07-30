@@ -18,7 +18,7 @@
 namespace libbgp {
 
 /**
- * @brief Construct a new Bgp Capability:: Bgp Capability object
+ * @brief Construct a new Bgp Capability object
  * 
  * @param logger Pointer to logger object for error logging.
  */
@@ -56,7 +56,7 @@ ssize_t BgpCapability::parseHeader(const uint8_t *from, size_t msg_sz) {
 }
 
 /**
- * @brief Construct a new Bgp Capability 4 Bytes Asn:: Bgp Capability 4 Bytes Asn object
+ * @brief Construct a new BgpCapability4BytesAsn object.
  * 
  * @param logger Logger.
  */
@@ -112,8 +112,85 @@ ssize_t BgpCapability4BytesAsn::write(uint8_t *to, size_t buf_sz) const {
     return 6;
 }
 
+BgpCapabilityMpBgp::BgpCapabilityMpBgp(BgpLogHandler *logger) : BgpCapability(logger) {
+    code = MP_BGP;
+}
+
+ssize_t BgpCapabilityMpBgp::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    ssize_t written = 0;
+    written += _print(indent, to, buf_sz, "MpBgpCapability {\n");
+    indent++; {
+        written += _print(indent, to, buf_sz, "Code { %d }\n", code);
+        const char* afi_name = NULL;
+        const char* safi_name = NULL;
+
+        switch (afi) {
+            case IPV4: afi_name = "IPv4"; break;
+            case IPV6: afi_name = "IPv6"; break;
+            default: afi_name = "Unknow"; break;
+        }
+
+        switch (safi) {
+            case UNICAST: safi_name = "Unicast"; break;
+            case MULTICAST: safi_name = "Multicast"; break;
+            case UNICAST_AND_MULTICAST: safi_name = "Unicast & Multicast"; break;
+            default: safi_name = "Unknow";
+        }
+
+        written += _print(indent, to, buf_sz, "Afi { %s }\n", afi_name);
+        written += _print(indent, to, buf_sz, "Safi { %s }\n", safi_name);
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
+ssize_t BgpCapabilityMpBgp::parse(const uint8_t *from, size_t msg_sz) {
+    ssize_t hdr_len = parseHeader(from, msg_sz);
+
+    if (code != MP_BGP) {
+        logger->log(FATAL, "BgpCapabilityMpBgp::parse: typecode mismatch with object type.\n");
+        throw "bad_type";
+    }
+
+    if (hdr_len < 0) return hdr_len;
+
+    if (length != 4) {
+        setError(E_OPEN, E_UNSPEC_OPEN, NULL, 0);
+        logger->log(ERROR, "BgpCapabilityMpBgp::parse: bad length field, want 4, saw %d.\n", length);
+    }
+
+    const uint8_t *buffer = from + hdr_len;
+    afi = ntohs(getValue<uint16_t>(&buffer)); 
+
+    uint8_t res = getValue<uint8_t>(&buffer);
+    if (res != 0) {
+        logger->log(WARN, "BgpCapabilityMpBgp::parse: reserved bits != 0.\n");
+    }
+
+    safi = getValue<uint8_t>(&buffer);
+
+    return hdr_len + 4;
+}
+
+ssize_t BgpCapabilityMpBgp::write(uint8_t *to, size_t buf_sz) const {
+    if (buf_sz < 6) {
+        logger->log(ERROR, "BgpCapability4BytesAsn::write: dest buffer too small.\n");
+        return -1;
+    }
+
+    uint8_t *buffer = to;
+    putValue<uint8_t>(&buffer, MP_BGP);
+    putValue<uint8_t>(&buffer, 4);
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, 0);
+    putValue<uint8_t>(&buffer, safi);
+
+    return 6;
+}
+
 /**
- * @brief Construct a new Bgp Capability Unknow:: Bgp Capability Unknow object
+ * @brief Construct a new BgpCapabilityUnknow object
  * 
  * @param logger Pointer to logger object for error logging.
  */
@@ -122,7 +199,7 @@ BgpCapabilityUnknow::BgpCapabilityUnknow(BgpLogHandler *logger) : BgpCapability(
 }
 
 /**
- * @brief Destroy the Bgp Capability Unknow:: Bgp Capability Unknow object
+ * @brief Destroy the BgpCapabilityUnknow object
  * 
  */
 BgpCapabilityUnknow::~BgpCapabilityUnknow() {

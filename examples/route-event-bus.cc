@@ -18,7 +18,7 @@
 // another BGP FSM running as a "remote" BGP speaker. 
 
 // We can create our own RouteEventReceiver to get notified when route changes.
-// The routing information is available with BgpRib object, but you won't know 
+// The routing information is available with BgpRib4 object, but you won't know 
 // if there have been new routes added to the RIB.
 // RouteEventReceiver is an interface for RouteEventBus participant. 
 // RouteEventBus is usually used by BGP FSMs to communicate with each other. 
@@ -34,12 +34,12 @@ public:
 
 protected:
     bool handleRouteEvent(const libbgp::RouteEvent &ev) {
-        if (ev.type == libbgp::ADD) {
-            const libbgp::RouteAddEvent &add_ev = dynamic_cast<const libbgp::RouteAddEvent &>(ev);
+        if (ev.type == libbgp::ADD4) {
+            const libbgp::Route4AddEvent &add_ev = dynamic_cast<const libbgp::Route4AddEvent &>(ev);
             printRoutes("add", add_ev.routes);
         }
-        if (ev.type == libbgp::WITHDRAW) {
-            const libbgp::RouteWithdrawEvent &wd_ev = dynamic_cast<const libbgp::RouteWithdrawEvent &>(ev);
+        if (ev.type == libbgp::WITHDRAW4) {
+            const libbgp::Route4WithdrawEvent &wd_ev = dynamic_cast<const libbgp::Route4WithdrawEvent &>(ev);
             printRoutes("withdraw", wd_ev.routes);
         }
 
@@ -48,9 +48,9 @@ protected:
     }
 
 private:
-    void printRoutes(const char *type, const std::vector<libbgp::Route> &routes) {
+    void printRoutes(const char *type, const std::vector<libbgp::Prefix4> &routes) {
         char ip_str[INET_ADDRSTRLEN];
-        for (const libbgp::Route &r : routes) {
+        for (const libbgp::Prefix4 &r : routes) {
             uint32_t prefix = r.getPrefix();
             inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
             printf("[%s] %s: %s/%d\n", name, type, ip_str, r.getLength());
@@ -115,7 +115,7 @@ int main(void) {
 
     // create the rib. the logger is optional. setting a logger enable verbose
     // output on rib.
-    libbgp::BgpRib local_rib(&local_logger); 
+    libbgp::BgpRib4 local_rib(&local_logger); 
 
     /* set config parameters for local speaker */
     local_bgp_config.asn = 65000; // set local ASN
@@ -128,7 +128,7 @@ int main(void) {
     // use our pre-defined RIB. We may also set this to NULL, this will make
     // BgpFsm create RIB itself. We can get the created RIB with BgpFsm::getRib.
     // Demo of that can be found in route-filter.cc example.
-    local_bgp_config.rib = &local_rib; 
+    local_bgp_config.rib4 = &local_rib; 
 
     // use our local event bus.
     local_bgp_config.rev_bus = &local_bus; 
@@ -144,15 +144,15 @@ int main(void) {
     // usage, refer to the document.
 
     // always use 10.0.0.1 as nexthop. 
-    inet_pton(AF_INET, "10.0.0.1", &local_bgp_config.nexthop); 
-    local_bgp_config.forced_default_nexthop = true; 
+    inet_pton(AF_INET, "10.0.0.1", &local_bgp_config.default_nexthop4); 
+    local_bgp_config.forced_default_nexthop4 = true; 
 
     // don't validate nexthop of routes received from peer.
-    local_bgp_config.no_nexthop_check = true; 
+    local_bgp_config.no_nexthop_check4 = true; 
 
     // pre-fill the RIB with a route.
-    libbgp::Route r_141_193_21_24 ("141.193.21.0", 24);
-    local_rib.insert(&local_logger, r_141_193_21_24, local_bgp_config.nexthop);
+    libbgp::Prefix4 r_141_193_21_24 ("141.193.21.0", 24);
+    local_rib.insert(&local_logger, r_141_193_21_24, local_bgp_config.default_nexthop4);
 
     /* create the "remote" BGP speaker */
     libbgp::BgpConfig remote_bgp_config;
@@ -174,7 +174,7 @@ int main(void) {
     remote_bgp_config.no_collision_detection = true; // no need for that
 
     // remote: not using a pre-defined RIB.
-    remote_bgp_config.rib = NULL; 
+    remote_bgp_config.rib4 = NULL; 
 
     // use our remote event bus.
     remote_bgp_config.rev_bus = &remote_bus; 
@@ -190,11 +190,11 @@ int main(void) {
     // usage, refer to the document.
 
     // always use 10.0.0.2 as nexthop. 
-    inet_pton(AF_INET, "10.0.0.2", &remote_bgp_config.nexthop); 
-    remote_bgp_config.forced_default_nexthop = true; 
+    inet_pton(AF_INET, "10.0.0.2", &remote_bgp_config.default_nexthop4); 
+    remote_bgp_config.forced_default_nexthop4 = true; 
 
     // don't validate nexthop of routes received from peer.
-    remote_bgp_config.no_nexthop_check = true; 
+    remote_bgp_config.no_nexthop_check4 = true; 
     
     /* create the FSMs and connect them with each other */
     libbgp::BgpFsm local(local_bgp_config);
@@ -209,10 +209,10 @@ int main(void) {
     // local to remote.
 
     // a route, 172.30.0.0/24.
-    libbgp::Route r_172_30_24 ("172.30.0.0", 24);
+    libbgp::Prefix4 r_172_30_24 ("172.30.0.0", 24);
 
     // put the route in RIB. 
-    const libbgp::BgpRibEntry *inserted = local_rib.insert(&local_logger, r_172_30_24, local_bgp_config.nexthop);
+    const libbgp::BgpRib4Entry *inserted = local_rib.insert(&local_logger, r_172_30_24, local_bgp_config.default_nexthop4);
 
     // BGP FSM will send all routes to peer (filtered with egress route filters 
     // if set) when peering established. However, if the session is already 
@@ -220,7 +220,7 @@ int main(void) {
     // RIB. We will need to notify BGP FSM with route event bus. 
 
     // create an route-add event.
-    libbgp::RouteAddEvent add_event;
+    libbgp::Route4AddEvent add_event;
     add_event.routes.push_back(inserted->route);
     add_event.attribs = inserted->attribs;
 
@@ -237,7 +237,7 @@ int main(void) {
     local_rib.withdraw(0, r_172_30_24);
 
     // and notify the FSM.
-    libbgp::RouteWithdrawEvent withdraw_event;
+    libbgp::Route4WithdrawEvent withdraw_event;
     withdraw_event.routes.push_back(r_172_30_24);
     local_bus.publish(&local_handler, withdraw_event);
 

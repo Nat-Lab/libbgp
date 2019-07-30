@@ -12,6 +12,7 @@
 #define BGP_PATH_ATTR_H
 
 #include "serializable.h"
+#include "prefix6.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <vector>
@@ -33,9 +34,10 @@ enum BgpPathAttribType {
     ATOMIC_AGGREGATE = 6,
     AGGREATOR = 7,
     COMMUNITY = 8,
+    MP_REACH_NLRI = 14,
+    MP_UNREACH_NLRI = 15,
     AS4_PATH = 17,
     AS4_AGGREGATOR = 18
-    // TODO: RFC4760
 };
 
 /**
@@ -113,6 +115,16 @@ public:
     virtual ssize_t length() const;
 
     /**
+     * @brief Clone the attribute and replace logger.
+     * 
+     * @param new_logger New logger to use.
+     * @return BgpPathAttrib* Pointer to the cloned attribute.
+     * @throws "has_error" There's error in the attribute and the attribute can
+     * not be clone.
+     */
+    BgpPathAttrib* clone(BgpLogHandler *new_logger) const;
+
+    /**
      * @brief Clone the attribute.
      * 
      * @return BgpPathAttrib* Pointer to the cloned attribute.
@@ -138,8 +150,7 @@ protected:
      * @brief Attribute length. 
      * Length field is only used in deserialization for parseHeader() to pass
      * length field in header to the underlying deserializers. The length field
-     * is ignored when serialize. (except BgpPathAttrib base, which acts as the
-     * container for unknow attribute)
+     * is ignored when serialize. 
      */
     uint16_t value_len;
 
@@ -429,6 +440,118 @@ public:
     ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
     ssize_t length() const;
+};
+
+/**
+ * @brief MP-BGP Reach/Unreach NLRI base class.
+ * 
+ */
+class BgpPathAttribMpNlriBase : public BgpPathAttrib {
+public:
+    BgpPathAttribMpNlriBase(BgpLogHandler *logger);
+    static int16_t GetAfiFromBuffer(const uint8_t *buffer, size_t length);
+
+    /**
+     * @brief Address Family Identifier
+     * 
+     */
+    uint16_t afi;
+
+    /**
+     * @brief Subsequent Address Family Identifier
+     * 
+     */
+    uint8_t safi;
+
+protected:
+    ssize_t parseHeader(const uint8_t *buffer, size_t length);
+};
+
+/**
+ * @brief MP-BGP ReachNlri IPv6 NLRI class.
+ * 
+ */
+class BgpPathAttribMpReachNlriIpv6 : public BgpPathAttribMpNlriBase {
+public:
+    BgpPathAttribMpReachNlriIpv6(BgpLogHandler *logger);
+
+    uint8_t nexthop_global[16];
+    uint8_t nexthop_linklocal[16];
+    std::vector<Prefix6> nlri;
+
+    BgpPathAttrib* clone() const;
+    ssize_t parse(const uint8_t *buffer, size_t length);
+    ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
+};
+
+/**
+ * @brief MP-BGP ReachNlri container for unknow AFI/SAFI.
+ * 
+ */
+class BgpPathAttribMpReachNlriUnknow : public BgpPathAttribMpNlriBase {
+public:
+    BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger);
+    BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger, const uint8_t *nexthop, size_t nexthop_len, const uint8_t *nlri, size_t nlri_len);
+    ~BgpPathAttribMpReachNlriUnknow();
+
+    BgpPathAttrib* clone() const;
+    ssize_t parse(const uint8_t *buffer, size_t length);
+    ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
+
+    const uint8_t *getNexthop() const;
+    const uint8_t *getNlri() const;
+
+    size_t getNexthopLength() const;
+    size_t getNlriLength() const;
+
+private:
+    uint8_t *nexthop;
+    size_t nexthop_len;
+    uint8_t *nlri;
+    size_t nlri_len;
+};
+
+/**
+ * @brief MP-BGP UnreachNlri IPv6 class.
+ * 
+ */
+class BgpPathAttribMpUnreachNlriIpv6 : public BgpPathAttribMpNlriBase {
+public:
+    BgpPathAttribMpUnreachNlriIpv6(BgpLogHandler *logger);
+    std::vector<Prefix6> withdrawn_routes;
+
+    BgpPathAttrib* clone() const;
+    ssize_t parse(const uint8_t *buffer, size_t length);
+    ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
+};
+
+/**
+ * @brief MP-BGP UnreachNlri container for unknow AFI/SAFI.
+ * 
+ */
+class BgpPathAttribMpUnreachNlriUnknow : public BgpPathAttribMpNlriBase {
+public:
+    BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger);
+    BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger, const uint8_t *withdrawn, size_t len);
+    ~BgpPathAttribMpUnreachNlriUnknow();
+
+    BgpPathAttrib* clone() const;
+    ssize_t parse(const uint8_t *buffer, size_t length);
+    ssize_t write(uint8_t *buffer, size_t buffer_sz) const;
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t length() const;
+
+    const uint8_t *getWithdrawnRoutes() const;
+    size_t getWithdrawnRoutesLength() const;
+private:
+    uint8_t *withdrawn_routes;
+    size_t withdrawn_routes_len;
 };
 
 }

@@ -12,8 +12,10 @@
 #define BGP_CONFIG_H_
 #include <stdint.h>
 #include "clock.h"
-#include "bgp-rib.h"
-#include "bgp-filter.h"
+#include "bgp-rib4.h"
+#include "bgp-rib6.h"
+#include "bgp-filter4.h"
+#include "bgp-filter6.h"
 #include "bgp-out-handler.h"
 #include "bgp-log-handler.h"
 #include "route-event-bus.h"
@@ -26,18 +28,32 @@ namespace libbgp {
  */
 typedef struct BgpConfig {
     /**
-     * @brief Ingress route filters.
+     * @brief IPv4 Ingress route filters.
      * 
      * Ingress route filters are applied on the routes received from the peer. 
      */
-    BgpFilterRules in_filters;
+    BgpFilterRules4 in_filters4;
 
     /**
-     * @brief Egress route filters.
+     * @brief IPv4 Egress route filters.
      * 
      * Egress route filters are applied when sending routes to the peer. 
      */
-    BgpFilterRules out_filters;
+    BgpFilterRules4 out_filters4;
+
+    /**
+     * @brief IPv6 Ingress route filters.
+     * 
+     * Ingress route filters are applied on the routes received from the peer. 
+     */
+    BgpFilterRules6 in_filters6;
+
+    /**
+     * @brief IPv6 Ingress route filters.
+     * 
+     * Egress route filters are applied when sending routes to the peer. 
+     */
+    BgpFilterRules6 out_filters6;
 
     /**
      * @brief The output handler.
@@ -55,15 +71,26 @@ typedef struct BgpConfig {
     BgpLogHandler *log_handler;
 
     /**
-     * @brief Pointer to the Routing Information Base object.
+     * @brief Pointer to the IPv4 Routing Information Base object.
      * 
      * BGP FSM will use this RIB object to store routing information. If you 
      * would like to share RIB across different BGP FSMs, or pre-fill the RIB 
      * with some routes, you can create the RIB object yourself and pass it as 
      * configuration parameter here. If you set this to NULL, a new RIB will be 
-     * created by BGP FSM. You can get it by calling `BgpFsm::getRib`.
+     * created by BGP FSM. You can get it by calling `BgpFsm::getRib4`.
      */
-    BgpRib *rib;
+    BgpRib4 *rib4;
+
+    /**
+     * @brief Pointer to the IPv6 Routing Information Base object.
+     * 
+     * BGP FSM will use this RIB object to store routing information. If you 
+     * would like to share RIB across different BGP FSMs, or pre-fill the RIB 
+     * with some routes, you can create the RIB object yourself and pass it as 
+     * configuration parameter here. If you set this to NULL, a new RIB will be 
+     * created by BGP FSM. You can get it by calling `BgpFsm::getRib6`.
+     */
+    BgpRib6 *rib6;
 
     // pointer to event bus, route add/withdraw events will be sent to other
     // FSM thru event bus, won't use if NULL
@@ -95,6 +122,27 @@ typedef struct BgpConfig {
     bool use_4b_asn;
 
     /**
+     * @brief Enable MP-BGP IPv4 support.
+     * 
+     * Set this parameter to true will enable IPv4 support with MP-BGP. Note
+     * that even without MP-BGP IPv4, IPv4 routing information will still be
+     * exchanged with normal BGP session. This should only be set when 
+     * mp_bgp_ipv6 is set and you want to carry ipv4 routing infromation on the
+     * same session.
+     * 
+     */
+    bool mp_bgp_ipv4;
+
+    /**
+     * @brief Enable MP-BGP IPv6 support.
+     * 
+     * Set this parameter to true will enable IPv6 support with MP-BGP. Setting
+     * this to true will disable IPv4 unless mp_bgp_ipv4 is also set to true.
+     * 
+     */
+    bool mp_bgp_ipv6;
+
+    /**
      * @brief Local ASN.
      * 
      */
@@ -113,48 +161,93 @@ typedef struct BgpConfig {
     uint32_t router_id;
 
     /**
-     * @brief The prefix of the peering LAN in network-byte order.
+     * @brief The prefix of the IPv4 peering LAN.
      * 
      * Peering LAN information is used to check the validity of the nexthop 
      * attribute of the received routes. Routes received from the peer with a 
-     * nexthop outside the peering LAN will be ignored.
+     * nexthop outside the peering LAN will be ignored. When sending routes to
+     * peer, if nexthop attribute in RIB is not in peering LAN, default nexthop
+     * will be used.
+     * 
      */
-    uint32_t peering_lan_prefix;
+    Prefix4 peering_lan4;
 
     /**
-     * @brief The netmask of the peering LAN in CIDR notation.
+     * @brief The prefix of the IPv6 peering LAN.
      * 
      * Peering LAN information is used to check the validity of the nexthop 
      * attribute of the received routes. Routes received from the peer with a 
-     * nexthop outside the peering LAN will be ignored.
+     * nexthop outside the peering LAN will be ignored. When sending routes to
+     * peer, if nexthop attribute in RIB is not in peering LAN, default nexthop
+     * will be used.
+     * 
      */
-    uint8_t peering_lan_length;
+    Prefix6 peering_lan6;
 
     /**
-     * @brief Disable ingress nexthop validation.
+     * @brief Disable IPv4 ingress nexthop validation.
      * 
      * If true, BGP FSM will accept route with any nexthop, regardless of the 
      * peering LAN.
      */
-    bool no_nexthop_check;
+    bool no_nexthop_check4;
 
     /**
-     * @brief The default nexthop to use.
+     * @brief The default IPv4 nexthop to use.
      * 
      * Default nexthop is used when sending routes to the peer. The nexthop 
      * value will remain unchanged if it is inside peering LAN. Default nexthop 
      * is used only when the nexthop attribute of an egress route is not in 
      * peering LAN. 
      */
-    uint32_t nexthop;
+    uint32_t default_nexthop4;
 
     /**
-     * @brief Forced default nexthop.
+     * @brief Forced IPv4 default nexthop.
      * 
-     * If this is set to true, the `nexthop` configuration parameter will always
-     * be used as nexthop, regardless of the peering LAN.
+     * If this is set to true, the `default_nexthop4` configuration parameter 
+     * will always be used as nexthop, regardless of the peering LAN.
      */
-    bool forced_default_nexthop;
+    bool forced_default_nexthop4;
+
+    /**
+     * @brief Disable IPv6 ingress nexthop validation.
+     * 
+     * If true, BGP FSM will accept route with any nexthop, regardless of the 
+     * peering LAN.
+     */
+    bool no_nexthop_check6;
+
+    /**
+     * @brief The default global IPv6 nexthop to use.
+     * 
+     * Default nexthop is used when sending routes to the peer. The nexthop 
+     * value will remain unchanged if it is inside peering LAN. Default nexthop 
+     * is used only when the nexthop attribute of an egress route is not in 
+     * peering LAN. 
+     */
+    uint8_t default_nexthop6_global[16];
+
+    /**
+     * @brief The default link-local IPv6 nexthop to use.
+     * 
+     * The link local nexhop. You may set this to all-zero if you don't want
+     * to send a link-local nexthop.
+     * 
+     * Default nexthop is used when sending routes to the peer. The nexthop 
+     * value will remain unchanged if it is inside peering LAN. Default nexthop 
+     * is used only when the nexthop attribute of an egress route is not in 
+     * peering LAN. 
+     */
+    uint8_t default_nexthop6_linklocal[16];
+
+    /**
+     * @brief Forced IPv6 default nexthop.
+     * 
+     * If this is set to true, the `default_nexthop6` configuration parameter 
+     * will always be used as nexthop, regardless of the peering LAN.
+     */
+    bool forced_default_nexthop6;
 
     /**
      * @brief The hold timer.

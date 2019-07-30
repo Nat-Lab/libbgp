@@ -10,6 +10,7 @@
  */
 #include "bgp-path-attrib.h"
 #include "bgp-errcode.h"
+#include "bgp-afi.h"
 #include "value-op.h"
 #include <stdlib.h>
 #include <arpa/inet.h>
@@ -63,6 +64,12 @@ BgpPathAttrib::BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16
  */
 BgpPathAttrib::~BgpPathAttrib() {
     if (value_ptr != NULL) free(value_ptr);
+}
+
+BgpPathAttrib* BgpPathAttrib::clone(BgpLogHandler *new_logger) const {
+    BgpPathAttrib* cloned = clone();
+    cloned->setLogger(new_logger);
+    return cloned;
 }
 
 BgpPathAttrib* BgpPathAttrib::clone() const {
@@ -1437,6 +1444,569 @@ ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
 
 ssize_t BgpPathAttribCommunity::length() const {
     return 7;
+}
+
+BgpPathAttribMpNlriBase::BgpPathAttribMpNlriBase(BgpLogHandler *logger) : BgpPathAttrib(logger) {
+    optional = true;
+}
+
+int16_t BgpPathAttribMpNlriBase::GetAfiFromBuffer(const uint8_t *buffer, size_t length) {
+    if (length < 3) return -1;
+    const uint8_t *ptr = buffer + 3;
+    return ntohs(getValue<uint16_t>(&ptr));
+}
+
+ssize_t BgpPathAttribMpNlriBase::parseHeader(const uint8_t *from, size_t length) {
+    size_t hdr_len = BgpPathAttrib::parseHeader(from, length);
+
+    if (hdr_len < 0) return -1;
+
+    if (!optional || transitive || extended || extended) {
+        logger->log(ERROR, "BgpPathAttribMpNlriBase::parse: bad flag bits, must be optional, !extended, !partial, !transitive.\n");
+        setError(E_UPDATE, E_ATTR_FLAG, from , value_len + hdr_len);
+        return -1;
+    }
+
+    if (type_code != MP_REACH_NLRI && type_code != MP_UNREACH_NLRI) {
+        logger->log(FATAL, "BgpPathAttribMpNlriBase::parseHeader: type in header mismatch.\n");
+        throw "bad_type";
+    }
+
+    if (value_len < 5) {
+        logger->log(ERROR, "BgpPathAttribMpNlriBase::parseHeader: incompete attribute.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    const uint8_t *buffer = from + hdr_len;
+    afi = ntohs(getValue<uint16_t>(&buffer));
+    safi = getValue<uint8_t>(&buffer);
+
+    return hdr_len + 3;
+}
+
+BgpPathAttribMpReachNlriIpv6::BgpPathAttribMpReachNlriIpv6(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    afi = IPV6;
+}
+
+BgpPathAttrib* BgpPathAttribMpReachNlriIpv6::clone() const {
+    if (hasError()) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
+    return new BgpPathAttribMpReachNlriIpv6(*this);
+}
+
+ssize_t BgpPathAttribMpReachNlriIpv6::parse(const uint8_t *from, size_t length) {
+    ssize_t hdr_len = parseHeader(from, length);
+
+    if (hdr_len < 0) return -1;
+
+    if (afi != IPV6) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::parse: afi mismatch.\n");
+        throw "bad_type";
+    }
+
+    const uint8_t *buffer = from + hdr_len;
+    uint8_t nexthop_length = getValue<uint8_t>(&buffer);
+
+    if (nexthop_length != 16 && nexthop_length != 32) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: bad nexthop length %d (want 16 or 32).\n", nexthop_length);
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    ssize_t buf_left = value_len - hdr_len - 1 + 3; // 3: attr headers
+
+    if (buf_left < (ssize_t) nexthop_length) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: nexthop overflows buffer.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    memcpy(nexthop_global, buffer, 16); buffer += 16;
+    if (nexthop_length == 32) {
+        memcpy(nexthop_linklocal, buffer, 16); buffer += 16;
+    } else memset(nexthop_linklocal, 0, 16);
+    
+    buf_left -= nexthop_length;
+
+    if (buf_left < 1) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: reserved bits overflows buffer.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    uint8_t res = getValue<uint8_t>(&buffer);
+    buf_left--;
+
+    if (res != 0) {
+        logger->log(WARN, "BgpPathAttribMpReachNlriIpv6::parse: reserved bits != 0\n");
+    }
+
+    while (buf_left > 0) {
+        Prefix6 this_prefix = Prefix6();
+        ssize_t pfx_read_len = this_prefix.parse(buffer, buf_left);
+
+        if (pfx_read_len < 0) {
+            logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::parse: error parsing nlri entry.\n");
+            setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+            return -1;
+        }
+
+        buffer += pfx_read_len;
+        buf_left -= pfx_read_len;
+        nlri.push_back(this_prefix);
+    }
+
+    if (buf_left != 0) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::parse: parsed end with non-zero buf_left (%d).\n", buf_left);
+        throw "bad_parse";
+    }
+
+    return value_len + hdr_len - 3; // 3: afi/safi, already part of "value_len"
+}
+
+ssize_t BgpPathAttribMpReachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const {
+    ssize_t header_len = writeHeader(to, buffer_sz);
+
+    if (header_len < 0) return -1;
+    uint8_t *attr_len_field = to + header_len;
+    uint8_t *buffer = attr_len_field + 1;
+
+    if (buffer_sz - header_len < 5) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    size_t written_len = header_len + 1;
+
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+
+    bool has_linklocak = !v6addr_is_zero(nexthop_linklocal);
+
+    putValue<uint8_t>(&buffer, has_linklocak ? 32 : 16);
+    written_len += 4;
+    
+    if ((has_linklocak && buffer_sz - written_len < 32) || (!has_linklocak && buffer_sz - written_len < 16)) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::write: dst buffer too small.\n");
+        return -1;
+    }
+    
+    memcpy(buffer, nexthop_global, 16); buffer += 16; written_len += 16;
+    if (has_linklocak) {
+        memcpy(buffer, nexthop_linklocal, 16); buffer += 16; written_len += 16;
+    }
+
+    putValue<uint8_t>(&buffer, 0);
+    written_len++;
+
+    for (const Prefix6 &route : nlri) {
+        ssize_t rou_wrt_len = route.write(buffer, buffer_sz - written_len);
+        if (rou_wrt_len < 0) {
+            logger->log(ERROR, "BgpPathAttribMpReachNlriIpv6::write: failed to write nlri.\n");
+            return -1;
+        }
+        written_len += rou_wrt_len;
+        buffer += rou_wrt_len;
+    }
+
+    putValue<uint8_t>(&attr_len_field, written_len - 3);
+
+    if (written_len != (size_t) (buffer - to)) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriIpv6::write: inconsistent written size (len=%d, diff=%d)\n", written_len, buffer - to);
+        return -1;
+    }
+
+    return written_len;
+}
+
+ssize_t BgpPathAttribMpReachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MpReachNlriAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        const char *safi_str = "Unknow";
+        if (safi == UNICAST) safi_str = "Unicast";
+        if (safi == MULTICAST) safi_str = "Multicast";
+        written += _print(indent, to, buf_sz, "AFI { IPv6 }\n");
+        written += _print(indent, to, buf_sz, "SAFI { %s }\n", safi_str);
+        char nh_global_str[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, nexthop_global, nh_global_str, INET6_ADDRSTRLEN);
+
+        written += _print(indent, to, buf_sz, "Nexthops {\n");
+        indent++; {
+            written += _print(indent, to, buf_sz, "%s\n", nh_global_str);
+            if (!v6addr_is_zero(nexthop_linklocal)) {
+                char nh_linklocal_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, nexthop_linklocal, nh_linklocal_str, INET6_ADDRSTRLEN);
+                written += _print(indent, to, buf_sz, "%s\n", nh_linklocal_str);
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
+
+        written += _print(indent, to, buf_sz, "NLRI {\n");
+        indent++; {
+            for (const Prefix6 &route : nlri) {
+                uint8_t prefix[16];
+                route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, prefix, prefix_str, INET6_ADDRSTRLEN);
+                written += _print(indent, to, buf_sz, "%s/%d\n", prefix_str, route.getLength());
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
+        
+    }; indent--;
+
+    written += _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
+ssize_t BgpPathAttribMpReachNlriIpv6::length() const {
+    size_t len = 3 + 5; // 3: attribute headers, 5: afi, safi, nh_len, res
+    bool has_linklocak = !v6addr_is_zero(nexthop_linklocal);
+    len += (has_linklocak ? 32 : 16);
+    for (const Prefix6 &route : nlri) {
+        len += (1 + (route.getLength() + 7) / 8);
+    }
+    return len;
+}
+
+BgpPathAttribMpReachNlriUnknow::BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    nexthop = NULL;
+    nexthop_len = 0;
+    nlri = NULL;
+    nlri_len = 0;
+}
+
+BgpPathAttribMpReachNlriUnknow::BgpPathAttribMpReachNlriUnknow(BgpLogHandler *logger, const uint8_t *nexthop, size_t nexthop_len, const uint8_t *nlri, size_t nlri_len) : BgpPathAttribMpNlriBase(logger) {
+    if (nexthop_len > 0) {
+        this->nexthop = (uint8_t *) malloc(nexthop_len);
+        memcpy(this->nexthop, nexthop, nexthop_len);
+    }
+
+    if (nlri_len > 0) {
+        this->nlri = (uint8_t *) malloc(nlri_len);
+        memcpy(this->nlri, nlri, nlri_len);
+    }
+    this->nexthop_len = nexthop_len;
+    this->nlri_len = nlri_len;
+}
+
+BgpPathAttribMpReachNlriUnknow::~BgpPathAttribMpReachNlriUnknow() {
+    if (nlri_len != 0) free(nlri);
+    if (nexthop_len != 0) free(nexthop);
+}
+
+BgpPathAttrib* BgpPathAttribMpReachNlriUnknow::clone() const {
+    if (hasError()) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriUnknow::clone: can't clone an attribute with error.\n");
+        throw "has_error";
+    }
+
+    if (nexthop_len == 0 && nlri_len == 0) return new BgpPathAttribMpReachNlriUnknow(logger);
+    return new BgpPathAttribMpReachNlriUnknow(logger, nexthop, nexthop_len, nlri, nlri_len);
+}
+
+ssize_t BgpPathAttribMpReachNlriUnknow::parse(const uint8_t *from, size_t length) {
+    ssize_t hdr_len = parseHeader(from, length);
+    if (hdr_len < 0) return -1;
+
+    if (nexthop_len != 0) free(nexthop);
+
+    const uint8_t *buffer = from + hdr_len;
+    nexthop_len = getValue<uint8_t>(&buffer);
+    size_t parsed_len = hdr_len + 1;
+
+    if (length < parsed_len + nexthop_len) {
+        logger->log(FATAL, "BgpPathAttribMpReachNlriUnknow::parse: unexpected end of attribute.\n");
+        setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+        return -1;
+    }
+
+    parsed_len += nexthop_len;
+    nexthop = (uint8_t *) malloc(nexthop_len);
+    memcpy(nexthop, buffer, nexthop_len);
+    buffer += nexthop_len;
+
+    uint8_t res = getValue<uint8_t>(&buffer);
+    parsed_len++;
+
+    if (res != 0) {
+        logger->log(WARN, "BgpPathAttribMpReachNlriIpv6::parse: reserved bits != 0\n");
+    }
+
+    if (nlri_len != 0) free(nlri);
+
+    nlri_len = value_len - parsed_len - 3; // 3: attr header
+    parsed_len += nlri_len;
+    nlri = (uint8_t *) malloc(nlri_len);
+    memcpy(nlri, buffer, nlri_len);
+
+    return parsed_len;
+}
+
+ssize_t BgpPathAttribMpReachNlriUnknow::write(uint8_t *to, size_t buffer_sz) const {
+    size_t expected_len = 3 + 5 + nexthop_len + nlri_len;
+
+    if (buffer_sz < expected_len) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriUnknow::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    ssize_t hdr_len = writeHeader(to, buffer_sz);
+    if (hdr_len < 0) return -1;
+    uint8_t *buffer = to + hdr_len;
+    
+    putValue<uint8_t>(&buffer, expected_len - 3);
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+    putValue<uint8_t>(&buffer, nexthop_len);
+    memcpy(buffer, nexthop, nexthop_len); buffer += nexthop_len;
+    putValue<uint8_t>(&buffer, 0);
+    memcpy(buffer, nlri, nlri_len);
+
+    if ((size_t) (buffer - to) != expected_len) {
+        logger->log(ERROR, "BgpPathAttribMpReachNlriUnknow::write: unexpected written length.\n");
+        return -1;
+    }
+
+    return expected_len;
+}
+
+ssize_t BgpPathAttribMpReachNlriUnknow::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MpReachNlriAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "AFI { %d }\n", afi);
+        written += _print(indent, to, buf_sz, "SAFI { %d }\n", safi);
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+    return written;
+}
+
+ssize_t BgpPathAttribMpReachNlriUnknow::length() const {
+    return 3 + 5 + nexthop_len + nlri_len;
+}
+
+const uint8_t* BgpPathAttribMpReachNlriUnknow::getNexthop() const {
+    return nexthop;
+}
+
+const uint8_t* BgpPathAttribMpReachNlriUnknow::getNlri() const {
+    return nlri;
+}
+
+size_t BgpPathAttribMpReachNlriUnknow::getNexthopLength() const {
+    return nexthop_len;
+}
+
+size_t BgpPathAttribMpReachNlriUnknow::getNlriLength() const {
+    return nlri_len;
+}
+
+BgpPathAttribMpUnreachNlriIpv6::BgpPathAttribMpUnreachNlriIpv6(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    afi = IPV6;
+}
+
+BgpPathAttrib* BgpPathAttribMpUnreachNlriIpv6::clone() const {
+    if (hasError()) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriIpv6::clone: can clone attribute with error.\n");
+        throw "has_error";
+    }
+
+    return new BgpPathAttribMpUnreachNlriIpv6(*this);
+}
+
+ssize_t BgpPathAttribMpUnreachNlriIpv6::parse(const uint8_t *from, size_t length) {
+    ssize_t hdr_len = parseHeader(from ,length);
+    if (hdr_len < 0) return -1;
+
+    if (afi != IPV6) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriIpv6::parse: afi mismatch.\n");
+        throw "bad_type";
+    }
+
+    size_t buf_left = value_len - hdr_len + 3; // 3: attrib headers
+    const uint8_t *buffer = from + hdr_len;
+
+    while (buf_left > 0) {
+        Prefix6 this_prefix = Prefix6();
+        ssize_t pfx_read_len = this_prefix.parse(buffer, buf_left);
+
+        if (pfx_read_len < 0) {
+            logger->log(ERROR, "BgpPathAttribMpUnreachNlriIpv6::parse: error parsing withdrawn entry.\n");
+            setError(E_UPDATE, E_OPT_ATTR, NULL, 0);
+            return -1;
+        }
+
+        buffer += pfx_read_len;
+        buf_left -= pfx_read_len;
+        withdrawn_routes.push_back(this_prefix);
+    }
+
+    if (buf_left != 0) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriIpv6::parse: parsed end with non-zero buf_left (%d).\n", buf_left);
+        throw "bad_parse";
+    }
+
+    return hdr_len + value_len - 3; // 3: afi/safi, already part of "value_len"
+}
+
+ssize_t BgpPathAttribMpUnreachNlriIpv6::write(uint8_t *to, size_t buffer_sz) const {
+    if (buffer_sz < 3 + 3) {
+        logger->log(ERROR, "BgpPathAttribMpUnreachNlriIpv6::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    size_t hdr_len = writeHeader(to, buffer_sz);
+    if (hdr_len < 0) return -1;
+
+    uint8_t *len_field = to + hdr_len;
+    uint8_t *buffer = len_field + 1; 
+
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+    size_t written_val_len = 3;
+
+    for (const Prefix6 &route : withdrawn_routes) {
+        ssize_t pfx_wrt_ret = route.write(buffer, buffer_sz - 3 - written_val_len);
+        if (pfx_wrt_ret < 0) {
+            logger->log(ERROR, "BgpPathAttribMpUnreachNlriIpv6::write: error writing withdrawn routes.\n");
+            return -1;
+        }
+
+        buffer += pfx_wrt_ret;
+        written_val_len += pfx_wrt_ret;
+    }
+
+    return 3 + written_val_len;
+}
+
+ssize_t BgpPathAttribMpUnreachNlriIpv6::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+
+    written += _print(indent, to, buf_sz, "MpUnreachNlriAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        const char *safi_str = "Unknow";
+        if (safi == UNICAST) safi_str = "Unicast";
+        if (safi == MULTICAST) safi_str = "Multicast";
+        written += _print(indent, to, buf_sz, "AFI { IPv6 }\n");
+        written += _print(indent, to, buf_sz, "SAFI { %s }\n", safi_str);
+        written += _print(indent, to, buf_sz, "WithdrawnRoutes {\n");
+        indent++; {
+            for (const Prefix6 &route : withdrawn_routes) {
+                uint8_t prefix[16];
+                route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, prefix, prefix_str, INET6_ADDRSTRLEN);
+                written += _print(indent, to, buf_sz, "%s/%d\n", prefix_str, route.getLength());
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
+    }; indent--;
+    _print(indent, to, buf_sz, "}\n");
+
+    return written;
+}
+
+ssize_t BgpPathAttribMpUnreachNlriIpv6::length() const {
+    size_t len = 3 + 3; // 3: attribute headers, 3: afi, safi
+    for (const Prefix6 &route : withdrawn_routes) {
+        len += (1 + (route.getLength() + 7) / 8);
+    }
+    return len;
+}
+
+BgpPathAttribMpUnreachNlriUnknow::BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger) : BgpPathAttribMpNlriBase(logger) {
+    withdrawn_routes_len = 0;
+    withdrawn_routes = NULL;
+}
+
+BgpPathAttribMpUnreachNlriUnknow::BgpPathAttribMpUnreachNlriUnknow(BgpLogHandler *logger, const uint8_t *withdrawn, size_t len) : BgpPathAttribMpNlriBase(logger) {
+    withdrawn_routes_len = len;
+
+    if (len > 0) {
+        withdrawn_routes = (uint8_t *) malloc(len);
+        memcpy(withdrawn_routes, withdrawn, len);
+    }
+}
+
+BgpPathAttribMpUnreachNlriUnknow::~BgpPathAttribMpUnreachNlriUnknow() {
+    if (withdrawn_routes_len > 0) free(withdrawn_routes);
+}
+
+BgpPathAttrib* BgpPathAttribMpUnreachNlriUnknow::clone() const {
+    if (hasError()) {
+        logger->log(FATAL, "BgpPathAttribMpUnreachNlriUnknow::clone: can clone attribute with error.\n");
+        throw "has_error";
+    }
+
+    if (withdrawn_routes_len == 0) return new BgpPathAttribMpUnreachNlriUnknow(logger);
+    return new BgpPathAttribMpUnreachNlriUnknow(logger, withdrawn_routes, withdrawn_routes_len);
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::parse(const uint8_t *from, size_t length) {
+    size_t hdr_len = parseHeader(from, length);
+    if (hdr_len < 0) return -1;
+
+    if (withdrawn_routes_len > 0) free(withdrawn_routes);
+
+    withdrawn_routes_len = value_len - hdr_len;
+    const uint8_t *buffer = from + hdr_len;
+
+    withdrawn_routes = (uint8_t *) malloc(withdrawn_routes_len);
+    memcpy(withdrawn_routes, buffer, withdrawn_routes_len);
+
+    return hdr_len + value_len - 3;  // 3: afi/safi, already part of "value_len"
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::write(uint8_t *to, size_t buffer_sz) const {
+    size_t expected_len = 3 + 3 + withdrawn_routes_len;
+    if (buffer_sz < expected_len) {
+        logger->log(ERROR, "BgpPathAttribMpUnreachNlriUnknow::write: dst buffer too small.\n");
+        return -1;
+    }
+
+    size_t hdr_len = writeHeader(to, buffer_sz);
+    if (hdr_len < 0) return -1;
+
+    uint8_t *buffer = to + hdr_len;
+    putValue<uint8_t>(&buffer, expected_len - 3);
+    putValue<uint16_t>(&buffer, htons(afi));
+    putValue<uint8_t>(&buffer, safi);
+    memcpy(buffer, withdrawn_routes, withdrawn_routes_len);
+
+    return expected_len;
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
+    size_t written = 0;
+    written += _print(indent, to, buf_sz, "MpUnreachNlriAttribute {\n");
+    indent++; {
+        written += printFlags(indent, to, buf_sz);
+        written += _print(indent, to, buf_sz, "AFI { %d }\n", afi);
+        written += _print(indent, to, buf_sz, "SAFI { %d }\n", safi);
+    }; indent--;
+    written += _print(indent, to, buf_sz, "}\n");
+    return written;
+}
+
+ssize_t BgpPathAttribMpUnreachNlriUnknow::length() const {
+    return 3 + 3 + withdrawn_routes_len;
+}
+
+const uint8_t* BgpPathAttribMpUnreachNlriUnknow::getWithdrawnRoutes() const {
+    return withdrawn_routes;
+}
+
+size_t BgpPathAttribMpUnreachNlriUnknow::getWithdrawnRoutesLength() const {
+    return withdrawn_routes_len;
 }
 
 }

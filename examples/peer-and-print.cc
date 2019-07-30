@@ -121,21 +121,24 @@ int main(void) {
     config.asn = MY_ASN; // set local ASN
     config.peer_asn = 0; // 0: accept any ASN
     config.use_4b_asn = true; // enable RFC 6793
+    config.mp_bgp_ipv4 = true;
+    config.mp_bgp_ipv6 = true;
     config.hold_timer = 120; // hold timer
-    config.no_nexthop_check = true; // don't validate nexthop.
+    config.no_nexthop_check4 = true; // don't validate nexthop.
+    config.no_nexthop_check6 = true; // don't validate nexthop.
     config.out_handler = &out_handler; // handle output with FdOutHandler
     config.no_collision_detection = true; // we are the only one
 
     // for this example, we don't need event bus or pre-defined rib. see router 
     // server example for how those are used.
-    config.rib = NULL; 
+    config.rib4 = NULL; 
+    config.rib6 = NULL;
     config.rev_bus = NULL; 
 
     config.clock = NULL; // use system clock.
     config.log_handler = &logger;
 
     inet_pton(AF_INET, ROUTER_ID, &config.router_id); // router id.
-    inet_pton(AF_INET, ROUTER_ID, &config.nexthop); // nexthop
 
     libbgp::BgpFsm fsm(config); // create the FSM
     

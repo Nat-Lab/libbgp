@@ -10,6 +10,7 @@
  */
 #ifndef BGP_CAP_H_
 #define BGP_CAP_H_
+#include "bgp-afi.h"
 #include "serializable.h"
 #include <stdint.h>
 
@@ -100,6 +101,31 @@ public:
      * 
      */
     uint32_t my_asn;
+};
+
+/**
+ * @brief The BgpCapabilityMpBgp class.
+ * 
+ */
+class BgpCapabilityMpBgp : public BgpCapability {
+public:
+    BgpCapabilityMpBgp(BgpLogHandler *logger);
+
+    ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
+    ssize_t parse(const uint8_t *from, size_t msg_sz);
+    ssize_t write(uint8_t *to, size_t buf_sz) const;
+
+    /**
+     * @brief Address Family Identifier.
+     * 
+     */
+    uint16_t afi;
+
+    /**
+     * @brief Subsequent Address Family Identifier
+     * 
+     */
+    uint8_t safi;
 };
 
 /**

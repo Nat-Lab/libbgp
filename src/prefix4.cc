@@ -1,14 +1,15 @@
 /**
- * @file route.cc
+ * @file prefix4.cc
  * @author Nato Morichika <nat@nat.moe>
- * @brief Route/Prefix related utilities.
+ * @brief IPv4 Route/Prefix related utilities.
  * @version 0.1
- * @date 2019-07-04
+ * @date 2019-07-21
  * 
  * @copyright Copyright (c) 2019
  * 
  */
-#include "route.h"
+#include "prefix4.h"
+#include "value-op.h"
 #include <arpa/inet.h>
 
 namespace libbgp {
@@ -35,29 +36,73 @@ uint32_t cidr_to_mask(uint8_t cidr) {
 }
 
 /**
- * @brief Construct a new Route:: Route object
+ * @brief Construct a new Prefix4 object
+ * 
+ */
+Prefix4::Prefix4() {
+    prefix = length = 0;
+}
+
+/**
+ * @brief Construct a new Prefix4 object
  * 
  * @param prefix Prefix in network bytes order.
  * @param length Netmask in CIDR notation.
  * @throws "bad_route_length" Netmask invalid.
  */
-Route::Route(uint32_t prefix, uint8_t length) {
+Prefix4::Prefix4(uint32_t prefix, uint8_t length) {
     if (length > 32) throw "bad_route_length";
     this->prefix = prefix;
     this->length = length;
 }
 
 /**
- * @brief Construct a new Route:: Route object
+ * @brief Construct a new Prefix4:: Prefix4 object
  * 
  * @param prefix Prefix in dotted string notation.
  * @param length Netmask in CIDR notation.
  * @throws "bad_route_length" Netmask invalid.
  */
-Route::Route(const char* prefix, uint8_t length) {
+Prefix4::Prefix4(const char* prefix, uint8_t length) {
     if (length > 32) throw "bad_route_length";
     this->length = length;
     inet_pton(AF_INET, prefix, &(this->prefix));
+}
+
+/**
+ * @brief Parse a IPv4 NLRI prefix from buffer.
+ * 
+ * @param buffer Buffer to parse from.
+ * @param buf_sz Size of the buffer.
+ * @return ssize_t Bytes read.
+ * @retval -1 Failed to parse prefix.
+ * @retval >=0 Bytes read.
+ */
+ssize_t Prefix4::parse(const uint8_t *buffer, size_t buf_sz) {
+    if (buf_sz < 1) return -1;
+    length = getValue<uint8_t>(&buffer);
+    size_t prefix_buf_len = (length + 7) / 8;
+    if (prefix_buf_len + 1 > buf_sz) return -1;
+    prefix = 0;
+    memcpy(&prefix, buffer, prefix_buf_len);
+    return prefix_buf_len + 1;
+}
+
+/**
+ * @brief Write a IPv4 prefix to NLRI buffer.
+ * 
+ * @param buffer Buffer to write to.
+ * @param buf_sz Size of the buffer (max write size).
+ * @return ssize_t Bytes written.
+ * @retval -1 Failed to write.
+ * @retval >=0 Bytes written.
+ */
+ssize_t Prefix4::write(uint8_t *buffer, size_t buf_sz) const {
+    size_t prefix_buf_len = (length + 7) / 8;
+    if (buf_sz < 1 + prefix_buf_len) return -1;
+    putValue<uint8_t>(&buffer, length);
+    memcpy(buffer, &prefix, prefix_buf_len);
+    return prefix_buf_len + 1;
 }
 
 /**
@@ -69,7 +114,7 @@ Route::Route(const char* prefix, uint8_t length) {
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
  */
-bool Route::Includes (uint32_t prefix, uint8_t length, uint32_t address) {
+bool Prefix4::Includes (uint32_t prefix, uint8_t length, uint32_t address) {
     if (length > 32) return false;
     return (address & CIDR_MASK_MAP[length]) == prefix;
 }
@@ -84,7 +129,7 @@ bool Route::Includes (uint32_t prefix, uint8_t length, uint32_t address) {
  * @return true prefix_b is in prefix_a.
  * @return false prefix_b is not in prefix_a.
  */
-bool Route::Includes (uint32_t prefix_a, uint8_t length_a, uint32_t prefix_b, uint8_t length_b) {
+bool Prefix4::Includes (uint32_t prefix_a, uint8_t length_a, uint32_t prefix_b, uint8_t length_b) {
     if (length_a > 32 || length_b > 32) return false;
     if (length_b < length_a) return false;
     return (prefix_b & CIDR_MASK_MAP[length_a]) == prefix_a;
@@ -97,7 +142,7 @@ bool Route::Includes (uint32_t prefix_a, uint8_t length_a, uint32_t prefix_b, ui
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
  */
-bool Route::includes (uint32_t address) const {
+bool Prefix4::includes (uint32_t address) const {
     return (address & CIDR_MASK_MAP[length]) == prefix;
 }
 
@@ -108,7 +153,7 @@ bool Route::includes (uint32_t address) const {
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
  */
-bool Route::includes (const char* address) const {
+bool Prefix4::includes (const char* address) const {
     uint32_t address_int = 0;
     if (inet_pton(AF_INET, address, &address_int) <= 0) return false;
     return includes (address_int);
@@ -122,7 +167,7 @@ bool Route::includes (const char* address) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Route::includes (uint32_t prefix, uint8_t length) const {
+bool Prefix4::includes (uint32_t prefix, uint8_t length) const {
     if (length > 32) return false;
     if (length < this->length) return false;
     return (prefix & CIDR_MASK_MAP[this->length]) == this->prefix;
@@ -135,7 +180,7 @@ bool Route::includes (uint32_t prefix, uint8_t length) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Route::includes (const Route &other) const {
+bool Prefix4::includes (const Prefix4 &other) const {
     return includes (other.prefix, other.length);
 }
 
@@ -147,7 +192,7 @@ bool Route::includes (const Route &other) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Route::includes (const char* prefix, uint8_t length) const {
+bool Prefix4::includes (const char* prefix, uint8_t length) const {
     uint32_t prefix_int = 0;
     if (inet_pton(AF_INET, prefix, &prefix_int) <= 0) return false;
     return includes(prefix_int, length);
@@ -160,41 +205,41 @@ bool Route::includes (const char* prefix, uint8_t length) const {
  * @return true The routes are equal.
  * @return false The routes are different.
  */
-bool Route::operator== (const Route &other) const {
+bool Prefix4::operator== (const Prefix4 &other) const {
     return other.prefix == prefix && other.length == length;
 }
 
-bool Route::operator> (const Route &other) const {
+bool Prefix4::operator> (const Prefix4 &other) const {
     if (length > 32) throw "prefix_mismatch";
     return length < other.length;
 }
 
-bool Route::operator< (const Route &other) const {
+bool Prefix4::operator< (const Prefix4 &other) const {
     if (length > 32) throw "prefix_mismatch";
     return length > other.length;
 }
 
-bool Route::operator>= (const Route &other) const {
+bool Prefix4::operator>= (const Prefix4 &other) const {
     return !(*this < other);
 }
 
-bool Route::operator<= (const Route &other) const {
+bool Prefix4::operator<= (const Prefix4 &other) const {
     return !(*this > other);
 }
 
-bool Route::operator!= (const Route &other) const {
+bool Prefix4::operator!= (const Prefix4 &other) const {
     return !(*this == other);
 }
 
 /**
- * @brief Set Route.
+ * @brief Set Prefix4.
  * 
  * @param prefix The prefix in netowkr byte order.
  * @param length The netmask in CIDR notation.
- * @return true Route set.
+ * @return true Prefix4 set.
  * @return false Failed to set route.
  */
-bool Route::set(uint32_t prefix, uint8_t length) {
+bool Prefix4::set(uint32_t prefix, uint8_t length) {
     if (length > 32) return false;
     this->length = length;
     this->prefix = prefix;
@@ -208,7 +253,7 @@ bool Route::set(uint32_t prefix, uint8_t length) {
  * @return true Prefix set.
  * @return false Failed to set prefix.
  */
-bool Route::setPrefix(uint32_t prefix) {
+bool Prefix4::setPrefix(uint32_t prefix) {
     this->prefix = prefix;
     return true;
 }
@@ -220,7 +265,7 @@ bool Route::setPrefix(uint32_t prefix) {
  * @return true Netmask set.
  * @return false Failed to set netmask.
  */
-bool Route::setLength(uint8_t length) {
+bool Prefix4::setLength(uint8_t length) {
     if (length > 32) return false;
     this->length = length;
     return true;
@@ -231,7 +276,7 @@ bool Route::setLength(uint8_t length) {
  * 
  * @return uint32_t The prefix in network byte order.
  */
-uint32_t Route::getPrefix() const {
+uint32_t Prefix4::getPrefix() const {
     return prefix;
 }
 
@@ -240,7 +285,7 @@ uint32_t Route::getPrefix() const {
  * 
  * @return uint8_t The netmask in CIDR notation.
  */
-uint8_t Route::getLength() const {
+uint8_t Prefix4::getLength() const {
     return length;
 }
 
@@ -250,7 +295,7 @@ uint8_t Route::getLength() const {
  * @return uint32_t The netmask in network byte order.
  * @throws "bad_route_length" Netmask invalid.
  */
-uint32_t Route::getMask() const {
+uint32_t Prefix4::getMask() const {
     if (length > 32) throw "bad_route_length";
     return CIDR_MASK_MAP[length];
 }

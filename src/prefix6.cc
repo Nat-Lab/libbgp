@@ -1,5 +1,5 @@
 /**
- * @file route6.cc
+ * @file prefix6.cc
  * @author Nato Morichika <nat@nat.moe>
  * @brief IPv6 Route/Prefix related utilities.
  * @version 0.1
@@ -10,7 +10,8 @@
  */
 #include <string.h>
 #include <arpa/inet.h>
-#include "route6.h"
+#include "prefix6.h"
+#include "value-op.h"
 
 namespace libbgp {
 
@@ -180,26 +181,87 @@ bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]) 
     return true;
 }
 
+const uint16_t zero_prefix[16] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
+
 /**
- * @brief Construct a new Route6 object
+ * @brief Test if a IPv6 addresss is all zero.
+ * 
+ * @param prefix The prefix to test.
+ * @return true Address is all zero;
+ * @return false Address is not all zero.
+ */
+bool v6addr_is_zero(const uint8_t prefix[16]) {
+    return memcmp(zero_prefix, prefix, 16) == 0;
+}
+
+/**
+ * @brief Construct a new Prefix6 object.
+ * 
+ */
+Prefix6::Prefix6() {
+    this->length = 0;
+    memset(prefix, 0, 16);
+}
+
+/**
+ * @brief Construct a new Prefix6 object
  * 
  * @param prefix Prefix as bytes array.
  * @param length Netmask of the prefix in CIDR notation.
  */
-Route6::Route6 (const uint8_t prefix[16], uint8_t length) {
+Prefix6::Prefix6 (const uint8_t prefix[16], uint8_t length) {
     this->length = length;
     memcpy(this->prefix, prefix, 16);
 }
 
 /**
- * @brief Construct a new Route6 object
+ * @brief Construct a new Prefix6 object
  * 
  * @param prefix Prefix as IPv6 string.
  * @param length Netmask of the prefix in CIDR notation.
  */
-Route6::Route6 (const char* prefix, uint8_t length) {
+Prefix6::Prefix6 (const char* prefix, uint8_t length) {
     this->length = length;
     inet_pton(AF_INET6, prefix, this->prefix);
+}
+
+/**
+ * @brief Parse a IPv6 NLRI prefix from buffer.
+ * 
+ * @param buffer Buffer to parse from.
+ * @param buf_sz Size of the buffer.
+ * @return ssize_t Bytes read.
+ * @retval -1 Failed to parse prefix.
+ * @retval >=0 Bytes read.
+ */
+ssize_t Prefix6::parse(const uint8_t *buffer, size_t buf_sz) {
+    if (buf_sz < 1) return -1;
+    length = getValue<uint8_t>(&buffer);
+    if (length > 128) return -1;
+    size_t prefix_buf_sz = (length + 7) / 8;
+    if (buf_sz < prefix_buf_sz + 1) return -1;
+    memset(prefix, 0, 16);
+    memcpy(prefix, buffer, prefix_buf_sz);
+    return 1 + prefix_buf_sz;
+}
+
+/**
+ * @brief Write a IPv6 prefix to NLRI buffer.
+ * 
+ * @param buffer Buffer to write to.
+ * @param buf_sz Size of the buffer (max write size).
+ * @return ssize_t Bytes written.
+ * @retval -1 Failed to write.
+ * @retval >=0 Bytes written.
+ */
+ssize_t Prefix6::write(uint8_t *buffer, size_t buf_sz) const {
+    size_t prefix_buf_sz = (length + 7) / 8;
+    if (buf_sz < 1 + prefix_buf_sz) return -1;
+    putValue<uint8_t>(&buffer, length);
+    memcpy(buffer, &prefix, prefix_buf_sz);
+    return prefix_buf_sz + 1;
 }
 
 /**
@@ -211,7 +273,7 @@ Route6::Route6 (const char* prefix, uint8_t length) {
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
  */
-bool Route6::Includes (const uint8_t prefix[16], uint8_t length, const uint8_t address[16]) {
+bool Prefix6::Includes (const uint8_t prefix[16], uint8_t length, const uint8_t address[16]) {
     if (length > 128) return false;
 
     uint8_t masked_address[16];
@@ -230,7 +292,7 @@ bool Route6::Includes (const uint8_t prefix[16], uint8_t length, const uint8_t a
  * @return true prefix_b is in prefix_a.
  * @return false  prefix_b is not in prefix_a.
  */
-bool Route6::Includes (const uint8_t prefix_a[16], uint8_t length_a, const uint8_t prefix_b[16], uint8_t length_b) {
+bool Prefix6::Includes (const uint8_t prefix_a[16], uint8_t length_a, const uint8_t prefix_b[16], uint8_t length_b) {
     if (length_a > 128 || length_b > 128) return false;
     if (length_b < length_a) return false;
 
@@ -247,7 +309,7 @@ bool Route6::Includes (const uint8_t prefix_a[16], uint8_t length_a, const uint8
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
  */
-bool Route6::includes (const uint8_t address[16]) const {
+bool Prefix6::includes (const uint8_t address[16]) const {
     return Includes(prefix, length, address);
 }
 
@@ -258,7 +320,7 @@ bool Route6::includes (const uint8_t address[16]) const {
  * @return true The address is in the prefix.
  * @return false The address in not in the prefix.
  */
-bool Route6::includes (const char* address) const {
+bool Prefix6::includes (const char* address) const {
     uint8_t address_arr[16];
     if (inet_pton(AF_INET6, address, address_arr) <= 0) return false;
     return includes (address_arr);
@@ -271,7 +333,7 @@ bool Route6::includes (const char* address) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Route6::includes (const Route6 &other) const {
+bool Prefix6::includes (const Prefix6 &other) const {
     return includes(other.prefix, other.length);
 }
 
@@ -283,7 +345,7 @@ bool Route6::includes (const Route6 &other) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Route6::includes (const uint8_t prefix[16], uint8_t length) const {
+bool Prefix6::includes (const uint8_t prefix[16], uint8_t length) const {
     return Includes(this->prefix, this->length, prefix, length);
 }
 
@@ -295,7 +357,7 @@ bool Route6::includes (const uint8_t prefix[16], uint8_t length) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Route6::includes (const char* prefix, uint8_t length) const {
+bool Prefix6::includes (const char* prefix, uint8_t length) const {
     uint8_t prefix_arr[16];
     if (inet_pton(AF_INET6, prefix, prefix_arr) <= 0) return false;
     return Includes(this->prefix, this->length, prefix_arr, length);
@@ -308,27 +370,27 @@ bool Route6::includes (const char* prefix, uint8_t length) const {
  * @return true The routes are equal.
  * @return false The routes are different.
  */
-bool Route6::operator== (const Route6 &other) const {
+bool Prefix6::operator== (const Prefix6 &other) const {
     return memcmp(prefix, other.prefix, 16) == 0 && other.length == length;
 }
 
-bool Route6::operator> (const Route6 &other) const {
+bool Prefix6::operator> (const Prefix6 &other) const {
     return length < other.length;
 }
 
-bool Route6::operator< (const Route6 &other) const {
+bool Prefix6::operator< (const Prefix6 &other) const {
     return length > other.length;
 }
 
-bool Route6::operator>= (const Route6 &other) const {
+bool Prefix6::operator>= (const Prefix6 &other) const {
     return !(*this < other);
 }
 
-bool Route6::operator<= (const Route6 &other) const {
+bool Prefix6::operator<= (const Prefix6 &other) const {
     return !(*this > other);
 }
 
-bool Route6::operator!= (const Route6 &other) const {
+bool Prefix6::operator!= (const Prefix6 &other) const {
     return !(*this == other);
 }
 
@@ -340,8 +402,8 @@ bool Route6::operator!= (const Route6 &other) const {
  * @return true Route set.
  * @return false Failed to set route.s
  */
-bool Route6::set(const uint8_t prefix[16], uint8_t length) {
-
+bool Prefix6::set(const uint8_t prefix[16], uint8_t length) {
+    return setLength(length) && setPrefix(prefix);
 }
 
 /**
@@ -351,8 +413,9 @@ bool Route6::set(const uint8_t prefix[16], uint8_t length) {
  * @return true Prefix set.
  * @return false Failed to set prefix.
  */
-bool Route6::setPrefix(const uint8_t prefix[16]) {
-
+bool Prefix6::setPrefix(const uint8_t prefix[16]) {
+    memcpy(this->prefix, prefix, 16);
+    return true;
 }
 
 /**
@@ -362,8 +425,10 @@ bool Route6::setPrefix(const uint8_t prefix[16]) {
  * @return true Netmask set.
  * @return false Failed to set netmask.
  */
-bool Route6::setLength(uint8_t length) {
-
+bool Prefix6::setLength(uint8_t length) {
+    if (length > 128) return false;
+    this->length = length;
+    return true;
 }
 
 /**
@@ -371,7 +436,7 @@ bool Route6::setLength(uint8_t length) {
  * 
  * @param prefix Bytes array to store the prefix.
  */
-void Route6::getPrefix(uint8_t prefix[16]) const {
+void Prefix6::getPrefix(uint8_t prefix[16]) const {
     memcpy(prefix, this->prefix, 16);
 }
 
@@ -380,7 +445,7 @@ void Route6::getPrefix(uint8_t prefix[16]) const {
  * 
  * @return uint8_t The netmask in CIDR notation.
  */
-uint8_t Route6::getLength() const {
+uint8_t Prefix6::getLength() const {
     return length;
 }
 
@@ -390,7 +455,7 @@ uint8_t Route6::getLength() const {
  * @param mask Bytes array to store the netmask.
  * @throws "bad_route_length" Netmask invalid.
  */
-void Route6::getMask(uint8_t mask[16]) const {
+void Prefix6::getMask(uint8_t mask[16]) const {
     if (length > 128) throw "bad_route_length";
     cidr_to_mask6(length, mask);
 }

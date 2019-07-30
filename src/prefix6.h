@@ -1,5 +1,5 @@
 /**
- * @file route6.h
+ * @file prefix6.h
  * @author Nato Morichika <nat@nat.moe>
  * @brief IPv6 Route/Prefix related utilities.
  * @version 0.1
@@ -8,23 +8,29 @@
  * @copyright Copyright (c) 2019
  * 
  */
-#ifndef BGP_ROUTE6_H_
-#define BGP_ROUTE6_H_
+#ifndef BGP_PREFIX6_H_
+#define BGP_PREFIX6_H_
 #include <stdint.h>
+#include <unistd.h>
 
 namespace libbgp {
 
 bool cidr_to_mask6(uint8_t src, uint8_t dst[16]);
 bool mask_ipv6(const uint8_t prefix[16], uint8_t mask, uint8_t masked_addr[16]);
+bool v6addr_is_zero(const uint8_t prefix[16]);
 
 /**
  * @brief IPv6 Route/Prefix related utilities.
  * 
  */
-class Route6 {
+class Prefix6 {
 public:
-    Route6(const uint8_t prefix[16], uint8_t length);
-    Route6(const char* prefix, uint8_t length);
+    Prefix6();
+    Prefix6(const uint8_t prefix[16], uint8_t length);
+    Prefix6(const char* prefix, uint8_t length);
+
+    ssize_t parse(const uint8_t *buffer, size_t buf_sz);
+    ssize_t write(uint8_t *buffer, size_t buf_sz) const;
 
     // static utility functions for route include test
     static bool Includes (const uint8_t prefix[16], uint8_t length, const uint8_t address[16]);
@@ -35,24 +41,24 @@ public:
     bool includes (const char* address) const;
 
     // test if route other is sub-prefix
-    bool includes (const Route6 &other) const;
+    bool includes (const Prefix6 &other) const;
     bool includes (const uint8_t prefix[16], uint8_t length) const;
     bool includes (const char* prefix, uint8_t length) const;
 
     // test if length & prefix equals to other
-    bool operator== (const Route6 &other) const;
+    bool operator== (const Prefix6 &other) const;
 
     // test if length smaller (prefix size bigger) then other. prefix must be
     // same to do this.
-    bool operator> (const Route6 &other) const;
+    bool operator> (const Prefix6 &other) const;
 
     // test if length bigger (prefix size smaller) then other. prefix must be
     // same to do this.
-    bool operator< (const Route6 &other) const;
+    bool operator< (const Prefix6 &other) const;
 
-    bool operator>= (const Route6 &other) const;
-    bool operator<= (const Route6 &other) const;
-    bool operator!= (const Route6 &other) const;
+    bool operator>= (const Prefix6 &other) const;
+    bool operator<= (const Prefix6 &other) const;
+    bool operator!= (const Prefix6 &other) const;
 
     bool set(const uint8_t prefix[16], uint8_t length);
     bool setPrefix(const uint8_t prefix[16]);
@@ -68,4 +74,4 @@ private:
 
 }
 
-#endif // BGP_ROUTE6_H
+#endif // BGP_PREFIX6_H_

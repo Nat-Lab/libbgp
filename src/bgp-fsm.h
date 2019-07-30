@@ -13,7 +13,8 @@
 #define BGP_FSM_BUFFER_SIZE 4096
 
 #include "clock.h"
-#include "bgp-rib.h"
+#include "bgp-rib4.h"
+#include "bgp-rib6.h"
 #include "bgp-config.h"
 #include "bgp-sink.h"
 #include "route-event-receiver.h"
@@ -87,11 +88,18 @@ public:
     uint16_t getHoldTimer() const;
 
     /**
-     * @brief Get the Routing Information Base.
+     * @brief Get the IPv4 Routing Information Base.
      * 
-     * @return BgpRib& reference to the RIB.
+     * @return BgpRib4& reference to the RIB.
      */
-    BgpRib& getRib() const;
+    BgpRib4& getRib4() const;
+
+    /**
+     * @brief Get the IPv6 Routing Information Base.
+     * 
+     * @return BgpRib6& reference to the RIB.
+     */
+    BgpRib6& getRib6() const;
 
     /**
      * @brief Get current FSM state.
@@ -179,15 +187,16 @@ public:
     void resetHard();
 
 private:
-    bool rib_local;
+    bool rib4_local;
+    bool rib6_local;
     bool clock_local;
     bool log_local;
     bool rev_bus_exist;
 
     bool handleRouteEvent(const RouteEvent &ev);
     bool handleRouteCollisionEvent(const RouteCollisionEvent &ev);
-    bool handleRouteWithdrawEvent(const RouteWithdrawEvent &ev);
-    bool handleRouteAddEvent(const RouteAddEvent &ev);
+    bool handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev);
+    bool handleRoute4AddEvent(const Route4AddEvent &ev);
 
     int validateState(uint8_t type);
     int fsmEvalIdle(const BgpMessage *msg);
@@ -220,12 +229,13 @@ private:
 
     // prepare update message for advertisement (prepend my_asn, remove 
     // non-trans attrs)
-    void prepareUpdateMessage(BgpUpdateMessage &update);
+    void prepareUpdateMessage(BgpUpdateMessage &update, bool alter_v4_nexthop);
 
     BgpSink in_sink;
     BgpState state;
     BgpConfig config;
-    BgpRib *rib;
+    BgpRib4 *rib4;
+    BgpRib6 *rib6;
     Clock *clock;
     BgpLogHandler *logger;
 
@@ -248,6 +258,9 @@ private:
 
     // true if both peer & local support 4B ASN
     bool use_4b_asn;
+
+    bool send_ipv4_routes;
+    bool send_ipv6_routes;
 
     uint32_t peer_asn;
 

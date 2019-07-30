@@ -14,7 +14,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include "route6.h"
+#include "prefix6.h"
 #include "bgp-path-attrib.h"
 
 namespace libbgp {
@@ -25,7 +25,7 @@ namespace libbgp {
  */
 class BgpRib6Entry {
 public:
-    BgpRib6Entry (Route6 r, uint32_t src, const uint8_t nexthop_global[16], 
+    BgpRib6Entry (Prefix6 r, uint32_t src, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
 
@@ -33,7 +33,7 @@ public:
      * @brief The prefix of this entry.
      * 
      */
-    Route6 route;
+    Prefix6 route;
 
     /**
      * @brief Global IPv6 address of the next hop in network btyes order.
@@ -55,7 +55,7 @@ public:
     uint32_t src_router_id;
 
     /**
-     * @brief The update ID. BgpRibEntry with same update ID are received from
+     * @brief The update ID. BgpRib6Entry with same update ID are received from
      * the same update and their path attributes are therefore same. Note that
      * entries with different update_id may still have same path attributes.
      * 
@@ -82,29 +82,29 @@ public:
 
     // insert a route as local routing information
     const BgpRib6Entry* insert(BgpLogHandler *logger, 
-        const Route6 &route, const uint8_t nexthop_global[16], 
+        const Prefix6 &route, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16]);
 
     // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Route6 &route, 
+    bool insert(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Route6> &routes, 
+    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
 
     // remove a route from RIB, return true if route removed, false if not exist.
-    bool withdraw(uint32_t src_router_id, const Route6 &route);
+    bool withdraw(uint32_t src_router_id, const Prefix6 &route);
 
     // remove routes from RIB, return number of routes removed on success, -1
     // on error
-    ssize_t withdraw(uint32_t src_router_id, const std::vector<Route6> &routes);
+    ssize_t withdraw(uint32_t src_router_id, const std::vector<Prefix6> &routes);
 
     // remove all routes from a peer, return all discarded routes on success.
-    std::vector<Route6> discard(uint32_t src_router_id);
+    std::vector<Prefix6> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
     const BgpRib6Entry* lookup(const uint8_t dest[16]) const;

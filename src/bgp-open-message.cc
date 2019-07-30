@@ -158,6 +158,7 @@ ssize_t BgpOpenMessage::parse(const uint8_t *from, size_t msg_sz) {
 
             switch(capa_code) {
                 case ASN_4B: cap = new BgpCapability4BytesAsn(logger); break;
+                case MP_BGP: cap = new BgpCapabilityMpBgp(logger); break;
                 default: cap = new BgpCapabilityUnknow(logger); break;
             }
 
@@ -349,6 +350,27 @@ bool BgpOpenMessage::hasCapability(uint8_t code) const {
     }
 
     return false;
+}
+
+/**
+ * @brief Get capabilities list.
+ * 
+ * @return const std::vector<std::shared_ptr<BgpCapability>>& Capabilities.
+ */
+const std::vector<std::shared_ptr<BgpCapability>>& BgpOpenMessage::getCapabilities() const {
+    return capabilities;
+}
+
+/**
+ * @brief Add a capability.
+ * 
+ * @param capability The capability.
+ * @return true Capability added.
+ * @return false Failed to add capability.
+ */
+bool BgpOpenMessage::addCapability(std::shared_ptr<BgpCapability> capability) {
+    capabilities.push_back(capability);
+    return true;
 }
 
 }
