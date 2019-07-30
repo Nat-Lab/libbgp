@@ -703,7 +703,9 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             prepareUpdateMessage(update, false);
             std::vector<Prefix6> filtered_nlri;
 
-            size_t msg_len = 19 + 4 + 8; // 8: mp-reach-nlri headers (attrib hdr: 3, afi/safi/nh_len/res: 5)
+            // 8: mp-reach-nlri headers (attrib hdr: 3, afi/safi/nh_len/res: 5)
+            // 32: max nexthop len
+            size_t msg_len = 19 + 4 + 8 + 32;
             for (const std::shared_ptr<BgpPathAttrib> &attrib : update.path_attribute) {
                 msg_len += attrib->length(); 
             }
