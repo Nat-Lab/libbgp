@@ -765,9 +765,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
 
     if (send_ipv4_routes) {
-        for (const Prefix4 &route : update->withdrawn_routes) {
-            rib4->withdraw(peer_bgp_id, route);
-        }
+        rib4->withdraw(peer_bgp_id, update->withdrawn_routes);
 
         if (update->nlri.size() > 0) {
             const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
@@ -830,7 +828,31 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     }
 
     if (send_ipv6_routes) {
-        // TODO
+        if (update->hasAttrib(MP_UNREACH_NLRI)) {
+            const BgpPathAttrib &attr = update->getAttrib(MP_UNREACH_NLRI);
+            const BgpPathAttribMpNlriBase &mp_unreach = dynamic_cast<const BgpPathAttribMpNlriBase &>(attr);
+            if (mp_unreach.afi == IPV6 && mp_unreach.safi == UNICAST) {
+                const BgpPathAttribMpUnreachNlriIpv6 &unreach = dynamic_cast<const BgpPathAttribMpUnreachNlriIpv6 &>(mp_unreach);
+                rib6->withdraw(peer_bgp_id, unreach.withdrawn_routes);
+
+                if (rev_bus_exist) {
+                    Route6WithdrawEvent wev = Route6WithdrawEvent();
+                    wev.routes = unreach.withdrawn_routes;
+                    config.rev_bus->publish(this, wev);
+                }
+            }
+        }
+
+        if (update->hasAttrib(MP_REACH_NLRI)) {
+            const BgpPathAttrib &attr = update->getAttrib(MP_REACH_NLRI);
+            const BgpPathAttribMpNlriBase &mp_reach = dynamic_cast<const BgpPathAttribMpNlriBase &>(attr);
+            if (mp_reach.afi == IPV6 && mp_reach.safi == UNICAST) {
+                const BgpPathAttribMpReachNlriIpv6 &reach = dynamic_cast<const BgpPathAttribMpReachNlriIpv6 &>(mp_reach);
+
+                // TODO: route filter, rib insert, event publish, attrib filter MP_*, validAddr6
+
+            }
+        }
     }
 
     return 1;
