@@ -23,6 +23,8 @@ namespace libbgp {
 enum RouteEventType {
     ADD4, 
     WITHDRAW4,
+    ADD6,
+    WITHDRAW6,
     COLLISION
 };
 
@@ -75,6 +77,42 @@ public:
      * 
      */
     std::vector<Prefix4> routes;
+};
+
+/**
+ * @brief An Route6AddEvent.
+ * 
+ */
+class Route6AddEvent : public RouteEvent {
+public:
+    Route6AddEvent () { type = ADD6; }
+
+    /**
+     * @brief Path attribues of the route.
+     * 
+     */
+    std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
+
+    /**
+     * @brief Routes to add.
+     * 
+     */
+    std::vector<Prefix6> routes;
+};
+
+/**
+ * @brief An Route6WithdrawEvent. 
+ * 
+ */
+class Route6WithdrawEvent : public RouteEvent {
+public:
+    Route6WithdrawEvent () { type = WITHDRAW6; }
+
+    /**
+     * @brief Routes to withdraw.
+     * 
+     */
+    std::vector<Prefix6> routes;
 };
 
 /**
