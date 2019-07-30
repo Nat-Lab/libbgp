@@ -131,6 +131,20 @@ int BgpFsm::start() {
         msg.setAsn(config.asn);
     }
 
+    if (config.mp_bgp_ipv4) {
+        BgpCapabilityMpBgp *cap = new BgpCapabilityMpBgp(logger);
+        cap->afi = IPV4;
+        cap->safi = UNICAST;
+        msg.addCapability(std::shared_ptr<BgpCapability>(cap));
+    }
+
+    if (config.mp_bgp_ipv6) {
+        BgpCapabilityMpBgp *cap = new BgpCapabilityMpBgp(logger);
+        cap->afi = IPV6;
+        cap->safi = UNICAST;
+        msg.addCapability(std::shared_ptr<BgpCapability>(cap));
+    }
+
     setState(OPEN_SENT);
     if(!writeMessage(msg)) return -1;
     return 1;
@@ -597,14 +611,14 @@ int BgpFsm::fsmEvalIdle(const BgpMessage *msg) {
     if (config.mp_bgp_ipv4) {
         BgpCapabilityMpBgp *cap = new BgpCapabilityMpBgp(logger);
         cap->afi = IPV4;
-        cap->afi = UNICAST;
+        cap->safi = UNICAST;
         open_reply.addCapability(std::shared_ptr<BgpCapability>(cap));
     }
 
     if (config.mp_bgp_ipv6) {
         BgpCapabilityMpBgp *cap = new BgpCapabilityMpBgp(logger);
         cap->afi = IPV6;
-        cap->afi = UNICAST;
+        cap->safi = UNICAST;
         open_reply.addCapability(std::shared_ptr<BgpCapability>(cap));
     }
 
