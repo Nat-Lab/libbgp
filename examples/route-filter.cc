@@ -62,22 +62,22 @@ int main(void) {
 
     // egress rule set (apply to routes sending to peer). Say we only want to
     // send 172.16.0.0/24 to peer, nothing else.
-    libbgp::BgpFilterRules egress_rules;
+    libbgp::BgpFilterRules4 egress_rules;
 
     // egress: append a rule: reject 0.0.0.0/0 and all the sub-prefix (reject 
     // everything)
-    egress_rules.append(libbgp::BgpFilterRule(libbgp::LOOSE, libbgp::REJECT, "0.0.0.0", 0));
+    egress_rules.append(libbgp::BgpFilterRule4(libbgp::LOOSE, libbgp::REJECT, "0.0.0.0", 0));
 
     // egress: append another rule: accept 172.16.0.0/24.
-    egress_rules.append(libbgp::BgpFilterRule(libbgp::STRICT, libbgp::ACCEPT, "172.16.0.0", 24));
+    egress_rules.append(libbgp::BgpFilterRule4(libbgp::STRICT, libbgp::ACCEPT, "172.16.0.0", 24));
 
     // inegress rule set (apply to routes received from peer). Say we only want 
     // to allow 172.17.0.0/24 to peer, nothing else.
-    libbgp::BgpFilterRules ingress_rules;
+    libbgp::BgpFilterRules4 ingress_rules;
 
     // do the same thing for inegress rules set
-    ingress_rules.append(libbgp::BgpFilterRule(libbgp::LOOSE, libbgp::REJECT, "0.0.0.0", 0));
-    ingress_rules.append(libbgp::BgpFilterRule(libbgp::STRICT, libbgp::ACCEPT, "172.17.0.0", 24));
+    ingress_rules.append(libbgp::BgpFilterRule4(libbgp::LOOSE, libbgp::REJECT, "0.0.0.0", 0));
+    ingress_rules.append(libbgp::BgpFilterRule4(libbgp::STRICT, libbgp::ACCEPT, "172.17.0.0", 24));
 
     /* configure our "local" BgpFsm */
     libbgp::BgpConfig local_bgp_config;
@@ -88,12 +88,12 @@ int main(void) {
     local_bgp_config.hold_timer = 120; // hold timer
     local_bgp_config.out_handler = &pipe_local; // handle output with bridge
     local_bgp_config.no_collision_detection = true; // no need for that
-    local_bgp_config.rib = NULL; // let BGP FSM create RIB for us.
+    local_bgp_config.rib4 = NULL; // let BGP FSM create RIB for us.
     local_bgp_config.rev_bus = NULL; // we don't need event bus
     local_bgp_config.clock = NULL; // use system clock.
     local_bgp_config.log_handler = &local_logger; // use local logger
-    local_bgp_config.in_filters = ingress_rules;
-    local_bgp_config.out_filters = egress_rules;
+    local_bgp_config.in_filters4 = ingress_rules;
+    local_bgp_config.out_filters4 = egress_rules;
     inet_pton(AF_INET, "10.0.0.1", &local_bgp_config.router_id); // router id
 
     // nexthop selection and nexthop validation is done with peering_lan_*
@@ -102,11 +102,11 @@ int main(void) {
     // usage, refer to the document.
 
     // always use 10.0.0.1 as nexthop. 
-    inet_pton(AF_INET, "10.0.0.1", &local_bgp_config.nexthop); 
-    local_bgp_config.forced_default_nexthop = true; 
+    inet_pton(AF_INET, "10.0.0.1", &local_bgp_config.default_nexthop4); 
+    local_bgp_config.forced_default_nexthop4 = true; 
 
     // don't validate nexthop of routes received from peer.
-    local_bgp_config.no_nexthop_check = true; 
+    local_bgp_config.no_nexthop_check4 = true; 
 
     /* and configure the "remote" */
     libbgp::BgpConfig remote_bgp_config;
@@ -117,14 +117,14 @@ int main(void) {
     remote_bgp_config.hold_timer = 120;
     remote_bgp_config.out_handler = &pipe_remote;
     remote_bgp_config.no_collision_detection = true;
-    remote_bgp_config.rib = NULL; 
+    remote_bgp_config.rib4 = NULL; 
     remote_bgp_config.rev_bus = NULL; 
     remote_bgp_config.clock = NULL;
     remote_bgp_config.log_handler = &remote_logger; 
     inet_pton(AF_INET, "10.0.0.2", &remote_bgp_config.router_id);
-    inet_pton(AF_INET, "10.0.0.2", &remote_bgp_config.nexthop); 
-    remote_bgp_config.forced_default_nexthop = true; 
-    remote_bgp_config.no_nexthop_check = true; 
+    inet_pton(AF_INET, "10.0.0.2", &remote_bgp_config.default_nexthop4); 
+    remote_bgp_config.forced_default_nexthop4 = true; 
+    remote_bgp_config.no_nexthop_check4 = true; 
 
     // create our "local" and "remote" FSMs, and connect them with each other.
     libbgp::BgpFsm local(local_bgp_config);
@@ -135,24 +135,24 @@ int main(void) {
     // before we peer, let's add some routes to local.
 
     // 10.0.0.0/24 (this will be filter by egress filter)
-    local.getRib().insert(&local_logger, libbgp::Route("10.0.0.0", 24), local_bgp_config.nexthop);
+    local.getRib4().insert(&local_logger, libbgp::Prefix4("10.0.0.0", 24), local_bgp_config.default_nexthop4);
 
     // 172.16.0.0/16 (this will be filter by egress filter)
-    local.getRib().insert(&local_logger, libbgp::Route("172.16.0.0", 16), local_bgp_config.nexthop);
+    local.getRib4().insert(&local_logger, libbgp::Prefix4("172.16.0.0", 16), local_bgp_config.default_nexthop4);
 
     // 172.16.0.0/16 (this will be accept by egress filter)
-    local.getRib().insert(&local_logger, libbgp::Route("172.16.0.0", 24), local_bgp_config.nexthop);
+    local.getRib4().insert(&local_logger, libbgp::Prefix4("172.16.0.0", 24), local_bgp_config.default_nexthop4);
 
     // and also, add some routes to remote.
 
     // 10.1.0.0/24 (this will be filter by local ingress filter)
-    remote.getRib().insert(&remote_logger, libbgp::Route("10.1.0.0", 24), remote_bgp_config.nexthop);
+    remote.getRib4().insert(&remote_logger, libbgp::Prefix4("10.1.0.0", 24), remote_bgp_config.default_nexthop4);
 
     // 172.17.0.0/26 (this will be filter by local ingress filter)
-    remote.getRib().insert(&remote_logger, libbgp::Route("172.17.0.0", 26), remote_bgp_config.nexthop);
+    remote.getRib4().insert(&remote_logger, libbgp::Prefix4("172.17.0.0", 26), remote_bgp_config.default_nexthop4);
 
     // 172.17.0.0/23 (this will be accept by local ingress filter)
-    remote.getRib().insert(&remote_logger, libbgp::Route("172.17.0.0", 24), remote_bgp_config.nexthop);
+    remote.getRib4().insert(&remote_logger, libbgp::Prefix4("172.17.0.0", 24), remote_bgp_config.default_nexthop4);
 
     // send the open message from local.
     local.start();
