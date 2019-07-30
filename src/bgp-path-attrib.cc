@@ -1457,7 +1457,7 @@ int16_t BgpPathAttribMpNlriBase::GetAfiFromBuffer(const uint8_t *buffer, size_t 
 }
 
 ssize_t BgpPathAttribMpNlriBase::parseHeader(const uint8_t *from, size_t length) {
-    size_t hdr_len = BgpPathAttrib::parseHeader(from, length);
+    ssize_t hdr_len = BgpPathAttrib::parseHeader(from, length);
 
     if (hdr_len < 0) return -1;
 
@@ -1863,7 +1863,7 @@ ssize_t BgpPathAttribMpUnreachNlriIpv6::write(uint8_t *to, size_t buffer_sz) con
         return -1;
     }
 
-    size_t hdr_len = writeHeader(to, buffer_sz);
+    ssize_t hdr_len = writeHeader(to, buffer_sz);
     if (hdr_len < 0) return -1;
 
     uint8_t *len_field = to + hdr_len;
@@ -1973,7 +1973,7 @@ ssize_t BgpPathAttribMpUnreachNlriUnknow::write(uint8_t *to, size_t buffer_sz) c
         return -1;
     }
 
-    size_t hdr_len = writeHeader(to, buffer_sz);
+    ssize_t hdr_len = writeHeader(to, buffer_sz);
     if (hdr_len < 0) return -1;
 
     uint8_t *buffer = to + hdr_len;
