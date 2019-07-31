@@ -1375,12 +1375,17 @@ ssize_t BgpPathAttribCommunity::doPrint(size_t indent, uint8_t **to, size_t *buf
     size_t written = 0;
     written += _print(indent, to, buf_sz, "CommunityAttribute {\n");
     indent++; {
-        uint16_t community_[2];
-        memcpy(community_, &community, 4);
         written += printFlags(indent, to, buf_sz);
-        written += _print(indent, to, buf_sz, "Community { %d:%d }\n", ntohs(community_[0]), ntohs(community_[1]));
+        written += _print(indent, to, buf_sz, "Community {\n");
+        indent++; {
+            for (uint32_t community : communites) {
+                uint16_t community_[2];
+                memcpy(community_, &community, 4);
+                written += _print(indent, to, buf_sz, "%d:%d\n", ntohs(community_[0]), ntohs(community_[1]));
+            }
+        }; indent--;
+        written += _print(indent, to, buf_sz, "}\n");
     }; indent--;
-
     written += _print(indent, to, buf_sz, "}\n");
 
     return written;
@@ -1411,8 +1416,8 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (value_len != 4) {
-        logger->log(ERROR, "BgpPathAttribCommunity::parse: bad length, want 4, saw %d.\n", value_len);
+    if (value_len % 4 != 0) {
+        logger->log(ERROR, "BgpPathAttribCommunity::parse: bad length, want multiple of 4, saw %d.\n", value_len);
         setError(E_UPDATE, E_ATTR_LEN, from, value_len + header_length);
         return -1;
     }
@@ -1423,9 +1428,19 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    community = getValue<uint32_t>(&buffer);
+    size_t read_len = 0;
 
-    return 7;
+    while (read_len < value_len) {
+        communites.push_back(getValue<uint32_t>(&buffer));
+        read_len += 4;
+    }
+
+    if (read_len != value_len) {
+        logger->log(FATAL, " BgpPathAttribCommunity::parse: parse ends with read_len != value_len.\n");
+        throw "bad_parse";
+    }
+
+    return value_len + 3;
 }
 
 ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
@@ -1437,13 +1452,19 @@ ssize_t BgpPathAttribCommunity::write(uint8_t *to, size_t buffer_sz) const {
     if (writeHeader(to, buffer_sz) < 0) return -1;
     uint8_t *buffer = to + 2;
 
-    putValue<uint8_t>(&buffer, 4); // length = 4
-    putValue<uint32_t>(&buffer, community);
-    return 7;
+    putValue<uint8_t>(&buffer, 4 * communites.size()); // length = 4 * nCommunity
+    
+    size_t write_len = 0;
+
+    for (uint32_t community : communites) {
+        write_len += putValue<uint32_t>(&buffer, community);
+    }
+
+    return 3 + write_len;
 }
 
 ssize_t BgpPathAttribCommunity::length() const {
-    return 7;
+    return 3 + 4 * communites.size();
 }
 
 BgpPathAttribMpNlriBase::BgpPathAttribMpNlriBase(BgpLogHandler *logger) : BgpPathAttrib(logger) {

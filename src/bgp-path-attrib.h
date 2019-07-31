@@ -433,7 +433,7 @@ public:
      * @brief Raw community attribute in network byte order.
      * 
      */
-    uint32_t community;
+    std::vector<uint32_t> communites;
 
     BgpPathAttrib* clone() const;
     ssize_t parse(const uint8_t *buffer, size_t length);
