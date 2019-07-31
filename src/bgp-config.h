@@ -14,8 +14,7 @@
 #include "clock.h"
 #include "bgp-rib4.h"
 #include "bgp-rib6.h"
-#include "bgp-filter4.h"
-#include "bgp-filter6.h"
+#include "bgp-filter.h"
 #include "bgp-out-handler.h"
 #include "bgp-log-handler.h"
 #include "route-event-bus.h"
@@ -48,7 +47,7 @@ typedef struct BgpConfig {
      * Ingress route filters are applied on the routes received from the peer. 
      * (default: accept any)
      */
-    BgpFilterRules4 in_filters4;
+    BgpFilterRules in_filters4;
 
     /**
      * @brief IPv4 Egress route filters.
@@ -56,7 +55,7 @@ typedef struct BgpConfig {
      * Egress route filters are applied when sending routes to the peer. 
      * (default: accept any)
      */
-    BgpFilterRules4 out_filters4;
+    BgpFilterRules out_filters4;
 
     /**
      * @brief IPv6 Ingress route filters.
@@ -64,7 +63,7 @@ typedef struct BgpConfig {
      * Ingress route filters are applied on the routes received from the peer. 
      * (default: accept any)
      */
-    BgpFilterRules6 in_filters6;
+    BgpFilterRules in_filters6;
 
     /**
      * @brief IPv6 Ingress route filters.
@@ -72,7 +71,7 @@ typedef struct BgpConfig {
      * Egress route filters are applied when sending routes to the peer. 
      * (default: accept any)
      */
-    BgpFilterRules6 out_filters6;
+    BgpFilterRules out_filters6;
 
     /**
      * @brief The output handler.

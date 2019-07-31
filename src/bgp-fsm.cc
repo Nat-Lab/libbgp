@@ -476,7 +476,7 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
     update.setAttribs(ev.attribs);
 
     for (const Prefix4 &route : ev.routes) {
-        if (config.out_filters4.BgpFilterRules::apply(route) == ACCEPT) {
+        if (config.out_filters4.apply(route, ev.attribs) == ACCEPT) {
             update.addNlri4(route);
         } else {
             LIBBGP_LOG(logger, INFO) {
@@ -676,7 +676,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                     }
                     continue;
                 }
-                if (config.out_filters4.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
+                if (config.out_filters4.apply(r, update.path_attribute) == ACCEPT) {
                     msg_len += 1 + (r.getLength() + 7) / 8;
                     if (msg_len > 4096) {
                         // size too big, roll back and break.
@@ -733,7 +733,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                     continue;
                 }
 
-                if (config.out_filters6.BgpFilterRules::apply(r) == ACCEPT) {
+                if (config.out_filters6.apply(r, update.path_attribute) == ACCEPT) {
                     msg_len += 1 + (r.getLength() + 7) / 8;
                     if (msg_len > 4096) {
                         // size too big, roll back and break.
@@ -836,7 +836,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             
             std::vector<Prefix4> routes = std::vector<Prefix4> ();
             for (const Prefix4 &route : update->nlri) {
-                if(config.in_filters4.BgpFilterRules::apply(route) == ACCEPT) {
+                if(config.in_filters4.apply(route, update->path_attribute) == ACCEPT) {
                     routes.push_back(route);
                 } else {
                     LIBBGP_LOG(logger, INFO) {
@@ -894,7 +894,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                 // filter toures
                 std::vector<Prefix6> filtered_routes;
                 for (const Prefix6 &route : reach.nlri) {
-                    if (config.in_filters6.BgpFilterRules::apply(route) == ACCEPT) filtered_routes.push_back(route);
+                    if (config.in_filters6.apply(route, update->path_attribute) == ACCEPT) filtered_routes.push_back(route);
                 }
 
                 if (filtered_routes.size() <= 0) return 1;
