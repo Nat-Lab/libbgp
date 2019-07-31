@@ -42,7 +42,7 @@ public:
  * @brief The BgpRib4 (IPv4 BGP Routing Information Base) class.
  * 
  */
-class BgpRib4 : public BgpRib<BgpRib4Entry> {
+class BgpRib4 : BgpRib<BgpRib4Entry> {
 public:
     BgpRib4(BgpLogHandler *logger);
 
