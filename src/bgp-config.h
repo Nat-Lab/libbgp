@@ -27,10 +27,25 @@ namespace libbgp {
  * 
  */
 typedef struct BgpConfig {
+    BgpConfig() {
+        rib4 = NULL;
+        rib6 = NULL;
+        rev_bus = NULL;
+        mp_bgp_ipv4 = mp_bgp_ipv6 = false;
+        no_collision_detection = false;
+        use_4b_asn = true;
+        peer_asn = 0;
+        forced_default_nexthop4 = no_nexthop_check4 = false;
+        clock = NULL;
+        hold_timer = 120;
+        forced_default_nexthop6 = no_nexthop_check6 = false;
+    }
+
     /**
      * @brief IPv4 Ingress route filters.
      * 
      * Ingress route filters are applied on the routes received from the peer. 
+     * (default: accept any)
      */
     BgpFilterRules4 in_filters4;
 
@@ -38,6 +53,7 @@ typedef struct BgpConfig {
      * @brief IPv4 Egress route filters.
      * 
      * Egress route filters are applied when sending routes to the peer. 
+     * (default: accept any)
      */
     BgpFilterRules4 out_filters4;
 
@@ -45,6 +61,7 @@ typedef struct BgpConfig {
      * @brief IPv6 Ingress route filters.
      * 
      * Ingress route filters are applied on the routes received from the peer. 
+     * (default: accept any)
      */
     BgpFilterRules6 in_filters6;
 
@@ -52,6 +69,7 @@ typedef struct BgpConfig {
      * @brief IPv6 Ingress route filters.
      * 
      * Egress route filters are applied when sending routes to the peer. 
+     * (default: accept any)
      */
     BgpFilterRules6 out_filters6;
 
@@ -59,6 +77,7 @@ typedef struct BgpConfig {
      * @brief The output handler.
      * 
      * The output handler is invoked whenever BGP FSM needs to write data.
+     * (required, no default value)
      */
     BgpOutHandler *out_handler;
 
@@ -67,6 +86,7 @@ typedef struct BgpConfig {
      * 
      * The log handler is invoked whenever BGP FSM needs to log information. If 
      * you set this to null, FSM will output to the stderr with log level INFO.
+     * (required, no default value)
      */
     BgpLogHandler *log_handler;
 
@@ -78,6 +98,7 @@ typedef struct BgpConfig {
      * with some routes, you can create the RIB object yourself and pass it as 
      * configuration parameter here. If you set this to NULL, a new RIB will be 
      * created by BGP FSM. You can get it by calling `BgpFsm::getRib4`.
+     * (default: NULL)
      */
     BgpRib4 *rib4;
 
@@ -89,6 +110,7 @@ typedef struct BgpConfig {
      * with some routes, you can create the RIB object yourself and pass it as 
      * configuration parameter here. If you set this to NULL, a new RIB will be 
      * created by BGP FSM. You can get it by calling `BgpFsm::getRib6`.
+     * (default: NULL)
      */
     BgpRib6 *rib6;
 
@@ -104,6 +126,7 @@ typedef struct BgpConfig {
      * event bus. You will need to create a route event bus object and pass it 
      * in as the configuration parameter for every FSMs. You may set route event
      * bus to NULL if you are only using one FSM.
+     * (default: NULL)
      */
     RouteEventBus *rev_bus;
 
@@ -111,6 +134,7 @@ typedef struct BgpConfig {
      * @brief Disable collision detection.
      * 
      * Set this parameter to true will disable collision detection.
+     * (default: false)
      */
     bool no_collision_detection;
 
@@ -118,6 +142,7 @@ typedef struct BgpConfig {
      * @brief Enable four octets ASN support (RFC 6793)
      * 
      * Set this parameter to true will eable four octets ASN support.
+     * (default: true)
      */
     bool use_4b_asn;
 
@@ -129,7 +154,7 @@ typedef struct BgpConfig {
      * exchanged with normal BGP session. This should only be set when 
      * mp_bgp_ipv6 is set and you want to carry ipv4 routing infromation on the
      * same session.
-     * 
+     * (default: false)
      */
     bool mp_bgp_ipv4;
 
@@ -138,25 +163,25 @@ typedef struct BgpConfig {
      * 
      * Set this parameter to true will enable IPv6 support with MP-BGP. Setting
      * this to true will disable IPv4 unless mp_bgp_ipv4 is also set to true.
-     * 
+     * (default: false)
      */
     bool mp_bgp_ipv6;
 
     /**
      * @brief Local ASN.
-     * 
+     * (required, no default value)
      */
     uint32_t asn;
 
     /**
      * @brief Peer ASN. Set to 0 will make BGP FSM accept peer with any ASN.
-     * 
+     * (default: 0)
      */
     uint32_t peer_asn;
 
     /**
      * @brief Local BGP ID in network byte order.
-     * 
+     * (required, no default value)
      */
     uint32_t router_id;
 
@@ -168,7 +193,7 @@ typedef struct BgpConfig {
      * nexthop outside the peering LAN will be ignored. When sending routes to
      * peer, if nexthop attribute in RIB is not in peering LAN, default nexthop
      * will be used.
-     * 
+     * (required, no default value)
      */
     Prefix4 peering_lan4;
 
@@ -180,7 +205,7 @@ typedef struct BgpConfig {
      * nexthop outside the peering LAN will be ignored. When sending routes to
      * peer, if nexthop attribute in RIB is not in peering LAN, default nexthop
      * will be used.
-     * 
+     * (required, no default value)
      */
     Prefix6 peering_lan6;
 
@@ -189,6 +214,7 @@ typedef struct BgpConfig {
      * 
      * If true, BGP FSM will accept route with any nexthop, regardless of the 
      * peering LAN.
+     * (default: false)
      */
     bool no_nexthop_check4;
 
@@ -199,6 +225,7 @@ typedef struct BgpConfig {
      * value will remain unchanged if it is inside peering LAN. Default nexthop 
      * is used only when the nexthop attribute of an egress route is not in 
      * peering LAN. 
+     * (required, no default value)
      */
     uint32_t default_nexthop4;
 
@@ -207,6 +234,7 @@ typedef struct BgpConfig {
      * 
      * If this is set to true, the `default_nexthop4` configuration parameter 
      * will always be used as nexthop, regardless of the peering LAN.
+     * (default: false)
      */
     bool forced_default_nexthop4;
 
@@ -215,6 +243,7 @@ typedef struct BgpConfig {
      * 
      * If true, BGP FSM will accept route with any nexthop, regardless of the 
      * peering LAN.
+     * (default: false)
      */
     bool no_nexthop_check6;
 
@@ -225,6 +254,7 @@ typedef struct BgpConfig {
      * value will remain unchanged if it is inside peering LAN. Default nexthop 
      * is used only when the nexthop attribute of an egress route is not in 
      * peering LAN. 
+     *  (required, no default value)
      */
     uint8_t default_nexthop6_global[16];
 
@@ -238,6 +268,7 @@ typedef struct BgpConfig {
      * value will remain unchanged if it is inside peering LAN. Default nexthop 
      * is used only when the nexthop attribute of an egress route is not in 
      * peering LAN. 
+     *  (required, no default value)
      */
     uint8_t default_nexthop6_linklocal[16];
 
@@ -246,12 +277,13 @@ typedef struct BgpConfig {
      * 
      * If this is set to true, the `default_nexthop6` configuration parameter 
      * will always be used as nexthop, regardless of the peering LAN.
+     * (default: false)
      */
     bool forced_default_nexthop6;
 
     /**
      * @brief The hold timer.
-     * 
+     * (default: 120)
      */
     uint16_t hold_timer;
 
@@ -263,8 +295,15 @@ typedef struct BgpConfig {
      * is used inside a simulator like ns3, we will need to use the simulated
      * clock instead of the real-time clock. Set this to NULL if you want to use
      * a real-time clock.
+     * (default: NULL)
      */
     Clock *clock;
+
+    /**
+     * @brief Allow numbers of local asn in as_path.
+     * 
+     */
+    int8_t allow_local_as;
 } BgpConfig;
 
 /**
