@@ -764,10 +764,30 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
     const BgpUpdateMessage *update = dynamic_cast<const BgpUpdateMessage *>(msg);
 
+    bool ignore_routes = false;
+
+    if (update->hasAttrib(AS_PATH)) {
+        const BgpPathAttribAsPath &as_path = dynamic_cast<const BgpPathAttribAsPath&>(update->getAttrib(AS_PATH));
+
+        for (const BgpAsPathSegment &seg : as_path.as_paths) {
+            int8_t local_count = 0;
+
+            for (uint32_t asn : seg.value) {
+                if (asn == config.asn) local_count++;
+            }
+
+            if (local_count > config.allow_local_as) {
+                logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignoring routes with %d local asn in as_path (max %d are allowed).\n", local_count, config.allow_local_as);
+                ignore_routes = true;
+                break;
+            }
+        }
+    } else ignore_routes = true; // since no AS_PATH. (should be handleded by update-msg already tho)
+
     if (send_ipv4_routes) {
         rib4->withdraw(peer_bgp_id, update->withdrawn_routes);
 
-        if (update->nlri.size() > 0) {
+        if (!ignore_routes && update->nlri.size() > 0) {
             const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
 
             if (!validAddr(nh.next_hop)) {
@@ -843,7 +863,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
         }
 
-        if (update->hasAttrib(MP_REACH_NLRI)) {
+        if (!ignore_routes && update->hasAttrib(MP_REACH_NLRI)) {
             const BgpPathAttrib &attr = update->getAttrib(MP_REACH_NLRI);
             const BgpPathAttribMpNlriBase &mp_reach = dynamic_cast<const BgpPathAttribMpNlriBase &>(attr);
             if (mp_reach.afi == IPV6 && mp_reach.safi == UNICAST) {
