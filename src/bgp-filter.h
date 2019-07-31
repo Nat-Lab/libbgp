@@ -127,7 +127,7 @@ public:
 
         do {
             rule--;
-            BgpFilterOP this_op = rule->BgpFilterRule::apply(prefix);
+            BgpFilterOP this_op = rule->BgpFilterRule<TPrefix>::apply(prefix);
             if (this_op != NOP) return this_op;
         } while (rule != rules.begin());
 

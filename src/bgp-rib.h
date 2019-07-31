@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <vector>
 #include <memory>
+#include <arpa/inet.h>
 #include "bgp-path-attrib.h"
 #include "bgp-log-handler.h"
 
