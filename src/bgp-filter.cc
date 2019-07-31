@@ -17,20 +17,6 @@ namespace libbgp {
 BgpFilterRule::~BgpFilterRule() {}
 
 /**
- * @brief Construct a new BgpFilterRuleRoute object
- * 
- */
-BgpFilterRuleRoute::BgpFilterRuleRoute() {
-    filter_type = F_ROUTE;
-}
-
-/**
- * @brief Destroy the BgpFilterRuleRoute object
- * 
- */
-BgpFilterRuleRoute::~BgpFilterRuleRoute() {}
-
-/**
  * @brief Construct a new IPv4 route filtering object
  * 
  * @param op Action to take if the prefix matched.
@@ -41,21 +27,6 @@ BgpFilterRuleRoute4::BgpFilterRuleRoute4(BgpFilterOP op, BgpFilterRuleRouteMatch
     this->op = op;
     this->match_type = type;
     this->prefix = prefix;
-}
-
-BgpFilterOP BgpFilterRuleRoute4::apply(const Prefix &prefix, __attribute__((unused)) const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs) {
-    if (prefix.afi != IPV4) return NOP;
-    const Prefix4 &prefix_4 = dynamic_cast<const Prefix4 &>(prefix);
-    switch (match_type) {
-        case M_EQ: return prefix_4 == this->prefix ? op : NOP;
-        case M_NE: return prefix_4 != this->prefix ? op : NOP;
-        case M_GT: return prefix_4 != this->prefix && prefix_4.includes(this->prefix) ? op : NOP;
-        case M_LT: return prefix_4 != this->prefix && this->prefix.includes(prefix_4) ? op : NOP;
-        case M_GE: return prefix_4.includes(this->prefix) ? op : NOP;
-        case M_LE: return this->prefix.includes(prefix_4) ? op : NOP;
-    }
-
-    return NOP;
 }
 
 /**
@@ -69,21 +40,6 @@ BgpFilterRuleRoute6::BgpFilterRuleRoute6(BgpFilterOP op, BgpFilterRuleRouteMatch
     this->op = op;
     this->match_type = type;
     this->prefix = prefix;
-}
-
-BgpFilterOP BgpFilterRuleRoute6::apply(const Prefix &prefix, __attribute__((unused)) const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs) {
-    if (prefix.afi != IPV4) return NOP;
-    const Prefix6 &prefix_6 = dynamic_cast<const Prefix6 &>(prefix);
-    switch (match_type) {
-        case M_EQ: return prefix_6 == this->prefix ? op : NOP;
-        case M_NE: return prefix_6 != this->prefix ? op : NOP;
-        case M_GT: return prefix_6 != this->prefix && prefix_6.includes(this->prefix) ? op : NOP;
-        case M_LT: return prefix_6 != this->prefix && this->prefix.includes(prefix_6) ? op : NOP;
-        case M_GE: return prefix_6.includes(this->prefix) ? op : NOP;
-        case M_LE: return this->prefix.includes(prefix_6) ? op : NOP;
-    }
-
-    return NOP;
 }
 
 /**

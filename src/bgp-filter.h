@@ -94,54 +94,65 @@ public:
 };
 
 /**
- * @brief The base of of BgpFilterRuleRoute
+ * @brief The prefix filtering rule.
  * 
+ * @tparam T type of route prefix.
  */
+template <typename T>
 class BgpFilterRuleRoute : public BgpFilterRule {
 public:
-    BgpFilterRuleRoute();
-
     /**
-     * @brief Address family of this route match entry.
+     * @brief Construct a new BgpFilterRuleRoute object
      * 
      */
-    Afi afi;
+    BgpFilterRuleRoute() {
+        filter_type = F_ROUTE;
+    }
 
-    virtual ~BgpFilterRuleRoute();
+    /**
+     * @brief The route prefix.
+     * 
+     */
+    T prefix;
+
+    BgpFilterOP apply(const Prefix &prefix, __attribute__((unused)) const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs) {
+        if (prefix.afi != this->prefix.afi) return NOP;
+        const T &prefix_t = dynamic_cast<const T &>(prefix);
+        switch (match_type) {
+            case M_EQ: return prefix_t == this->prefix ? op : NOP;
+            case M_NE: return prefix_t != this->prefix ? op : NOP;
+            case M_GT: return prefix_t != this->prefix && prefix_t.includes(this->prefix) ? op : NOP;
+            case M_LT: return prefix_t != this->prefix && this->prefix.includes(prefix_t) ? op : NOP;
+            case M_GE: return prefix_t.includes(this->prefix) ? op : NOP;
+            case M_LE: return this->prefix.includes(prefix_t) ? op : NOP;
+        }
+
+        return NOP;
+    }
+
+    /**
+     * @brief Destroy the BgpFilterRuleRoute object
+     * 
+     */
+    virtual ~BgpFilterRuleRoute() {}
 };
 
 /**
  * @brief The IPv4 route filtering rule.
  * 
  */
-class BgpFilterRuleRoute4 : public BgpFilterRuleRoute {
+class BgpFilterRuleRoute4 : public BgpFilterRuleRoute<Prefix4> {
 public:
     BgpFilterRuleRoute4(BgpFilterOP op, BgpFilterRuleRouteMatchType type, const Prefix4 &prefix);
-
-    /**
-     * @brief The IPv4 prefix of this entry.
-     * 
-     */
-    Prefix4 prefix;
-
-    BgpFilterOP apply(const Prefix &prefix, const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs);
 };
 
 /**
  * @brief The IPv6 route filtering rule.
  * 
  */
-class BgpFilterRuleRoute6 : public BgpFilterRuleRoute {
+class BgpFilterRuleRoute6 : public BgpFilterRuleRoute<Prefix6> {
 public:
     BgpFilterRuleRoute6(BgpFilterOP op, BgpFilterRuleRouteMatchType type, const Prefix6 &prefix);
-
-    /**
-     * @brief The IPv6 prefix of this entry.
-     * 
-     */
-    Prefix6 prefix;
-
-    BgpFilterOP apply(const Prefix &prefix, const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs);
 };
 
 /**
