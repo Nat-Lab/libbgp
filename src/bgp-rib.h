@@ -140,7 +140,6 @@ public:
  */
 template<typename T> class BgpRib {
 protected:
-
     /**
      * @brief Select an entry from two to use.
      * 
