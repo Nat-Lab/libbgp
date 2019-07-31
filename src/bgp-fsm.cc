@@ -787,62 +787,64 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     if (send_ipv4_routes) {
         rib4->withdraw(peer_bgp_id, update->withdrawn_routes);
 
-        if (!ignore_routes && update->nlri.size() > 0) {
-            const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
+        if (!ignore_routes) {
+            if (update->nlri.size() > 0) {
+                const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
 
-            if (!validAddr(nh.next_hop)) {
-                LIBBGP_LOG(logger, WARN) {
-                    char ip_str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &(nh.next_hop), ip_str, INET_ADDRSTRLEN);
-                    logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with invalid nexthop %s\n", update->nlri.size(), ip_str);
+                if (!validAddr(nh.next_hop)) {
+                    LIBBGP_LOG(logger, WARN) {
+                        char ip_str[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &(nh.next_hop), ip_str, INET_ADDRSTRLEN);
+                        logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with invalid nexthop %s\n", update->nlri.size(), ip_str);
+                    }
+                    return 1;
                 }
-                return 1;
+            
+                if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop)) {
+                    LIBBGP_LOG(logger, WARN) {
+                        char ip_str_nh[INET_ADDRSTRLEN];
+                        char ip_str_lan[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &(nh.next_hop), ip_str_nh, INET_ADDRSTRLEN);
+                        uint32_t peering_lan_pfx = config.peering_lan4.getPrefix();
+                        inet_ntop(AF_INET, &peering_lan_pfx, ip_str_lan, INET_ADDRSTRLEN);
+                        logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with nexthop outside peering LAN. (%s not in %s/%d)\n", 
+                            update->nlri.size(), ip_str_nh, ip_str_lan, peering_lan_pfx);
+                    }
+                    return 1;
+                };
             }
-        
-            if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop)) {
-                LIBBGP_LOG(logger, WARN) {
-                    char ip_str_nh[INET_ADDRSTRLEN];
-                    char ip_str_lan[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &(nh.next_hop), ip_str_nh, INET_ADDRSTRLEN);
-                    uint32_t peering_lan_pfx = config.peering_lan4.getPrefix();
-                    inet_ntop(AF_INET, &peering_lan_pfx, ip_str_lan, INET_ADDRSTRLEN);
-                    logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with nexthop outside peering LAN. (%s not in %s/%d)\n", 
-                        update->nlri.size(), ip_str_nh, ip_str_lan, peering_lan_pfx);
+            
+            std::vector<Prefix4> routes = std::vector<Prefix4> ();
+            for (const Prefix4 &route : update->nlri) {
+                if(config.in_filters4.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
+                    routes.push_back(route);
+                } else {
+                    LIBBGP_LOG(logger, INFO) {
+                        uint32_t prefix = route.getPrefix();
+                        char ip_str[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                        logger->log(INFO, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters4.\n", ip_str, route.getLength());
+                    }
                 }
-                return 1;
-            };
-        }
-        
-        std::vector<Prefix4> routes = std::vector<Prefix4> ();
-        for (const Prefix4 &route : update->nlri) {
-            if(config.in_filters4.apply(route.getPrefix(), route.getLength()) == ACCEPT) {
-                routes.push_back(route);
-            } else {
-                LIBBGP_LOG(logger, INFO) {
-                    uint32_t prefix = route.getPrefix();
-                    char ip_str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                    logger->log(INFO, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters4.\n", ip_str, route.getLength());
-                }
-            }
-        }
-
-        if (routes.size() > 0) {
-            rib4->insert(peer_bgp_id, routes, update->path_attribute);
-        }
-
-        if (rev_bus_exist) {
-            if (update->withdrawn_routes.size() > 0) {
-                Route4WithdrawEvent wev = Route4WithdrawEvent();
-                wev.routes = update->withdrawn_routes;
-                config.rev_bus->publish(this, wev);
             }
 
             if (routes.size() > 0) {
-                Route4AddEvent aev = Route4AddEvent();
-                aev.routes = routes;
-                aev.attribs = update->path_attribute;
-                config.rev_bus->publish(this, aev);
+                rib4->insert(peer_bgp_id, routes, update->path_attribute);
+            }
+
+            if (rev_bus_exist) {
+                if (update->withdrawn_routes.size() > 0) {
+                    Route4WithdrawEvent wev = Route4WithdrawEvent();
+                    wev.routes = update->withdrawn_routes;
+                    config.rev_bus->publish(this, wev);
+                }
+
+                if (routes.size() > 0) {
+                    Route4AddEvent aev = Route4AddEvent();
+                    aev.routes = routes;
+                    aev.attribs = update->path_attribute;
+                    config.rev_bus->publish(this, aev);
+                }
             }
         }
     }
