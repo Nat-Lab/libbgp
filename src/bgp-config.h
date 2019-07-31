@@ -39,6 +39,7 @@ typedef struct BgpConfig {
         clock = NULL;
         hold_timer = 120;
         forced_default_nexthop6 = no_nexthop_check6 = false;
+        allow_local_as = 0;
     }
 
     /**
@@ -301,7 +302,7 @@ typedef struct BgpConfig {
 
     /**
      * @brief Allow numbers of local asn in as_path.
-     * 
+     * (default: 0)
      */
     int8_t allow_local_as;
 } BgpConfig;
