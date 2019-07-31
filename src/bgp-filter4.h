@@ -23,18 +23,12 @@ namespace libbgp {
  * A BGP IPv4 route filtering rule.
  * 
  */
-class BgpFilterRule4 {
+class BgpFilterRule4 : public BgpFilterRule<Prefix4> {
 public:
     BgpFilterRule4(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask);
     BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask);
     BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Prefix4 &prefix);
     BgpFilterOP apply(uint32_t prefix, uint8_t mask) const;
-    BgpFilterOP apply(const Prefix4 &prefix) const;
-
-private:
-    BgpFilterType type;
-    BgpFilterOP op;
-    Prefix4 prefix;
 };
 
 /**
@@ -43,18 +37,11 @@ private:
  * A list of BGP IPv4 route filtering rules.
  * 
  */
-class BgpFilterRules4 {
+class BgpFilterRules4 : public BgpFilterRules<BgpFilterRule4, Prefix4> {
 public:
     BgpFilterRules4();
     BgpFilterRules4(BgpFilterOP default_op);
-
-    void append(const BgpFilterRule4 &rule);
     BgpFilterOP apply(uint32_t prefix, uint32_t mask) const;
-    BgpFilterOP apply(const Prefix4 &prefix) const;
-
-private:
-    BgpFilterOP default_op;
-    std::vector<BgpFilterRule4> rules;
 };
 
 /**

@@ -20,10 +20,8 @@ namespace libbgp {
  * @param prefix Prefix to match in network byte order.
  * @param mask Netmask of the prefix in CIDR notation.
  */
-BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask) : prefix(prefix, mask) {
-    this->type = type;
-    this->op = op;
-}
+BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, uint32_t prefix, uint8_t mask) : 
+    BgpFilterRule(type, op, Prefix4(prefix, mask)) {}
 
 /**
  * @brief Construct a new Bgp Filter Rule:: Bgp Filter Rule object
@@ -33,10 +31,8 @@ BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, uint32_t pref
  * @param prefix Prefix to match in dotted string notation.
  * @param mask Netmask of the prefix in CIDR notation.
  */
-BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask) : prefix(prefix, mask) {
-    this->type = type;
-    this->op = op;
-}
+BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *prefix, uint8_t mask) :
+    BgpFilterRule(type, op, Prefix4(prefix, mask)) {}
 
 /**
  * @brief Construct a new Bgp Filter Rule:: Bgp Filter Rule object
@@ -45,22 +41,8 @@ BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const char *p
  * @param op Action to take
  * @param p Prefix to match.
  */
-BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Prefix4 &p) : prefix(p) {
-    this->type = type;
-    this->op = op;
-}
-
-/**
- * @brief Apply the rule on a prefix.
- * 
- * @param prefix The prefix to run this rule on.
- * @return BgpFilterOP The operation to take.
- */
-BgpFilterOP BgpFilterRule4::apply(const Prefix4 &prefix) const {
-    if (type == STRICT && this->prefix == prefix) return op;
-    if (type == LOOSE && this->prefix.includes(prefix)) return op;
-    return NOP;
-}
+BgpFilterRule4::BgpFilterRule4(BgpFilterType type, BgpFilterOP op, const Prefix4 &p) : 
+    BgpFilterRule(type, op, Prefix4(p)) {}
 
 /**
  * @brief Apply the rule on a prefix.
@@ -71,9 +53,7 @@ BgpFilterOP BgpFilterRule4::apply(const Prefix4 &prefix) const {
  */
 BgpFilterOP BgpFilterRule4::apply(uint32_t prefix, uint8_t mask) const {
     if (mask > 32) return NOP;
-    if (type == STRICT && this->prefix.getPrefix() == prefix && this->prefix.getLength() == mask) return op;
-    if (type == LOOSE && this->prefix.includes(prefix, mask)) return op;
-    return NOP;
+    return BgpFilterRule::apply(Prefix4(prefix, mask));
 }
 
 /**
@@ -82,9 +62,7 @@ BgpFilterOP BgpFilterRule4::apply(uint32_t prefix, uint8_t mask) const {
  * The default operation will be set to ACCEPT.
  * 
  */
-BgpFilterRules4::BgpFilterRules4() {
-    default_op = ACCEPT;
-}
+BgpFilterRules4::BgpFilterRules4() {}
 
 /**
  * @brief Construct a new Bgp Filter Rules:: Bgp Filter Rules object
@@ -92,38 +70,8 @@ BgpFilterRules4::BgpFilterRules4() {
  * @param default_op The default operation to take if non of the rules matched
  * the prefix.
  */
-BgpFilterRules4::BgpFilterRules4(BgpFilterOP default_op) {
-    this->default_op = default_op;
-}
+BgpFilterRules4::BgpFilterRules4(BgpFilterOP default_op) : BgpFilterRules(default_op) {}
 
-/**
- * @brief Add a rule to the rules set.
- * 
- * @param rule The rule to add.
- */
-void BgpFilterRules4::append(const BgpFilterRule4 &rule) {
-    rules.push_back(rule);
-}
-
-/**
- * @brief Apply rules set on a prefix.
- * 
- * @param prefix The prefix to run rules set on.
- * @return BgpFilterOP The operation to take.
- */
-BgpFilterOP BgpFilterRules4::apply(const Prefix4 &prefix) const {
-    if (rules.size() == 0) return default_op;
-    
-    std::vector<BgpFilterRule4>::const_iterator rule = rules.end();
-
-    do {
-        rule--;
-        BgpFilterOP this_op = rule->apply(prefix);
-        if (this_op != NOP) return this_op;
-    } while (rule != rules.begin());
-
-    return default_op;
-}
 
 /**
  * @brief Apply rules set on a prefix.
@@ -133,17 +81,7 @@ BgpFilterOP BgpFilterRules4::apply(const Prefix4 &prefix) const {
  * @return BgpFilterOP The operation to take.
  */
 BgpFilterOP BgpFilterRules4::apply(uint32_t prefix, uint32_t mask) const {
-    if (rules.size() == 0) return default_op;
-    
-    std::vector<BgpFilterRule4>::const_iterator rule = rules.end();
-
-    do {
-        rule--;
-        BgpFilterOP this_op = rule->apply(prefix, mask);
-        if (this_op != NOP) return this_op;
-    } while (rule != rules.begin());
-
-    return default_op;
+    return BgpFilterRules::apply(Prefix4(prefix, mask));
 }
 
 }
