@@ -62,22 +62,27 @@ int main(void) {
 
     // egress rule set (apply to routes sending to peer). Say we only want to
     // send 172.16.0.0/24 to peer, nothing else.
-    libbgp::BgpFilterRules4 egress_rules;
+    libbgp::BgpFilterRules egress_rules;
 
     // egress: append a rule: reject 0.0.0.0/0 and all the sub-prefix (reject 
     // everything)
-    egress_rules.append(libbgp::BgpFilterRule4(libbgp::LOOSE, libbgp::REJECT, "0.0.0.0", 0));
+    egress_rules.append<libbgp::BgpFilterRuleRoute4>(
+        libbgp::BgpFilterRuleRoute4(libbgp::REJECT, libbgp::M_LE, libbgp::Prefix4("0.0.0.0", 0))
+    );
 
     // egress: append another rule: accept 172.16.0.0/24.
-    egress_rules.append(libbgp::BgpFilterRule4(libbgp::STRICT, libbgp::ACCEPT, "172.16.0.0", 24));
+    egress_rules.append<libbgp::BgpFilterRuleRoute4>(
+        libbgp::BgpFilterRuleRoute4(libbgp::ACCEPT, libbgp::M_EQ, libbgp::Prefix4("172.16.0.0", 24))
+    );
 
     // inegress rule set (apply to routes received from peer). Say we only want 
     // to allow 172.17.0.0/24 to peer, nothing else.
-    libbgp::BgpFilterRules4 ingress_rules;
+    libbgp::BgpFilterRules ingress_rules;
 
-    // do the same thing for inegress rules set
-    ingress_rules.append(libbgp::BgpFilterRule4(libbgp::LOOSE, libbgp::REJECT, "0.0.0.0", 0));
-    ingress_rules.append(libbgp::BgpFilterRule4(libbgp::STRICT, libbgp::ACCEPT, "172.17.0.0", 24));
+    // do the simular thing for inegress rules set
+    ingress_rules.append<libbgp::BgpFilterRuleRoute4>(
+        libbgp::BgpFilterRuleRoute4(libbgp::REJECT, libbgp::M_NE, libbgp::Prefix4("172.17.0.0", 24))
+    );
 
     /* configure our "local" BgpFsm */
     libbgp::BgpConfig local_bgp_config;
