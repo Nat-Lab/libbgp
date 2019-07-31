@@ -14,6 +14,7 @@
 #include <vector>
 #include <memory>
 #include <mutex>
+#include "bgp-rib.h"
 #include "prefix6.h"
 #include "bgp-path-attrib.h"
 
@@ -23,7 +24,7 @@ namespace libbgp {
  * @brief The BgpRib6Entry class.
  * 
  */
-class BgpRib6Entry {
+class BgpRib6Entry : public BgpRibEntry<BgpRib6Entry> {
 public:
     BgpRib6Entry (Prefix6 r, uint32_t src, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16], 
@@ -47,36 +48,13 @@ public:
      * 
      */
     uint8_t nexthop_linklocal[16];
-
-    /**
-     * @brief The originating BGP speaker's ID of this entry. (network bytes order)
-     * 
-     */
-    uint32_t src_router_id;
-
-    /**
-     * @brief The update ID. BgpRib6Entry with same update ID are received from
-     * the same update and their path attributes are therefore same. Note that
-     * entries with different update_id may still have same path attributes.
-     * 
-     */
-    uint64_t update_id;
-
-    /**
-     * @brief Path attributes for this entry.
-     * 
-     */
-    std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
-
-    // compute metric based on path attribute. (currently based on AS_PATH only)
-    uint32_t getMetric() const;
 };
 
 /**
  * @brief The BgpRib6 (IPv6 BGP Routing Information Base) class.
  * 
  */
-class BgpRib6 {
+class BgpRib6 : BgpRib<BgpRib6Entry> {
 public:
     BgpRib6(BgpLogHandler *logger);
 
@@ -115,8 +93,6 @@ public:
     // get RIB
     const std::vector<BgpRib6Entry> &get() const;
 private:
-
-    static const BgpRib6Entry* selectEntry(const BgpRib6Entry *a, const BgpRib6Entry *b);
     std::vector<BgpRib6Entry> rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;

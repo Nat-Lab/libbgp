@@ -25,32 +25,13 @@ namespace libbgp {
  */
 BgpRib6Entry::BgpRib6Entry (Prefix6 r, uint32_t src, const uint8_t nexthop_global[16], 
     const uint8_t nexthop_linklocal[16], const std::vector<std::shared_ptr<BgpPathAttrib>> attribs)
-    : route(r), attribs(attribs) {
+    : route(r) {
 
     memcpy(this->nexthop_global, nexthop_global, 16);
     if (nexthop_linklocal != NULL) memcpy(this->nexthop_linklocal, nexthop_linklocal, 16);
     else memset(this->nexthop_linklocal, 0, 16);
     src_router_id = src;
-}
-
-/**
- * @brief Get metric of this entry.
- * 
- * Get metric of current entry. Currently, metric is AS_PATH length.
- * 
- * @return uint32_t Metric. Higher value means lower priority.
- */
-uint32_t BgpRib6Entry::getMetric() const {
-    for (const std::shared_ptr<BgpPathAttrib> &attr : attribs) {
-        if (attr->type_code == AS_PATH) {
-            const BgpPathAttribAsPath &as_path = dynamic_cast<const BgpPathAttribAsPath &>(*attr);
-            for (const BgpAsPathSegment &seg : as_path.as_paths) {
-                if (seg.type == AS_SEQUENCE) return seg.value.size();
-            }
-        }
-    }
-
-    return 0;
+    this->attribs = attribs;
 }
 
 /**
@@ -138,7 +119,7 @@ bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route,
 
     for (std::vector<BgpRib6Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
-            if (entry->getMetric() > new_entry.getMetric()) {
+            if (new_entry > *entry) {
                 rib.erase(entry);
                 new_entry.update_id = update_id++;
                 rib.push_back(new_entry);
@@ -268,26 +249,6 @@ std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
     }
 
     return dropped_routes;
-}
-
-const BgpRib6Entry* BgpRib6::selectEntry(const BgpRib6Entry *a, const BgpRib6Entry *b) {
-    if (a == NULL) return b;
-    if (b == NULL) return a;
-
-    const Prefix6 &ra = a->route;
-    const Prefix6 &rb = b->route;
-
-    // a is more specific, use a
-    if (ra.getLength() > rb.getLength()) return a;
-
-    // a, b are same level of specific, check metric
-    if (ra.getLength() == rb.getLength()) {
-        // return the one with lower metric
-        return (a->getMetric() > b->getMetric()) ? b : a;
-    }
-
-    // b is more specific, use b
-    return b;
 }
 
 /**
