@@ -201,6 +201,7 @@ bool v6addr_is_zero(const uint8_t prefix[16]) {
  * 
  */
 Prefix6::Prefix6() {
+    afi = IPV6;
     this->length = 0;
     memset(prefix, 0, 16);
 }
@@ -212,6 +213,7 @@ Prefix6::Prefix6() {
  * @param length Netmask of the prefix in CIDR notation.
  */
 Prefix6::Prefix6 (const uint8_t prefix[16], uint8_t length) {
+    afi = IPV6;
     this->length = length;
     memcpy(this->prefix, prefix, 16);
 }
@@ -223,6 +225,7 @@ Prefix6::Prefix6 (const uint8_t prefix[16], uint8_t length) {
  * @param length Netmask of the prefix in CIDR notation.
  */
 Prefix6::Prefix6 (const char* prefix, uint8_t length) {
+    afi = IPV6;
     this->length = length;
     inet_pton(AF_INET6, prefix, this->prefix);
 }
@@ -333,8 +336,10 @@ bool Prefix6::includes (const char* address) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Prefix6::includes (const Prefix6 &other) const {
-    return includes(other.prefix, other.length);
+bool Prefix6::includes (const Prefix &other) const {
+    if (other.afi != IPV6) return false;
+    const Prefix6 &other_6 = dynamic_cast<const Prefix6 &>(other);
+    return includes(other_6.prefix, other_6.length);
 }
 
 /**
@@ -370,27 +375,33 @@ bool Prefix6::includes (const char* prefix, uint8_t length) const {
  * @return true The routes are equal.
  * @return false The routes are different.
  */
-bool Prefix6::operator== (const Prefix6 &other) const {
-    return memcmp(prefix, other.prefix, 16) == 0 && other.length == length;
+bool Prefix6::operator== (const Prefix &other) const {
+    if (other.afi != IPV6) return false;
+    const Prefix6 &other_6 = dynamic_cast<const Prefix6 &>(other);
+    return memcmp(prefix, other_6.prefix, 16) == 0 && other_6.length == length;
 }
 
-bool Prefix6::operator> (const Prefix6 &other) const {
-    return length < other.length;
+bool Prefix6::operator> (const Prefix &other) const {
+    if (other.afi != IPV6) return false;
+    const Prefix6 &other_6 = dynamic_cast<const Prefix6 &>(other);
+    return length < other_6.length;
 }
 
-bool Prefix6::operator< (const Prefix6 &other) const {
-    return length > other.length;
+bool Prefix6::operator< (const Prefix &other) const {
+    if (other.afi != IPV6) return false;
+    const Prefix6 &other_6 = dynamic_cast<const Prefix6 &>(other);
+    return length > other_6.length;
 }
 
-bool Prefix6::operator>= (const Prefix6 &other) const {
+bool Prefix6::operator>= (const Prefix &other) const {
     return !(*this < other);
 }
 
-bool Prefix6::operator<= (const Prefix6 &other) const {
+bool Prefix6::operator<= (const Prefix &other) const {
     return !(*this > other);
 }
 
-bool Prefix6::operator!= (const Prefix6 &other) const {
+bool Prefix6::operator!= (const Prefix &other) const {
     return !(*this == other);
 }
 

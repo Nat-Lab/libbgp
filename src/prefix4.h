@@ -12,6 +12,7 @@
 #define BGP_PREFIX4_H_
 #include <stdint.h>
 #include <unistd.h>
+#include "prefix.h"
 
 namespace libbgp {
 
@@ -21,7 +22,7 @@ uint32_t cidr_to_mask(uint8_t cidr);
  * @brief IPv4 Route/Prefix related utilities.
  * 
  */
-class Prefix4 {
+class Prefix4 : public Prefix {
 public:
     Prefix4();
     Prefix4(uint32_t prefix, uint8_t length);
@@ -39,24 +40,24 @@ public:
     bool includes (const char* address) const;
 
     // test if route other is sub-prefix
-    bool includes (const Prefix4 &other) const;
+    bool includes (const Prefix &other) const;
     bool includes (uint32_t prefix, uint8_t length) const;
     bool includes (const char* prefix, uint8_t length) const;
 
     // test if length & prefix equals to other
-    bool operator== (const Prefix4 &other) const;
+    bool operator== (const Prefix &other) const;
 
     // test if length smaller (prefix size bigger) then other. prefix must be
     // same to do this.
-    bool operator> (const Prefix4 &other) const;
+    bool operator> (const Prefix &other) const;
 
     // test if length bigger (prefix size smaller) then other. prefix must be
     // same to do this.
-    bool operator< (const Prefix4 &other) const;
+    bool operator< (const Prefix &other) const;
 
-    bool operator>= (const Prefix4 &other) const;
-    bool operator<= (const Prefix4 &other) const;
-    bool operator!= (const Prefix4 &other) const;
+    bool operator>= (const Prefix &other) const;
+    bool operator<= (const Prefix &other) const;
+    bool operator!= (const Prefix &other) const;
 
     bool set(uint32_t prefix, uint8_t length);
     bool setPrefix(uint32_t prefix);

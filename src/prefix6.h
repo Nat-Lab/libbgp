@@ -12,6 +12,7 @@
 #define BGP_PREFIX6_H_
 #include <stdint.h>
 #include <unistd.h>
+#include "prefix.h"
 
 namespace libbgp {
 
@@ -23,7 +24,7 @@ bool v6addr_is_zero(const uint8_t prefix[16]);
  * @brief IPv6 Route/Prefix related utilities.
  * 
  */
-class Prefix6 {
+class Prefix6 : public Prefix {
 public:
     Prefix6();
     Prefix6(const uint8_t prefix[16], uint8_t length);
@@ -41,24 +42,24 @@ public:
     bool includes (const char* address) const;
 
     // test if route other is sub-prefix
-    bool includes (const Prefix6 &other) const;
+    bool includes (const Prefix &other) const;
     bool includes (const uint8_t prefix[16], uint8_t length) const;
     bool includes (const char* prefix, uint8_t length) const;
 
     // test if length & prefix equals to other
-    bool operator== (const Prefix6 &other) const;
+    bool operator== (const Prefix &other) const;
 
     // test if length smaller (prefix size bigger) then other. prefix must be
     // same to do this.
-    bool operator> (const Prefix6 &other) const;
+    bool operator> (const Prefix &other) const;
 
     // test if length bigger (prefix size smaller) then other. prefix must be
     // same to do this.
-    bool operator< (const Prefix6 &other) const;
+    bool operator< (const Prefix &other) const;
 
-    bool operator>= (const Prefix6 &other) const;
-    bool operator<= (const Prefix6 &other) const;
-    bool operator!= (const Prefix6 &other) const;
+    bool operator>= (const Prefix &other) const;
+    bool operator<= (const Prefix &other) const;
+    bool operator!= (const Prefix &other) const;
 
     bool set(const uint8_t prefix[16], uint8_t length);
     bool setPrefix(const uint8_t prefix[16]);

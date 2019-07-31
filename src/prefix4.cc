@@ -40,6 +40,7 @@ uint32_t cidr_to_mask(uint8_t cidr) {
  * 
  */
 Prefix4::Prefix4() {
+    afi = IPV4;
     prefix = length = 0;
 }
 
@@ -52,6 +53,7 @@ Prefix4::Prefix4() {
  */
 Prefix4::Prefix4(uint32_t prefix, uint8_t length) {
     if (length > 32) throw "bad_route_length";
+    afi = IPV4;
     this->prefix = prefix;
     this->length = length;
 }
@@ -65,6 +67,7 @@ Prefix4::Prefix4(uint32_t prefix, uint8_t length) {
  */
 Prefix4::Prefix4(const char* prefix, uint8_t length) {
     if (length > 32) throw "bad_route_length";
+    afi = IPV4;
     this->length = length;
     inet_pton(AF_INET, prefix, &(this->prefix));
 }
@@ -180,8 +183,10 @@ bool Prefix4::includes (uint32_t prefix, uint8_t length) const {
  * @return true The other prefix is in this prefix.
  * @return false The other prefix is not in this prefix.
  */
-bool Prefix4::includes (const Prefix4 &other) const {
-    return includes (other.prefix, other.length);
+bool Prefix4::includes (const Prefix &other) const {
+    if (other.afi != IPV4) return false;
+    const Prefix4 &other_4 = dynamic_cast<const Prefix4 &>(other);
+    return includes (other_4.prefix, other_4.length);
 }
 
 /**
@@ -205,29 +210,33 @@ bool Prefix4::includes (const char* prefix, uint8_t length) const {
  * @return true The routes are equal.
  * @return false The routes are different.
  */
-bool Prefix4::operator== (const Prefix4 &other) const {
-    return other.prefix == prefix && other.length == length;
+bool Prefix4::operator== (const Prefix &other) const {
+    if (other.afi != IPV4) return false;
+    const Prefix4 &other_4 = dynamic_cast<const Prefix4 &>(other);
+    return other_4.prefix == prefix && other_4.length == length;
 }
 
-bool Prefix4::operator> (const Prefix4 &other) const {
-    if (length > 32) throw "prefix_mismatch";
-    return length < other.length;
+bool Prefix4::operator> (const Prefix &other) const {
+    if (other.afi != IPV4) return false;
+    const Prefix4 &other_4 = dynamic_cast<const Prefix4 &>(other);
+    return length < other_4.length;
 }
 
-bool Prefix4::operator< (const Prefix4 &other) const {
-    if (length > 32) throw "prefix_mismatch";
-    return length > other.length;
+bool Prefix4::operator< (const Prefix &other) const {
+    if (other.afi != IPV4) return false;
+    const Prefix4 &other_4 = dynamic_cast<const Prefix4 &>(other);
+    return length > other_4.length;
 }
 
-bool Prefix4::operator>= (const Prefix4 &other) const {
+bool Prefix4::operator>= (const Prefix &other) const {
     return !(*this < other);
 }
 
-bool Prefix4::operator<= (const Prefix4 &other) const {
+bool Prefix4::operator<= (const Prefix &other) const {
     return !(*this > other);
 }
 
-bool Prefix4::operator!= (const Prefix4 &other) const {
+bool Prefix4::operator!= (const Prefix &other) const {
     return !(*this == other);
 }
 
