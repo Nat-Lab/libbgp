@@ -667,6 +667,15 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
 
             for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
                 const Prefix4 &r = iter->route;
+                if (iter->src_router_id == peer_bgp_id) {
+                    LIBBGP_LOG(logger, WARN) {
+                        uint32_t prefix = r.getPrefix();
+                        char ip_str[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                        logger->log(WARN, "BgpFsm::fsmEvalOpenConfirm: route %s/%d has src_bgp_id same as peer, ignore.\n", ip_str, r.getLength());
+                    }
+                    continue;
+                }
                 if (config.out_filters4.apply(r.getPrefix(), r.getLength()) == ACCEPT) {
                     msg_len += 1 + (r.getLength() + 7) / 8;
                     if (msg_len > 4096) {
@@ -713,6 +722,17 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
 
             for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
                 const Prefix6 &r = iter->route;
+                if (iter->src_router_id == peer_bgp_id) {
+                    LIBBGP_LOG(logger, WARN) {
+                        uint8_t prefix[16]; 
+                        r.getPrefix(prefix);
+                        char ip_str[INET6_ADDRSTRLEN];
+                        inet_ntop(AF_INET6, &prefix, ip_str, INET6_ADDRSTRLEN);
+                        logger->log(WARN, "BgpFsm::fsmEvalOpenConfirm: route %s/%d has src_bgp_id same as peer, ignore.\n", ip_str, r.getLength());
+                    }
+                    continue;
+                }
+
                 if (config.out_filters6.apply(r) == ACCEPT) {
                     msg_len += 1 + (r.getLength() + 7) / 8;
                     if (msg_len > 4096) {
