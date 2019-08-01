@@ -17,6 +17,7 @@
 #include "bgp-rib.h"
 #include "prefix6.h"
 #include "bgp-path-attrib.h"
+#include "route-event-bus.h"
 
 namespace libbgp {
 
@@ -63,6 +64,18 @@ public:
         const Prefix6 &route, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16]);
 
+    const BgpRib6Entry* insert(BgpLogHandler *logger, 
+        const Prefix6 &route, const uint8_t nexthop_global[16], 
+        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus);
+
+    const std::vector<const BgpRib6Entry*> insert(BgpLogHandler *logger, 
+        const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
+        const uint8_t nexthop_linklocal[16]);
+
+    const std::vector<const BgpRib6Entry*> insert(BgpLogHandler *logger, 
+        const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
+        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus);
+
     // insert a new route into RIB, return true if success.
     bool insert(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
@@ -93,6 +106,10 @@ public:
     // get RIB
     const std::vector<BgpRib6Entry> &get() const;
 private:
+    bool insertPriv(uint32_t src_router_id, const Prefix6 &route, 
+        const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+
     std::vector<BgpRib6Entry> rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;
