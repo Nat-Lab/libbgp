@@ -184,10 +184,10 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger,
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @return const std::vector<BgpRib6Entry*> Insert routes.
  */
-const std::vector<const BgpRib6Entry*> BgpRib6::insert(BgpLogHandler *logger, 
+const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16]) {
-    std::vector<const BgpRib6Entry*> inserted;
+    std::vector<BgpRib6Entry> inserted;
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
     BgpPathAttribAsPath *as_path = new BgpPathAttribAsPath(logger, true);
@@ -212,7 +212,7 @@ const std::vector<const BgpRib6Entry*> BgpRib6::insert(BgpLogHandler *logger,
         BgpRib6Entry new_entry (route, 0, nexthop_global, nexthop_linklocal, attribs);
         new_entry.update_id = update_id;
         rib.push_back(new_entry);
-        inserted.push_back(&rib.back());
+        inserted.push_back(rib.back());
     }
 
     update_id++;
@@ -232,19 +232,19 @@ const std::vector<const BgpRib6Entry*> BgpRib6::insert(BgpLogHandler *logger,
  * @param rev_bus The event bus to use
  * @return const std::vector<BgpRib6Entry*> Insert routes.
  */
-const std::vector<const BgpRib6Entry*> BgpRib6::insert(BgpLogHandler *logger, 
+const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger, 
     const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
     const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus) {
         
-    const std::vector<const BgpRib6Entry*> inserted =
+    const std::vector<BgpRib6Entry> inserted =
         insert(logger, routes, nexthop_global, nexthop_linklocal);
     
     if (inserted.size() > 0) {
         Route6AddEvent add_event;
-        add_event.attribs = (*inserted.begin())->attribs;
+        add_event.attribs = (inserted.begin())->attribs;
 
-        for (const BgpRib6Entry *entry : inserted) {
-            add_event.routes.push_back(entry->route);
+        for (const BgpRib6Entry &entry : inserted) {
+            add_event.routes.push_back(entry.route);
         }
 
         rev_bus->publish(NULL, add_event);

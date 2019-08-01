@@ -68,11 +68,11 @@ public:
         const Prefix6 &route, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus);
 
-    const std::vector<const BgpRib6Entry*> insert(BgpLogHandler *logger, 
+    const std::vector<BgpRib6Entry> insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16]);
 
-    const std::vector<const BgpRib6Entry*> insert(BgpLogHandler *logger, 
+    const std::vector<BgpRib6Entry> insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus);
 
