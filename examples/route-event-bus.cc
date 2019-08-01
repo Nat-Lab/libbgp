@@ -241,6 +241,23 @@ int main(void) {
     withdraw_event.routes.push_back(r_172_30_24);
     local_bus.publish(&local_handler, withdraw_event);
 
+    // starting from libbgp 0.4.3, you can have bgp-rib to publish the event
+    // for you. let's add the same route again:
+    local_rib.insert(&local_logger, r_172_30_24, local_bgp_config.default_nexthop4, &local_bus);
+    
+    // then drop it again.
+    local_rib.withdraw(0, r_172_30_24, &local_bus);
+
+    // starting from 0.4.3, you may also add list of routes to rib.
+    std::vector<libbgp::Prefix4> routes;
+    routes.push_back(libbgp::Prefix4("172.29.0.0", 24));
+    routes.push_back(libbgp::Prefix4("172.28.0.0", 24));
+    routes.push_back(libbgp::Prefix4("172.27.0.0", 24));
+    local_rib.insert(&local_logger, routes, local_bgp_config.default_nexthop4, &local_bus);
+
+    // you may also drop mutiple of routes too:
+    local_rib.withdraw(0, routes, &local_bus);
+
     // clean up
     local.stop();
     remote.stop();
