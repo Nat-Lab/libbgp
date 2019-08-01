@@ -381,7 +381,8 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
     peer_bgp_id = open_msg->bgp_id;
     peer_asn = open_msg->getAsn();
     use_4b_asn = open_msg->hasCapability(ASN_4B) && config.use_4b_asn;
-    if (open_msg->hasCapability(MP_BGP)) {
+    send_ipv4_routes = true;
+    if (open_msg->hasCapability(MP_BGP) && (config.mp_bgp_ipv6 || config.mp_bgp_ipv4)) {
         send_ipv4_routes = send_ipv6_routes = false;
 
         const std::vector<std::shared_ptr<BgpCapability>> &capabilities = open_msg->getCapabilities();
