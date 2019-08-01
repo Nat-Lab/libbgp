@@ -12,7 +12,7 @@ For simple usage and quick start, refer to examples. For detailed API usages, re
 
 `libbgp` uses autotools for build automation. In general, you need the following build dependencies:
 
-- g++
+- g++ (or any other c++ compiler)
 - make
 - autotools (autoconf, automake, m4)
 - autoconf-archive
