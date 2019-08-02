@@ -52,14 +52,16 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
     update_id = 0;
 }
 
-bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
+bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
     BgpRib4Entry new_entry(route, src_router_id, attrib);
+    new_entry.update_id = update_id;
+    new_entry.weight = weight;
 
     for (std::vector<BgpRib4Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
             if (new_entry > *entry) {
                 rib.erase(entry);
-                new_entry.update_id = update_id;
+                
                 rib.push_back(new_entry);
 
                 LIBBGP_LOG(logger, INFO) {
@@ -75,7 +77,6 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
         }
     }
 
-    new_entry.update_id = update_id;
     LIBBGP_LOG(logger, INFO) {
         uint32_t prefix = route.getPrefix();
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
@@ -108,7 +109,7 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
-const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop) {
+const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, uint32_t weight) {
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
     BgpPathAttribNexthop *nexhop_attr = new BgpPathAttribNexthop(logger);
@@ -142,6 +143,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
     BgpRib4Entry new_entry(route, 0, attribs);
     std::lock_guard<std::recursive_mutex> lock(mutex);
     new_entry.update_id = use_update_id;
+    new_entry.weight = weight;
     if (use_update_id == update_id) update_id++;
     rib.push_back(new_entry);
 
@@ -161,8 +163,8 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
-const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, RouteEventBus *rev_bus) {
-    const BgpRib4Entry *entry = insert(logger, route, nexthop);
+const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, RouteEventBus *rev_bus, uint32_t weight) {
+    const BgpRib4Entry *entry = insert(logger, route, nexthop, weight);
 
     if (entry != NULL) {
         Route4AddEvent add_event;
@@ -184,7 +186,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * @param nexthop Nexthop for the route.
  * @return const std::vector<const BgpRib4Entry*> Inserted routes.
  */
-const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop) {
+const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, uint32_t weight) {
     std::vector<BgpRib4Entry> inserted;
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
@@ -212,6 +214,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
 
         BgpRib4Entry new_entry (route, 0, attribs);
         new_entry.update_id = update_id;
+        new_entry.weight = weight;
         rib.push_back(new_entry);
         inserted.push_back(rib.back());
     }
@@ -232,9 +235,9 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param rev_bus event bus to publish to add event.
  * @return const std::vector<const BgpRib4Entry*> Inserted routes.
  */
-const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus) {
+const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, uint32_t weight) {
     const std::vector<BgpRib4Entry> inserted =
-        insert(logger, routes, nexthop);
+        insert(logger, routes, nexthop, weight);
     
     if (inserted.size() > 0) {
         Route4AddEvent add_event;
@@ -259,8 +262,8 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @return true Prefix4 inserted/replaced.
  * @return false Prefix4 already exist and the existing one has lower metric. 
  */
-bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
-    bool inserted = insertPriv(src_router_id, route, attrib);
+bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
+    bool inserted = insertPriv(src_router_id, route, attrib, weight);
     if (inserted) update_id++;
     return inserted;
 }
@@ -275,10 +278,10 @@ bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::ve
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
-ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
+ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
     size_t inserted = 0;
     for (const Prefix4 &r : routes) {
-        if (insertPriv(src_router_id, r, attrib)) inserted++;
+        if (insertPriv(src_router_id, r, attrib, weight)) inserted++;
     }
     update_id++;
     return inserted;
