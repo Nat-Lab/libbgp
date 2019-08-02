@@ -39,6 +39,7 @@ typedef struct BgpConfig {
         hold_timer = 120;
         forced_default_nexthop6 = no_nexthop_check6 = false;
         allow_local_as = 0;
+        weight = 0;
     }
 
     /**
@@ -304,6 +305,16 @@ typedef struct BgpConfig {
      * (default: 0)
      */
     int8_t allow_local_as;
+
+    /**
+     * @brief Weight of this BGP session.
+     * 
+     * Routes of session with higher weight will be prefered when makeing
+     * routing decision. (RIB lookup)
+     * 
+     * (default: 0)
+     */
+    uint32_t weight;
 } BgpConfig;
 
 /**
