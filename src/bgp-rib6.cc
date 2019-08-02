@@ -46,14 +46,16 @@ BgpRib6::BgpRib6(BgpLogHandler *logger) {
 
 bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs) {
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, uint32_t weight) {
     BgpRib6Entry new_entry(route, src_router_id, nexthop_global, nexthop_linklocal, attribs);
+    new_entry.update_id = update_id;
+    new_entry.weight = weight;
 
     for (std::vector<BgpRib6Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
         if (entry->route == route && entry->src_router_id == src_router_id) {
             if (new_entry > *entry) {
                 rib.erase(entry);
-                new_entry.update_id = update_id;
+                
                 rib.push_back(new_entry);
 
                 LIBBGP_LOG(logger, INFO) {
@@ -69,8 +71,7 @@ bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route,
             } else return false;
         }
     }
-
-    new_entry.update_id = update_id;
+    
     LIBBGP_LOG(logger, INFO) {
         uint8_t prefix_arr[16];
         route.getPrefix(prefix_arr);
@@ -102,12 +103,13 @@ bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route,
  * @param route Route.
  * @param nexthop_global Global IPv6 address of nexthop.
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
+ * @param weight weight of this entry.
  * @return const BgpRib6Entry* Inserted route entry.
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route entry.
  */
 const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, const Prefix6 &route,
-    const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16]) {
+    const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], uint32_t weight) {
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
     BgpPathAttribAsPath *as_path = new BgpPathAttribAsPath(logger, true);
@@ -117,6 +119,7 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, const Prefix6 &route,
     attribs.push_back(std::shared_ptr<BgpPathAttrib>(as_path));
 
     BgpRib6Entry new_entry(route, 0, nexthop_global, nexthop_linklocal, attribs);
+    new_entry.weight = weight;
     uint64_t use_update_id = update_id;
 
     for (const BgpRib6Entry &entry : rib) {
@@ -153,15 +156,16 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, const Prefix6 &route,
  * @param nexthop_global Global IPv6 address of nexthop.
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @param rev_bus The route event bus to publish to add event.
+ * @param weight weight of this entry.
  * @return const BgpRib6Entry* Inserted route entry.
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route entry.
  */
 const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, 
         const Prefix6 &route, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus) {
+        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus, uint32_t weight) {
 
-    const BgpRib6Entry *entry = insert(logger, route, nexthop_global, nexthop_linklocal);
+    const BgpRib6Entry *entry = insert(logger, route, nexthop_global, nexthop_linklocal, weight);
 
     if (entry != NULL) {
         Route6AddEvent add_event;
@@ -182,11 +186,12 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger,
  * @param routes Routes.
  * @param nexthop_global Global IPv6 address of nexthop.
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
+ * @param weight weight of this entry.
  * @return const std::vector<BgpRib6Entry*> Insert routes.
  */
 const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16]) {
+        const uint8_t nexthop_linklocal[16], uint32_t weight) {
     std::vector<BgpRib6Entry> inserted;
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
@@ -211,6 +216,7 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
 
         BgpRib6Entry new_entry (route, 0, nexthop_global, nexthop_linklocal, attribs);
         new_entry.update_id = update_id;
+        new_entry.weight = weight;
         rib.push_back(new_entry);
         inserted.push_back(rib.back());
     }
@@ -230,14 +236,15 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
  * @param nexthop_global Global IPv6 address of nexthop.
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @param rev_bus The event bus to use
+ * @param weight weight of this entry.
  * @return const std::vector<BgpRib6Entry*> Insert routes.
  */
 const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger, 
     const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
-    const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus) {
+    const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus, uint32_t weight) {
         
     const std::vector<BgpRib6Entry> inserted =
-        insert(logger, routes, nexthop_global, nexthop_linklocal);
+        insert(logger, routes, nexthop_global, nexthop_linklocal, weight);
     
     if (inserted.size() > 0) {
         Route6AddEvent add_event;
@@ -261,14 +268,15 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
  * @param nexthop_global Global IPv6 address of nexthop.
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @param attrib Path attribute.
+ * @param weight weight of this entry.
  * @return true Route inserted/replaced.
  * @return false Route already exist and the existing one has lower metric.
  */
 bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs) {
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, uint32_t weight) {
 
-    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs);
+    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight);
     if (inserted) update_id++;
 
     return inserted;
@@ -282,16 +290,18 @@ bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route,
  * @param nexthop_global Global IPv6 address of nexthop.
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @param attrib Path attribute. 
+ * @param weight weight of this entry.
+ * @param weight weight of this entry.
  * @return ssize_t Number of routes inserted.
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
 ssize_t BgpRib6::insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib) {
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
     size_t inserted = 0;
     for (const Prefix6 &r : routes) {
-        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib)) inserted++;
+        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib, weight)) inserted++;
     }
     update_id++;
     return inserted;

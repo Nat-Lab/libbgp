@@ -62,30 +62,32 @@ public:
     // insert a route as local routing information
     const BgpRib6Entry* insert(BgpLogHandler *logger, 
         const Prefix6 &route, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16]);
+        const uint8_t nexthop_linklocal[16], uint32_t weight = 0);
 
     const BgpRib6Entry* insert(BgpLogHandler *logger, 
         const Prefix6 &route, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus);
+        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus,
+        uint32_t weight = 0);
 
     const std::vector<BgpRib6Entry> insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16]);
+        const uint8_t nexthop_linklocal[16], uint32_t weight = 0);
 
     const std::vector<BgpRib6Entry> insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus);
+        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus,
+        uint32_t weight = 0);
 
     // insert a new route into RIB, return true if success.
     bool insert(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
     ssize_t insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight);
 
     // remove a route from RIB, return true if route removed, false if not exist.
     bool withdraw(uint32_t src_router_id, const Prefix6 &route);
@@ -108,7 +110,7 @@ public:
 private:
     bool insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib);
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight);
 
     std::vector<BgpRib6Entry> rib;
     std::recursive_mutex mutex;
