@@ -23,12 +23,23 @@ public:
     uint32_t src_router_id;
 
     /**
-     * @brief The update ID. BgpRib4Entry with same update ID are received from
-     * the same update and their path attributes are therefore same. Note that
-     * entries with different update_id may still have same path attributes.
+     * @brief The update ID. 
+     * 
+     * BgpRib4Entry with same update ID are received from the same update and 
+     * their path attributes are therefore same. Note that entries with 
+     * different update_id may still have same path attributes.
      * 
      */
     uint64_t update_id;
+
+    /**
+     * @brief Weight of this entry. 
+     * 
+     * Entry with higher weight will be prefered. Weight is only compared when
+     * selecting entry with equal routes.
+     * 
+     */
+    uint32_t weight;
 
     /**
      * @brief Path attributes for this entry.
@@ -46,6 +57,9 @@ public:
      * @return false This entry has lower or equals weight.
      */
     bool operator> (const T &other) const {
+        if (this->weight > other.weight) return true;
+        if (this->weight < other.weight) return false;
+
         uint32_t other_med = 0;
         uint32_t this_med = 0;
 
