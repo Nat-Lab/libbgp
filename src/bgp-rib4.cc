@@ -106,6 +106,7 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
  * @param logger Pointer to logger for the created path attributes to use. 
  * @param route Prefix4.
  * @param nexthop Nexthop for the route.
+ * @param weight weight of this entry.
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
@@ -160,6 +161,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * @param route Prefix4.
  * @param nexthop Nexthop for the route.
  * @param rev_bus event bus to publish to add event.
+ * @param weight weight of this entry.
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
@@ -184,6 +186,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * @param logger Pointer to logger for the created path attributes to use. 
  * @param routes Routes.
  * @param nexthop Nexthop for the route.
+ * @param weight weight of this entry.
  * @return const std::vector<const BgpRib4Entry*> Inserted routes.
  */
 const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, uint32_t weight) {
@@ -233,6 +236,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param routes Routes.
  * @param nexthop Nexthop for the route.
  * @param rev_bus event bus to publish to add event.
+ * @param weight weight of this entry.
  * @return const std::vector<const BgpRib4Entry*> Inserted routes.
  */
 const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, uint32_t weight) {
@@ -259,6 +263,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
  * @param route Prefix4.
  * @param attrib Path attribute.
+ * @param weight weight of this entry.
  * @return true Prefix4 inserted/replaced.
  * @return false Prefix4 already exist and the existing one has lower metric. 
  */
@@ -274,6 +279,7 @@ bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::ve
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
  * @param routes List of routes.
  * @param attrib Path attribute.
+ * @param weight weight of this entry.
  * @return ssize_t Number of routes inserted.
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
