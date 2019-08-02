@@ -39,7 +39,7 @@ public:
      * selecting entry with equal routes.
      * 
      */
-    uint32_t weight;
+    int32_t weight;
 
     /**
      * @brief Path attributes for this entry.

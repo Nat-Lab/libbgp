@@ -314,7 +314,7 @@ typedef struct BgpConfig {
      * 
      * (default: 0)
      */
-    uint32_t weight;
+    int32_t weight;
 } BgpConfig;
 
 /**

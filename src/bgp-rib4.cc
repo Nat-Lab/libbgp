@@ -52,7 +52,7 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
     update_id = 0;
 }
 
-bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
+bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
     BgpRib4Entry new_entry(route, src_router_id, attrib);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
@@ -110,7 +110,7 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
-const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, uint32_t weight) {
+const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, int32_t weight) {
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
     BgpPathAttribNexthop *nexhop_attr = new BgpPathAttribNexthop(logger);
@@ -165,7 +165,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * @retval NULL failed to insert.
  * @retval !=NULL Inserted route.
  */
-const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, RouteEventBus *rev_bus, uint32_t weight) {
+const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight) {
     const BgpRib4Entry *entry = insert(logger, route, nexthop, weight);
 
     if (entry != NULL) {
@@ -189,7 +189,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * @param weight weight of this entry.
  * @return const std::vector<const BgpRib4Entry*> Inserted routes.
  */
-const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, uint32_t weight) {
+const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, int32_t weight) {
     std::vector<BgpRib4Entry> inserted;
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
     BgpPathAttribOrigin *origin = new BgpPathAttribOrigin(logger);
@@ -239,7 +239,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param weight weight of this entry.
  * @return const std::vector<const BgpRib4Entry*> Inserted routes.
  */
-const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, uint32_t weight) {
+const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight) {
     const std::vector<BgpRib4Entry> inserted =
         insert(logger, routes, nexthop, weight);
     
@@ -267,7 +267,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @return true Prefix4 inserted/replaced.
  * @return false Prefix4 already exist and the existing one has lower metric. 
  */
-bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
+bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
     bool inserted = insertPriv(src_router_id, route, attrib, weight);
     if (inserted) update_id++;
     return inserted;
@@ -284,7 +284,7 @@ bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::ve
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
-ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, uint32_t weight) {
+ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
     size_t inserted = 0;
     for (const Prefix4 &r : routes) {
         if (insertPriv(src_router_id, r, attrib, weight)) inserted++;
