@@ -850,7 +850,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
 
             if (routes.size() > 0) {
-                rib4->insert(peer_bgp_id, routes, update->path_attribute);
+                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight);
             }
 
             if (rev_bus_exist) {
@@ -910,7 +910,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
                 // TODO: validAddr6 to check nexthop
 
-                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs);
+                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight);
 
                 if (rev_bus_exist) {
                     Route6AddEvent aev = Route6AddEvent();
