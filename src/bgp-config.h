@@ -40,6 +40,7 @@ typedef struct BgpConfig {
         forced_default_nexthop6 = no_nexthop_check6 = false;
         allow_local_as = 0;
         weight = 0;
+        no_autotick = false;
     }
 
     /**
@@ -315,6 +316,15 @@ typedef struct BgpConfig {
      * (default: 0)
      */
     int32_t weight;
+
+    /**
+     * @brief Disable auto tick on message reception.
+     * 
+     * Set to true will disable auto FSM ticking when message received.
+     * 
+     * (default: false)
+     */
+    bool no_autotick;
 } BgpConfig;
 
 /**
