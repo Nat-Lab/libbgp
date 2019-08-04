@@ -23,10 +23,10 @@ namespace libbgp {
  * @param from Pointer to buffer.
  * @param buffer_sz Size of buffre.
  * @return int8_t Attribute type.
- * @retval -1 Failed to get attribute type.
- * @retval >=0 Attribute type.
+ * @retval 0 Failed to get attribute type.
+ * @retval >0 Attribute type.
  */
-int8_t BgpPathAttrib::GetTypeFromBuffer(const uint8_t *from, size_t buffer_sz) {
+uint8_t BgpPathAttrib::GetTypeFromBuffer(const uint8_t *from, size_t buffer_sz) {
     if (buffer_sz < 3) return -1;
     return *((uint8_t *) (from + 1));
 }

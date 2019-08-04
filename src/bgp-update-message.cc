@@ -619,9 +619,9 @@ ssize_t BgpUpdateMessage::parse(const uint8_t *from, size_t msg_sz) {
             return -1;
         }
 
-        int8_t attr_type = BgpPathAttrib::GetTypeFromBuffer(buffer, attribute_len - parsed_attribute_len);
+        uint8_t attr_type = BgpPathAttrib::GetTypeFromBuffer(buffer, attribute_len - parsed_attribute_len);
 
-        if (attr_type < 0) {
+        if (attr_type == 0) {
             logger->log(ERROR, "BgpUpdateMessage::parse: failed to parse attribute type.\n");
             setError(E_UPDATE, E_UNSPEC, NULL, 0);
             return -1;

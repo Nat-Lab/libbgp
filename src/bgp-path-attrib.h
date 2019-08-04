@@ -80,8 +80,8 @@ public:
     BgpPathAttrib(BgpLogHandler *logger);
     BgpPathAttrib(BgpLogHandler *logger, const uint8_t *value, uint16_t val_len);
 
-    // get attribute type from buffer, return -1 if failed.
-    static int8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
+    // get attribute type from buffer, return 0 if failed.
+    static uint8_t GetTypeFromBuffer(const uint8_t *buffer, size_t buffer_sz);
 
     // print the attribute
     ssize_t doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const;
