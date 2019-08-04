@@ -1423,8 +1423,8 @@ ssize_t BgpPathAttribCommunity::parse(const uint8_t *from, size_t length) {
         return -1;
     }
 
-    if (optional || transitive || extended || partial) {
-        logger->log(ERROR, "BgpPathAttribCommunity::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+    if (!optional || !transitive || extended || partial) {
+        logger->log(ERROR, "BgpPathAttribCommunity::parse: bad flag bits, must be optional, !extended, !partial, transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
