@@ -878,6 +878,7 @@ ssize_t BgpPathAttribLocalPref::length() const {
  */
 BgpPathAttribAtomicAggregate::BgpPathAttribAtomicAggregate(BgpLogHandler *logger) : BgpPathAttrib(logger) {
     type_code = ATOMIC_AGGREGATE;
+    optional = true;
 }
 
 ssize_t BgpPathAttribAtomicAggregate::doPrint(size_t indent, uint8_t **to, size_t *buf_sz) const {
@@ -915,8 +916,8 @@ ssize_t BgpPathAttribAtomicAggregate::parse(const uint8_t *from, size_t length) 
         return -1;
     }
 
-    if (optional || transitive || extended || partial) {
-        logger->log(ERROR, "BgpPathAttribAtomicAggregate::parse: bad flag bits, must be !optional, !extended, !partial, !transitive.\n");
+    if (!optional || transitive || extended || partial) {
+        logger->log(ERROR, "BgpPathAttribAtomicAggregate::parse: bad flag bits, must be optional, !extended, !partial, !transitive.\n");
         setError(E_UPDATE, E_ATTR_FLAG, from, value_len + header_length);
         return -1;
     }
