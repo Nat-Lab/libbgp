@@ -284,7 +284,7 @@ int BgpFsm::tick() {
     if (state != ESTABLISHED) return 1;
 
     // peer hold-timer exipred?
-    if (clock->getTime() - last_recv > hold_timer) {
+    if (hold_timer > 0 && clock->getTime() - last_recv > hold_timer) {
         logger->log(ERROR, "BgpFsm::tick: peer hold timer timeout.\n");
         BgpNotificationMessage notify (logger, E_HOLD, 0, NULL, 0);
         setState(IDLE);
@@ -293,7 +293,7 @@ int BgpFsm::tick() {
     }
 
     // send keepalive? 
-    if (clock->getTime() - last_sent > hold_timer / 3) {
+    if (hold_timer > 0 && clock->getTime() - last_sent > hold_timer / 3) {
         BgpKeepaliveMessage keep = BgpKeepaliveMessage(logger);
         if(!writeMessage(keep)) return -1;
         return 2;
