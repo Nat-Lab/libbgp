@@ -59,6 +59,7 @@ const char *bgp_open_error_subcode_str[] = {
 const char *bgp_update_error_str[] = {
     "Unspecific",
     "Malformed Attribute List",
+    "Unrecognized Well-known Attribute",
     "Missing Well-known Attribute",
     "Attribute Flags Error",
     "Attribute Length Error",
