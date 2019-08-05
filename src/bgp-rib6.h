@@ -55,7 +55,7 @@ public:
  * @brief The BgpRib6 (IPv6 BGP Routing Information Base) class.
  * 
  */
-class BgpRib6 : BgpRib<BgpRib6Entry> {
+class BgpRib6 : private BgpRib<BgpRib6Entry> {
 public:
     BgpRib6(BgpLogHandler *logger);
 
