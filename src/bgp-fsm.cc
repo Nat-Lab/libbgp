@@ -653,14 +653,15 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     if(!writeMessage(keep)) return -1;
 
     if (send_ipv4_routes) {
-        std::vector<BgpRib4Entry>::const_iterator iter = rib4->get().begin();
-        const std::vector<BgpRib4Entry>::const_iterator end = rib4->get().end();
+        rib4_t::const_iterator iter = rib4->get().begin();
+        rib4_t::const_iterator last_iter = iter;
+        const rib4_t::const_iterator end = rib4->get().end();
 
         // group routes and and updates
         while (iter != end) {
-            uint64_t cur_group_id = iter->update_id;
+            uint64_t cur_group_id = iter->second.update_id;
             BgpUpdateMessage update (logger, use_4b_asn);
-            update.setAttribs(iter->attribs);
+            update.setAttribs(iter->second.attribs);
             prepareUpdateMessage(update, true);
 
             // length of the update message, 19: headers, 4: length fields
@@ -670,22 +671,23 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                 msg_len += attrib->length(); 
             }
 
-            for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
-                const Prefix4 &r = iter->route;
-                if (iter->src_router_id == peer_bgp_id) {
+            for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
+                const Prefix4 &r = iter->second.route;
+                if (iter->second.src_router_id == peer_bgp_id) {
                     LIBBGP_LOG(logger, WARN) {
                         uint32_t prefix = r.getPrefix();
                         char ip_str[INET_ADDRSTRLEN];
                         inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
                         logger->log(WARN, "BgpFsm::fsmEvalOpenConfirm: route %s/%d has src_bgp_id same as peer, ignore.\n", ip_str, r.getLength());
                     }
+                    last_iter = iter;
                     continue;
                 }
                 if (config.out_filters4.apply(r, update.path_attribute) == ACCEPT) {
                     msg_len += 1 + (r.getLength() + 7) / 8;
                     if (msg_len > 4096) {
                         // size too big, roll back and break.
-                        iter--;
+                        iter = last_iter;
                         break;
                     }
                     update.addNlri4(r);
@@ -697,6 +699,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                         logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
                     }
                 }
+                last_iter = iter;
             }
 
             if (update.nlri.size() > 0) {
