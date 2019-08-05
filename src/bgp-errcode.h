@@ -13,12 +13,12 @@
 
 namespace libbgp {
 
-extern const char *bgp_error_code_str[];
-extern const char* bgp_header_error_subcode_str[];
-extern const char *bgp_open_error_subcode_str[];
-extern const char *bgp_update_error_str[];
-extern const char *bgp_fsm_error_str[];
-extern const char *bgp_cease_error_str[];
+extern const char *bgp_error_code_str[7];
+extern const char* bgp_header_error_subcode_str[4];
+extern const char *bgp_open_error_subcode_str[8];
+extern const char *bgp_update_error_str[12];
+extern const char *bgp_fsm_error_str[4];
+extern const char *bgp_cease_error_str[9];
 
 /**
  * @brief BGP Error codes
