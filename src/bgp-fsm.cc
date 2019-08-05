@@ -107,6 +107,10 @@ BgpRib4& BgpFsm::getRib4() const {
     return rib4_local ? *rib4 : *(config.rib4);
 }
 
+BgpRib6& BgpFsm::getRib6() const {
+    return rib4_local ? *rib6 : *(config.rib6);
+}
+
 BgpState BgpFsm::getState() const {
     return state;
 }
