@@ -136,6 +136,10 @@ public:
      */
     virtual ~BgpFilterRuleRoute() {}
 };
+#ifdef SWIG
+%template(Prefix4RouteFilterRule) BgpFilterRuleRoute<Prefix4>;
+%template(Prefix6RouteFilterRule) BgpFilterRuleRoute<Prefix6>;
+#endif
 
 /**
  * @brief The IPv4 route filtering rule.

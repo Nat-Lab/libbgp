@@ -147,6 +147,13 @@ public:
 
 };
 
+#ifdef SWIG
+class BgpRib6Entry;
+class BgpRib4Entry;
+%template(Rib6Entry) BgpRibEntry<BgpRib6Entry>;
+%template(Rib4Entry) BgpRibEntry<BgpRib4Entry>;
+#endif
+
 /**
  * @brief The Base of BGP RIB.
  * 
