@@ -23,6 +23,10 @@
 
 namespace libbgp {
 
+/**
+ * @brief Key for the Rib4 entry map.
+ * 
+ */
 class BgpRib4EntryKey {
 public:
     BgpRib4EntryKey() {}
@@ -46,6 +50,10 @@ public:
     uint32_t src;
 };
 
+/**
+ * @brief Hasher for the Rib4 entry key.
+ * 
+ */
 struct BgpRib4EntryHash {
     std::size_t operator()(const BgpRib4EntryKey &key) const {
         return (key.prefix ^ key.length) | key.src << 4;
