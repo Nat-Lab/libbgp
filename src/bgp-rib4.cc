@@ -128,7 +128,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
 
     uint64_t use_update_id = update_id;
 
-    for (auto &entry : rib) {
+    for (const auto &entry : rib) {
         if (entry.second.src_router_id == 0 && entry.second.route == route) {
             logger->log(ERROR, "BgpRib4::insert: route exists.");
             return NULL;
