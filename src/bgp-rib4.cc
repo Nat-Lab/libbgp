@@ -375,19 +375,23 @@ ssize_t BgpRib4::withdraw(uint32_t src_router_id, const std::vector<Prefix4> &ro
 std::vector<Prefix4> BgpRib4::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     std::vector<Prefix4> dropped_routes;
-    for (rib4_t::iterator entry = rib.begin(); entry != rib.end();) {
-        if (entry->second.src_router_id == src_router_id) {
-            dropped_routes.push_back(entry->second.route);
+    std::vector<BgpRib4EntryKey> to_remove;
+
+    for (auto &&ribval_pair : rib) {
+        if (ribval_pair.second.src_router_id == src_router_id) {
+            dropped_routes.push_back(ribval_pair.second.route);
             LIBBGP_LOG(logger, INFO) {
-                uint32_t prefix = entry->second.route.getPrefix();
+                uint32_t prefix = ribval_pair.second.route.getPrefix();
                 char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
                 inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
                 inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-                logger->log(INFO, "BgpRib4::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, entry->second.route.getLength());
+                logger->log(INFO, "BgpRib4::discard: (to_drop) scope %s, route %s/%d\n", src_router_id_str, prefix_str, ribval_pair.second.route.getLength());
             }
-            rib.erase(entry);
-        } else entry++;
+            to_remove.push_back(ribval_pair.first);
+        }
     }
+
+    for (auto &&key : to_remove) rib.erase(key);
 
     return dropped_routes;
 }
