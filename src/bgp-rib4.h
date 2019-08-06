@@ -127,6 +127,7 @@ public:
     // get RIB
     const rib4_t &get() const;
 private:
+    rib4_t::const_iterator find_entry(const Prefix4 &prefix, uint32_t src) const;
     bool insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
     rib4_t rib;
     std::recursive_mutex mutex;

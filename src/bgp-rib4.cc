@@ -11,7 +11,6 @@
 #include "bgp-rib4.h"
 #include <arpa/inet.h>
 #define MAKE_ENTRY4(r, s, e) std::make_pair(BgpRib4EntryKey(r, s), e)
-#define FIND_ENTRY4(rib, r, s) rib.find(BgpRib4EntryKey(r, s))
 
 namespace libbgp {
 
@@ -58,29 +57,32 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
     update_id = 0;    
 }
 
+rib4_t::const_iterator BgpRib4::find_entry(const Prefix4 &prefix, uint32_t src) const {
+    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> its = 
+        rib.equal_range(BgpRib4EntryKey(prefix, src));
+
+    if (its.first == rib.end()) return rib.end();
+
+    for (rib4_t::const_iterator it = its.first; it != its.second; it++) {
+        if (it->second.route == prefix && it->second.src_router_id == src) {
+            return it;
+        }
+    }
+
+    return rib.end();
+}
+
 bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib4Entry new_entry(route, src_router_id, attrib);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
+    const char *op = "new_entry";
 
-    for (rib4_t::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
-        if (entry->second.route == route && entry->second.src_router_id == src_router_id) {
-            if (new_entry > entry->second) {
-                rib.erase(entry);
-                rib.insert(MAKE_ENTRY4(route, src_router_id, new_entry));
-
-                LIBBGP_LOG(logger, INFO) {
-                    uint32_t prefix = route.getPrefix();
-                    char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-                    inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-                    logger->log(INFO, "BgpRib4::insert: (updated) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
-                }
-
-                return true;
-            } else return false;
-        }
+    rib4_t::const_iterator entry = find_entry(route, src_router_id);
+    if (entry != rib.end()) {
+        op = "update";
+        rib.erase(entry);
     }
 
     LIBBGP_LOG(logger, INFO) {
@@ -88,7 +90,7 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib4::insert: (new_entry) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib4::insert: (%s) group %d, scope %s, route %s/%d\n", op, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
     rib.insert(MAKE_ENTRY4(route, src_router_id, new_entry));
@@ -207,7 +209,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
     attribs.push_back(std::shared_ptr<BgpPathAttrib>(as_path));
 
     for (const Prefix4 &route : routes) {
-        rib4_t::const_iterator it = FIND_ENTRY4(rib, route, 0);
+        rib4_t::const_iterator it = find_entry(route, 0);
 
         if (it != rib.end()) continue;
 
@@ -300,7 +302,7 @@ ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &rout
 bool BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
 
-    rib4_t::iterator it = FIND_ENTRY4(rib, route, src_router_id);
+    rib4_t::const_iterator it = find_entry(route, src_router_id);
     if (it == rib.end()) return false;
 
     LIBBGP_LOG(logger, INFO) {
