@@ -59,6 +59,7 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
 }
 
 bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib4Entry new_entry(route, src_router_id, attrib);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
@@ -90,9 +91,7 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
         logger->log(INFO, "BgpRib4::insert: (new_entry) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
-    mutex.lock();
     rib.insert(MAKE_ENTRY4(route, src_router_id, new_entry));
-    mutex.unlock();
     return true;
 }
 
