@@ -225,6 +225,12 @@ public:
         const T &rule_typed = dynamic_cast<const T&> (rule);
         rules.push_back(std::shared_ptr<BgpFilterRule>(new T(rule_typed)));
     }
+#ifdef SWIG
+%template(appendAsPathRule) append<BgpFilterRuleAsPath>;
+%template(appendCommunityRule) append<BgpFilterRuleCommunity>;
+%template(appendRoute4Rule) append<BgpFilterRuleRoute4>;
+%template(appendRoute6Rule) append<BgpFilterRuleRoute6>;
+#endif
 
     BgpFilterOP apply(const Prefix &prefix, const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs);
 private:
