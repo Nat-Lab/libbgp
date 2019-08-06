@@ -150,6 +150,7 @@ public:
     // get RIB
     const rib6_t &get() const;
 private:
+    rib6_t::const_iterator find_entry(const Prefix6 &prefix, uint32_t src) const;
     bool insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
