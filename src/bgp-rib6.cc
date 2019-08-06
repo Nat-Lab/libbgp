@@ -353,24 +353,22 @@ ssize_t BgpRib6::withdraw(uint32_t src_router_id, const std::vector<Prefix6> &ro
 std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     std::vector<Prefix6> dropped_routes;
-    std::vector<BgpRib6EntryKey> to_remove;
 
-    for (auto &&ribval_pair : rib) {
-        if (ribval_pair.second.src_router_id == src_router_id) {
-            dropped_routes.push_back(ribval_pair.second.route);
+    for (rib6_t::const_iterator it = rib.begin(); it != rib.end();) {
+        if (it->second.src_router_id == src_router_id) {
+            dropped_routes.push_back(it->second.route);
             LIBBGP_LOG(logger, INFO) {
                     uint8_t prefix_arr[16];
-                    ribval_pair.second.route.getPrefix(prefix_arr);
+                    it->second.route.getPrefix(prefix_arr);
                     char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
                     inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
                     inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-                logger->log(INFO, "BgpRib6::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, ribval_pair.second.route.getLength());
+                logger->log(INFO, "BgpRib6::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, it->second.route.getLength());
             }
-            to_remove.push_back(ribval_pair.first);
-        }
+            it = rib.erase(it);
+        } else it++;
     }
 
-    for (auto &&key : to_remove) rib.erase(key);
     return dropped_routes;
 }
 
