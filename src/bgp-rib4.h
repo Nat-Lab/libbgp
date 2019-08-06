@@ -48,7 +48,7 @@ public:
 
 struct BgpRib4EntryHash {
     std::size_t operator()(const BgpRib4EntryKey &key) const {
-        return ((key.prefix ^ key.src) >> 1) && key.length << 4;
+        return (key.prefix ^ key.length) | key.src << 4;
     }
 };
 
