@@ -151,7 +151,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
     new_entry.update_id = use_update_id;
     new_entry.weight = weight;
     if (use_update_id == update_id) update_id++;
-    rib4_t::const_iterator it = rib.insert(MAKE_ENTRY4(route, 0, new_entry)).first;
+    rib4_t::const_iterator it = rib.insert(MAKE_ENTRY4(route, 0, new_entry));
 
     return &(it->second);
 }
@@ -215,7 +215,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
         BgpRib4Entry new_entry (route, 0, attribs);
         new_entry.update_id = update_id;
         new_entry.weight = weight;
-        rib4_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY4(route, 0, new_entry)).first;
+        rib4_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY4(route, 0, new_entry));
         inserted.push_back(isrt_it->second);
     }
 

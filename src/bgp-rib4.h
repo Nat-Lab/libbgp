@@ -34,17 +34,20 @@ public:
         this->prefix = prefix.getPrefix();
         this->length = prefix.getLength();
         this->src = src;
+        hash = (this->prefix ^ this->length) | this->src << 4;
     }
     BgpRib4EntryKey(uint32_t prefix, uint32_t length, uint32_t src) {
         this->prefix = prefix;
         this->length = length;
         this->src = src;
+        hash = (this->prefix ^ this->length) | this->src << 4;
     }
 
     bool operator== (const BgpRib4EntryKey &other) const {
         return prefix == other.prefix && length == other.length && src == other.src;
     }
 
+    uint64_t hash;
     uint32_t prefix;
     uint8_t length;
     uint32_t src;
@@ -56,7 +59,7 @@ public:
  */
 struct BgpRib4EntryHash {
     std::size_t operator()(const BgpRib4EntryKey &key) const {
-        return (key.prefix ^ key.length) | key.src << 4;
+        return key.hash;
     }
 };
 
@@ -79,7 +82,7 @@ public:
     uint32_t getNexthop() const;
 };
 
-typedef std::unordered_map<BgpRib4EntryKey, BgpRib4Entry, BgpRib4EntryHash> rib4_t;
+typedef std::unordered_multimap<BgpRib4EntryKey, BgpRib4Entry, BgpRib4EntryHash> rib4_t;
 
 /**
  * @brief The BgpRib4 (IPv4 BGP Routing Information Base) class.
