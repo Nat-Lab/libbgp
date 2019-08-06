@@ -709,15 +709,16 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
     }
 
     if (send_ipv6_routes) {
-        std::vector<BgpRib6Entry>::const_iterator iter = rib6->get().begin();
-        std::vector<BgpRib6Entry>::const_iterator end = rib6->get().end();
+        rib6_t::const_iterator iter = rib6->get().begin();
+        rib6_t::const_iterator last_iter = iter;
+        const rib6_t::const_iterator end = rib6->get().end();
 
         while (iter != end) {
-            uint64_t cur_group_id = iter->update_id;
-            const uint8_t *nh_global = iter->nexthop_global;
-            const uint8_t *nh_linklocal = iter->nexthop_linklocal;
+            uint64_t cur_group_id = iter->second.update_id;
+            const uint8_t *nh_global = iter->second.nexthop_global;
+            const uint8_t *nh_linklocal = iter->second.nexthop_linklocal;
             BgpUpdateMessage update (logger, use_4b_asn);
-            update.setAttribs(iter->attribs);
+            update.setAttribs(iter->second.attribs);
             prepareUpdateMessage(update, false);
             std::vector<Prefix6> filtered_nlri;
 
@@ -728,9 +729,9 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                 msg_len += attrib->length(); 
             }
 
-            for (; iter != end && cur_group_id == iter->update_id && msg_len < 4096; iter++) {
-                const Prefix6 &r = iter->route;
-                if (iter->src_router_id == peer_bgp_id) {
+            for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
+                const Prefix6 &r = iter->second.route;
+                if (iter->second.src_router_id == peer_bgp_id) {
                     LIBBGP_LOG(logger, WARN) {
                         uint8_t prefix[16]; 
                         r.getPrefix(prefix);
@@ -738,6 +739,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                         inet_ntop(AF_INET6, &prefix, ip_str, INET6_ADDRSTRLEN);
                         logger->log(WARN, "BgpFsm::fsmEvalOpenConfirm: route %s/%d has src_bgp_id same as peer, ignore.\n", ip_str, r.getLength());
                     }
+                    last_iter = iter;
                     continue;
                 }
 
@@ -745,7 +747,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                     msg_len += 1 + (r.getLength() + 7) / 8;
                     if (msg_len > 4096) {
                         // size too big, roll back and break.
-                        iter--;
+                        iter = last_iter;
                         break;
                     }
                     filtered_nlri.push_back(r);
@@ -758,6 +760,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                         logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
                     }
                 }
+                last_iter = iter;
             }
 
             if (filtered_nlri.size() > 0) {
