@@ -11,7 +11,9 @@
 #ifndef RIB6_H_
 #define RIB6_H_
 #include <stdint.h>
+#include <string.h>
 #include <vector>
+#include <unordered_map>
 #include <memory>
 #include <mutex>
 #include "bgp-rib.h"
@@ -20,6 +22,44 @@
 #include "route-event-bus.h"
 
 namespace libbgp {
+
+/**
+ * @brief Key for the Rib6 entry map.
+ * 
+ */
+class BgpRib6EntryKey {
+public:
+    BgpRib6EntryKey() {}
+    BgpRib6EntryKey(const Prefix6 &prefix, uint32_t src) {
+        prefix.getPrefix(this->prefix);
+        length = prefix.getLength();
+        this->src = src;
+
+        uint64_t prefix_pre = 0;
+        memcpy(&prefix_pre, this->prefix, 8);
+        hash = (prefix_pre ^ length) | src << 4;
+    }
+
+    bool operator== (const BgpRib6EntryKey &other) const {
+        return memcmp(other.prefix, prefix, 16) == 0 && 
+            length == other.length && src == other.src;
+    }
+
+    uint8_t prefix[16];
+    uint8_t length;
+    uint32_t src;
+    uint64_t hash;
+};
+
+/**
+ * @brief Hasher for the Rib6 entry key.
+ * 
+ */
+struct BgpRib6EntryHash {
+    std::size_t operator()(const BgpRib6EntryKey &key) const {
+        return key.hash;
+    }
+};
 
 /**
  * @brief The BgpRib6Entry class.
@@ -50,6 +90,8 @@ public:
      */
     uint8_t nexthop_linklocal[16];
 };
+
+typedef std::unordered_multimap<BgpRib6EntryKey, BgpRib6Entry, BgpRib6EntryHash> rib6_t;
 
 /**
  * @brief The BgpRib6 (IPv6 BGP Routing Information Base) class.
@@ -106,13 +148,14 @@ public:
     const BgpRib6Entry* lookup(uint32_t src_router_id, const uint8_t dest[16]) const;
 
     // get RIB
-    const std::vector<BgpRib6Entry> &get() const;
+    const rib6_t &get() const;
 private:
+    rib6_t::const_iterator find_entry(const Prefix6 &prefix, uint32_t src) const;
     bool insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
 
-    std::vector<BgpRib6Entry> rib;
+    rib6_t rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;
     uint64_t update_id;

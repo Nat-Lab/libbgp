@@ -12,6 +12,8 @@
 #define RIB_H_
 #include <stdint.h>
 #include <vector>
+#include <unordered_map>
+#include <tuple>
 #include <memory>
 #include <mutex>
 #include "bgp-rib.h"
@@ -22,11 +24,52 @@
 namespace libbgp {
 
 /**
+ * @brief Key for the Rib4 entry map.
+ * 
+ */
+class BgpRib4EntryKey {
+public:
+    BgpRib4EntryKey() {}
+    BgpRib4EntryKey(const Prefix4 &prefix, uint32_t src) {
+        this->prefix = prefix.getPrefix();
+        this->length = prefix.getLength();
+        this->src = src;
+        hash = (this->prefix ^ this->length) | this->src << 4;
+    }
+    BgpRib4EntryKey(uint32_t prefix, uint32_t length, uint32_t src) {
+        this->prefix = prefix;
+        this->length = length;
+        this->src = src;
+        hash = (this->prefix ^ this->length) | this->src << 4;
+    }
+
+    bool operator== (const BgpRib4EntryKey &other) const {
+        return prefix == other.prefix && length == other.length && src == other.src;
+    }
+
+    uint64_t hash;
+    uint32_t prefix;
+    uint8_t length;
+    uint32_t src;
+};
+
+/**
+ * @brief Hasher for the Rib4 entry key.
+ * 
+ */
+struct BgpRib4EntryHash {
+    std::size_t operator()(const BgpRib4EntryKey &key) const {
+        return key.hash;
+    }
+};
+
+/**
  * @brief The BgpRib4Entry class.
  * 
  */
 class BgpRib4Entry : public BgpRibEntry<BgpRib4Entry> {
 public:
+    BgpRib4Entry ();
     BgpRib4Entry (Prefix4 r, uint32_t src, const std::vector<std::shared_ptr<BgpPathAttrib>> attribs);
 
     /**
@@ -38,6 +81,8 @@ public:
     // get nexthop of this entry.
     uint32_t getNexthop() const;
 };
+
+typedef std::unordered_multimap<BgpRib4EntryKey, BgpRib4Entry, BgpRib4EntryHash> rib4_t;
 
 /**
  * @brief The BgpRib4 (IPv4 BGP Routing Information Base) class.
@@ -80,10 +125,11 @@ public:
     const BgpRib4Entry* lookup(uint32_t src_router_id, uint32_t dest) const;
 
     // get RIB
-    const std::vector<BgpRib4Entry> &get() const;
+    const rib4_t &get() const;
 private:
+    rib4_t::const_iterator find_entry(const Prefix4 &prefix, uint32_t src) const;
     bool insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
-    std::vector<BgpRib4Entry> rib;
+    rib4_t rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;
     uint64_t update_id;

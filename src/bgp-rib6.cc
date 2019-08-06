@@ -11,6 +11,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "bgp-rib6.h"
+#define MAKE_ENTRY6(r, s, e) std::make_pair(BgpRib6EntryKey(r, s), e)
 
 namespace libbgp {
 
@@ -44,32 +45,34 @@ BgpRib6::BgpRib6(BgpLogHandler *logger) {
     update_id = 0;
 }
 
+rib6_t::const_iterator BgpRib6::find_entry(const Prefix6 &prefix, uint32_t src) const {
+    std::pair<rib6_t::const_iterator, rib6_t::const_iterator> its = 
+        rib.equal_range(BgpRib6EntryKey(prefix, src));
+
+    if (its.first == rib.end()) return rib.end();
+
+    for (rib6_t::const_iterator it = its.first; it != its.second; it++) {
+        if (it->second.route == prefix && it->second.src_router_id == src) {
+            return it;
+        }
+    }
+
+    return rib.end();
+}
+
 bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight) {
+    std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib6Entry new_entry(route, src_router_id, nexthop_global, nexthop_linklocal, attribs);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
+    const char *op = "new_entry";
 
-    for (std::vector<BgpRib6Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
-        if (entry->route == route && entry->src_router_id == src_router_id) {
-            if (new_entry > *entry) {
-                rib.erase(entry);
-                
-                rib.push_back(new_entry);
-
-                LIBBGP_LOG(logger, INFO) {
-                    uint8_t prefix_arr[16];
-                    route.getPrefix(prefix_arr);
-                    char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-                    inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-                    logger->log(INFO, "BgpRib6::insert: (updated) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
-                }
-
-                return true;
-            } else return false;
-        }
+    rib6_t::const_iterator entry = find_entry(route, src_router_id);
+    if (entry != rib.end()) {
+        op = "update";
+        rib.erase(entry);
     }
     
     LIBBGP_LOG(logger, INFO) {
@@ -78,12 +81,10 @@ bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route,
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib6::insert: (new_entry) group %d, scope %s, route %s/%d\n", new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib6::insert: (%s) group %d, scope %s, route %s/%d\n", op, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
-    mutex.lock();
-    rib.push_back(new_entry);
-    mutex.unlock();
+    rib.insert(MAKE_ENTRY6(route, src_router_id, new_entry));
     return true;
 }
 
@@ -122,17 +123,17 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, const Prefix6 &route,
     new_entry.weight = weight;
     uint64_t use_update_id = update_id;
 
-    for (const BgpRib6Entry &entry : rib) {
-        if (entry.src_router_id == 0 && entry.route == route) {
-            logger->log(ERROR, "BgpRib6::insert: route exists.");
+    for (const auto &entry : rib) {
+        if (entry.second.src_router_id == 0 && entry.second.route == route) {
+            this->logger->log(ERROR, "BgpRib6::insert: route exists.\n");
             return NULL;
         }
 
         // see if we can group this entry to other local entries
-        if (entry.src_router_id == 0) {
-            if (memcmp(new_entry.nexthop_global, entry.nexthop_global, 16) == 0 &&
-                memcmp(new_entry.nexthop_linklocal, entry.nexthop_linklocal, 16) == 0) {
-                use_update_id = entry.update_id;
+        if (entry.second.src_router_id == 0) {
+            if (memcmp(new_entry.nexthop_global, entry.second.nexthop_global, 16) == 0 &&
+                memcmp(new_entry.nexthop_linklocal, entry.second.nexthop_linklocal, 16) == 0) {
+                use_update_id = entry.second.update_id;
             }
         }
     }
@@ -140,9 +141,9 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, const Prefix6 &route,
     std::lock_guard<std::recursive_mutex> lock(mutex);
     new_entry.update_id = use_update_id;
     if (use_update_id == update_id) update_id++;
-    rib.push_back(new_entry);
+    rib6_t::const_iterator it = rib.insert(MAKE_ENTRY6(route, 0, new_entry));
 
-    return &(rib.back());
+    return &(it->second);
 }
 
 /**
@@ -202,23 +203,15 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
     attribs.push_back(std::shared_ptr<BgpPathAttrib>(as_path));
 
     for (const Prefix6 &route : routes) {
-        bool entry_exist = false;
+        rib6_t::const_iterator it = find_entry(route, 0);
 
-        for (const BgpRib6Entry &entry : rib) {
-            if (entry.src_router_id != 0) continue;
-            if (entry.route == route) {
-                entry_exist = true;
-                break;
-            }
-        }
-
-        if (entry_exist) continue;
+        if (it != rib.end()) continue;
 
         BgpRib6Entry new_entry (route, 0, nexthop_global, nexthop_linklocal, attribs);
         new_entry.update_id = update_id;
         new_entry.weight = weight;
-        rib.push_back(new_entry);
-        inserted.push_back(rib.back());
+        rib6_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY6(route, 0, new_entry));
+        inserted.push_back(isrt_it->second);
     }
 
     update_id++;
@@ -317,22 +310,21 @@ ssize_t BgpRib6::insert(uint32_t src_router_id, const std::vector<Prefix6> &rout
  */
 bool BgpRib6::withdraw(uint32_t src_router_id, const Prefix6 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    for (std::vector<BgpRib6Entry>::const_iterator entry = rib.begin(); entry != rib.end(); entry++) {
-        if (entry->route == route && entry->src_router_id == src_router_id) {
-            LIBBGP_LOG(logger, INFO) {
-                uint8_t prefix_arr[16];
-                route.getPrefix(prefix_arr);
-                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
-                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-                inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-                logger->log(INFO, "BgpRib6::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
-            }
-            rib.erase(entry);
-            return true;
-        }
+
+    rib6_t::const_iterator it = find_entry(route, src_router_id);
+    if (it == rib.end()) return false;
+
+    LIBBGP_LOG(logger, INFO) {
+        uint8_t prefix_arr[16];
+        route.getPrefix(prefix_arr);
+        char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+        inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
+        logger->log(INFO, "BgpRib6::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
     }
 
-    return false;
+    rib.erase(it);
+    return true;
 }
 
 /**
@@ -361,21 +353,24 @@ ssize_t BgpRib6::withdraw(uint32_t src_router_id, const std::vector<Prefix6> &ro
 std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     std::vector<Prefix6> dropped_routes;
-    for (std::vector<BgpRib6Entry>::const_iterator entry = rib.begin(); entry != rib.end();) {
-        if (entry->src_router_id == src_router_id) {
-            dropped_routes.push_back(entry->route);
+    std::vector<BgpRib6EntryKey> to_remove;
+
+    for (auto &&ribval_pair : rib) {
+        if (ribval_pair.second.src_router_id == src_router_id) {
+            dropped_routes.push_back(ribval_pair.second.route);
             LIBBGP_LOG(logger, INFO) {
                     uint8_t prefix_arr[16];
-                    entry->route.getPrefix(prefix_arr);
+                    ribval_pair.second.route.getPrefix(prefix_arr);
                     char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
                     inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
                     inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-                logger->log(INFO, "BgpRib6::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, entry->route.getLength());
+                logger->log(INFO, "BgpRib6::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, ribval_pair.second.route.getLength());
             }
-            rib.erase(entry);
-        } else entry++;
+            to_remove.push_back(ribval_pair.first);
+        }
     }
 
+    for (auto &&key : to_remove) rib.erase(key);
     return dropped_routes;
 }
 
@@ -390,10 +385,10 @@ std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
 const BgpRib6Entry* BgpRib6::lookup(const uint8_t dest[16]) const {
         const BgpRib6Entry *selected_entry = NULL;
 
-    for (const BgpRib6Entry &entry : rib) {
-        const Prefix6 &route = entry.route;
+    for (const auto &entry : rib) {
+        const Prefix6 &route = entry.second.route;
         if (route.includes(dest)) 
-            selected_entry = selectEntry(&entry, selected_entry);
+            selected_entry = selectEntry(&entry.second, selected_entry);
     }
 
     return selected_entry;
@@ -414,11 +409,11 @@ const BgpRib6Entry* BgpRib6::lookup(const uint8_t dest[16]) const {
 const BgpRib6Entry* BgpRib6::lookup(uint32_t src_router_id, const uint8_t dest[16]) const {
     const BgpRib6Entry *selected_entry = NULL;
 
-    for (const BgpRib6Entry &entry : rib) {
-        if (entry.src_router_id != src_router_id) continue;
-        const Prefix6 &route = entry.route;
+    for (const auto &entry : rib) {
+        if (entry.second.src_router_id != src_router_id) continue;
+        const Prefix6 &route = entry.second.route;
         if (route.includes(dest)) 
-            selected_entry = selectEntry(&entry, selected_entry);
+            selected_entry = selectEntry(&entry.second, selected_entry);
     }
 
     return selected_entry;
@@ -427,9 +422,9 @@ const BgpRib6Entry* BgpRib6::lookup(uint32_t src_router_id, const uint8_t dest[1
 /**
  * @brief Get the RIB.
  * 
- * @return const std::vector<BgpRib6Entry>& The RIB.
+ * @return const rib6_t& The RIB.
  */
-const std::vector<BgpRib6Entry>& BgpRib6::get() const {
+const rib6_t& BgpRib6::get() const {
     return rib;
 }
 
