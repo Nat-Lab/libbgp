@@ -132,7 +132,7 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
 
     for (const auto &entry : rib) {
         if (entry.second.src_router_id == 0 && entry.second.route == route) {
-            logger->log(ERROR, "BgpRib4::insert: route exists.");
+            this->logger->log(ERROR, "BgpRib4::insert: route exists.\n");
             return NULL;
         }
 
