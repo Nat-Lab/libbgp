@@ -11,6 +11,7 @@
 #ifndef RIB6_H_
 #define RIB6_H_
 #include <stdint.h>
+#include <string.h>
 #include <vector>
 #include <unordered_map>
 #include <memory>
