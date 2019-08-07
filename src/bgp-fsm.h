@@ -211,8 +211,11 @@ private:
     // setState: set the state of FSM. additional operations may be performed.
     void setState(BgpState state);
 
-    // validAddr: valid an IP address (nexthop/bgp_id), addr in network btye
-    bool validAddr(uint32_t addr) const;
+    // validAddr4: valid an IPv4 address (nexthop/bgp_id), addr in network btye
+    bool validAddr4(uint32_t addr) const;
+
+    // validAddr6: valid an IPv6 address.
+    bool validAddr6(const uint8_t addr[16]) const;
 
     // resloveCollison: resloving collsion
     // return value:

@@ -337,7 +337,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
         return 0;
     }
 
-    if (!validAddr(open_msg->bgp_id)) {
+    if (!validAddr4(open_msg->bgp_id)) {
         LIBBGP_LOG(logger, ERROR) {
             char ip_str[INET_ADDRSTRLEN];
             inet_ntop(AF_INET, &(open_msg->bgp_id), ip_str, INET_ADDRSTRLEN);
@@ -826,7 +826,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             if (update->nlri.size() > 0) {
                 const BgpPathAttribNexthop &nh = dynamic_cast<const BgpPathAttribNexthop &>(update->getAttrib(NEXT_HOP));
 
-                if (!validAddr(nh.next_hop)) {
+                if (!validAddr4(nh.next_hop)) {
                     LIBBGP_LOG(logger, WARN) {
                         char ip_str[INET_ADDRSTRLEN];
                         inet_ntop(AF_INET, &(nh.next_hop), ip_str, INET_ADDRSTRLEN);
@@ -906,6 +906,12 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             if (mp_reach.afi == IPV6 && mp_reach.safi == UNICAST) {
                 const BgpPathAttribMpReachNlriIpv6 &reach = dynamic_cast<const BgpPathAttribMpReachNlriIpv6 &>(mp_reach);
 
+                if (!validAddr6(reach.nexthop_global) || (!v6addr_is_zero(reach.nexthop_linklocal) && !validAddr6(reach.nexthop_linklocal))) {
+                    logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with invalid nexthop:\n", reach.nlri.size());
+                    logger->log(WARN, reach);
+                    return 1;
+                }
+
                 // filter toures
                 std::vector<Prefix6> filtered_routes;
                 for (const Prefix6 &route : reach.nlri) {
@@ -921,8 +927,6 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     if (attr->type_code == MP_REACH_NLRI || attr->type_code == MP_UNREACH_NLRI || attr->type_code == NEXT_HOP) continue;
                     attrs.push_back(attr);
                 }
-
-                // TODO: validAddr6 to check nexthop
 
                 rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight);
 
@@ -941,10 +945,16 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
 void BgpFsm::dropAllRoutes() {
     if (peer_bgp_id != 0) {
-        std::vector<Prefix4> dropped_routes = rib4->discard(peer_bgp_id);
-        if (rev_bus_exist && dropped_routes.size() > 0) {
+        std::vector<Prefix4> dropped_routes4 = rib4->discard(peer_bgp_id);
+        if (rev_bus_exist && dropped_routes4.size() > 0) {
             Route4WithdrawEvent wev;
-            wev.routes = dropped_routes;
+            wev.routes = dropped_routes4;
+            config.rev_bus->publish(this, wev);
+        }
+        std::vector<Prefix6> dropped_routes6 = rib6->discard(peer_bgp_id);
+        if (rev_bus_exist && dropped_routes6.size() > 0) {
+            Route6WithdrawEvent wev;
+            wev.routes = dropped_routes6;
             config.rev_bus->publish(this, wev);
         }
     }
@@ -967,7 +977,7 @@ void BgpFsm::setState(BgpState new_state) {
     state = new_state;
 }
 
-bool BgpFsm::validAddr(uint32_t addr) const {
+bool BgpFsm::validAddr4(uint32_t addr) const {
     if (addr == config.default_nexthop4 || addr == config.router_id) {
         return false;
     }
@@ -980,6 +990,12 @@ bool BgpFsm::validAddr(uint32_t addr) const {
     }
 
     return true;
+}
+
+bool BgpFsm::validAddr6(const uint8_t addr[16]) const {
+    static Prefix6 bad_range("0000::", 8);
+
+    return !bad_range.includes(addr);
 }
 
 bool BgpFsm::writeMessage(const BgpMessage &msg) {
