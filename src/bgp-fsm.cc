@@ -330,7 +330,7 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
         return 0;
     }
 
-    if (config.peer_asn != 0 && open_msg->my_asn != config.peer_asn) {
+    if (config.peer_asn != 0 && open_msg->getAsn() != config.peer_asn) {
         BgpNotificationMessage notify (logger, E_OPEN, E_PEER_AS, NULL, 0);
         setState(IDLE);
         if(!writeMessage(notify)) return -1;
