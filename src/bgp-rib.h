@@ -10,12 +10,29 @@
 namespace libbgp {
 
 /**
+ * @brief Source of the RIB entry.
+ * 
+ */
+enum BgpRouteSource {
+    SRC_EBGP = 0,
+    SRC_IBGP = 1
+};
+
+/**
  * @brief The base of BGP RIB entry.
  * 
  * @tparam T Type of BgpRibEntry
  */
 template<typename T> class BgpRibEntry {
 public:
+    /**
+     * @brief Construct a new BgpRibEntry
+     * 
+     * source default to SRC_EBGP 
+     * 
+     */
+    BgpRibEntry () { src = SRC_EBGP; }
+
     /**
      * @brief The originating BGP speaker's ID of this entry. (network bytes order)
      * 
@@ -46,6 +63,15 @@ public:
      * 
      */
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
+
+    /**
+     * @brief Source of this entry.
+     * 
+     * If the route is from an IBGP peer, the nexthop might not be reachable
+     * directly. You may need recursive nexthop or info from other routing
+     * protocols.
+     */
+    BgpRouteSource src;
 
     /**
      * @brief Test if this entry has greater weight then anoter entry. 

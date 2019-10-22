@@ -41,6 +41,7 @@ typedef struct BgpConfig {
         allow_local_as = 0;
         weight = 0;
         no_autotick = false;
+        ibgp_next_hop_self = false;
     }
 
     /**
@@ -325,6 +326,13 @@ typedef struct BgpConfig {
      * (default: false)
      */
     bool no_autotick;
+
+    /**
+     * @brief Use self as nexthop in IBGP mode.
+     * 
+     * (default: false)
+     */
+    bool ibgp_next_hop_self;
 } BgpConfig;
 
 /**
