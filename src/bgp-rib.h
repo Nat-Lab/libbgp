@@ -83,6 +83,10 @@ public:
      * @return false This entry has lower or equals weight.
      */
     bool operator> (const T &other) const {
+        // perfer ebgp
+        if (this->src > other.src) return false;
+
+        // prefer higher weight
         if (this->weight > other.weight) return true;
         if (this->weight < other.weight) return false;
 
@@ -101,6 +105,7 @@ public:
         uint32_t other_local_pref = 100;
         uint32_t this_local_pref = 100;
 
+        // grab attributes
         for (const std::shared_ptr<BgpPathAttrib> &attr : other.attribs) {
             if (attr->type_code == MULTI_EXIT_DISC) {
                 const BgpPathAttribMed &med = dynamic_cast<const BgpPathAttribMed &>(*attr);
