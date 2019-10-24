@@ -843,7 +843,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                         uint32_t peering_lan_pfx = config.peering_lan4.getPrefix();
                         inet_ntop(AF_INET, &peering_lan_pfx, ip_str_lan, INET_ADDRSTRLEN);
                         logger->log(WARN, "BgpFsm::fsmEvalEstablished: ignored %zu routes with nexthop outside peering LAN. (%s not in %s/%d)\n", 
-                            update->nlri.size(), ip_str_nh, ip_str_lan, peering_lan_pfx);
+                            update->nlri.size(), ip_str_nh, ip_str_lan, config.peering_lan4.getLength());
                     }
                     return 1;
                 };
