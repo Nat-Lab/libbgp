@@ -98,6 +98,18 @@ public:
      * 
      */
     std::vector<Prefix6> routes;
+
+    /**
+     * @brief Global IPv6 nexthop.
+     * 
+     */
+    uint8_t nexthop_global[16];
+
+    /**
+     * @brief Link-local IPv6 nexthop.
+     * 
+     */
+    uint8_t nexthop_linklocal[16];
 };
 
 /**
