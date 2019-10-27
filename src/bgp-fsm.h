@@ -272,6 +272,7 @@ private:
 
     bool send_ipv4_routes;
     bool send_ipv6_routes;
+    bool ibgp;
 
     uint32_t peer_asn;
 
