@@ -74,6 +74,15 @@ public:
     BgpRouteSource src;
 
     /**
+     * @brief ASN of the IBGP peer. (Valid iff src == SRC_IBGP)
+     * 
+     * The ibgp_peer_asn field can be used to identify which IBGP session does 
+     * this route belongs to. This is needed since a BGP speaker can have
+     * multiple IBGP sessions with different ASNS.
+     */
+    uint32_t ibgp_peer_asn;
+
+    /**
      * @brief Test if this entry has greater weight then anoter entry. 
      * Please note that weight are only calculated based on path attribues. 
      * (i.e., you need to compare route prefix first)

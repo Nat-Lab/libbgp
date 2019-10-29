@@ -124,14 +124,14 @@ public:
     bool insert(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,
-        bool ibgp);
+        uint32_t ibgp_asn);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
     ssize_t insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,
-        bool ibgp);
+        uint32_t ibgp_asn);
 
     // remove a route from RIB, return true if route removed, false if not exist.
     bool withdraw(uint32_t src_router_id, const Prefix6 &route);
@@ -156,7 +156,7 @@ private:
     bool insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,
-        bool ibgp);
+        uint32_t ibgp_asn);
 
     rib6_t rib;
     std::recursive_mutex mutex;

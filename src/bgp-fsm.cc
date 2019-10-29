@@ -758,9 +758,9 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             }
 
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
-                const Prefix4 &r = iter->second.route;
-                if (iter->second.src == SRC_IBGP && ibgp) {
-                    // FIXME: what if this BGP speaker has mutiple IBGP session w/ different ASN?
+                const BgpRib4Entry &e = iter->second;
+                const Prefix4 &r = e.route;
+                if (ibgp && e.src == SRC_IBGP && e.ibgp_peer_asn == peer_asn) {
                     LIBBGP_LOG(logger, DEBUG) {
                         uint32_t prefix = r.getPrefix();
                         char ip_str[INET_ADDRSTRLEN];
@@ -829,9 +829,9 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             }
 
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
-                const Prefix6 &r = iter->second.route;
-                if (iter->second.src == SRC_IBGP && ibgp) {
-                    // FIXME: what if this BGP speaker has mutiple IBGP session w/ different ASN?
+                const BgpRib6Entry &e = iter->second;
+                const Prefix6 &r = e.route;
+                if (ibgp && e.src == SRC_IBGP && e.ibgp_peer_asn == peer_asn) {
                     LIBBGP_LOG(logger, DEBUG) {
                         uint8_t prefix[16]; 
                         r.getPrefix(prefix);
@@ -956,7 +956,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
 
             if (routes.size() > 0) {
-                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight, ibgp);
+                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight, ibgp ? peer_asn : 0);
             }
 
             if (rev_bus_exist) {
@@ -1020,7 +1020,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     attrs.push_back(attr);
                 }
 
-                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight, ibgp);
+                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight, ibgp ? peer_asn : 0);
 
                 if (rev_bus_exist) {
                     Route6AddEvent aev = Route6AddEvent();

@@ -72,12 +72,13 @@ rib4_t::const_iterator BgpRib4::find_entry(const Prefix4 &prefix, uint32_t src) 
     return rib.end();
 }
 
-bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
+bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib4Entry new_entry(route, src_router_id, attrib);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
-    new_entry.src = ibgp ? SRC_IBGP : SRC_EBGP;
+    new_entry.src = ibgp_asn > 0 ? SRC_IBGP : SRC_EBGP;
+    new_entry.ibgp_peer_asn = ibgp_asn;
     const char *op = "new_entry";
 
     rib4_t::const_iterator entry = find_entry(route, src_router_id);
@@ -263,11 +264,12 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param route Prefix4.
  * @param attrib Path attribute.
  * @param weight weight of this entry.
+ * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
  * @return true Prefix4 inserted/replaced.
  * @return false Prefix4 already exist and the existing one has lower metric. 
  */
-bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
-    bool inserted = insertPriv(src_router_id, route, attrib, weight, ibgp);
+bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
+    bool inserted = insertPriv(src_router_id, route, attrib, weight, ibgp_asn);
     if (inserted) update_id++;
     return inserted;
 }
@@ -279,14 +281,15 @@ bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::ve
  * @param routes List of routes.
  * @param attrib Path attribute.
  * @param weight weight of this entry.
+ * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
  * @return ssize_t Number of routes inserted.
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
-ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
+ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     size_t inserted = 0;
     for (const Prefix4 &r : routes) {
-        if (insertPriv(src_router_id, r, attrib, weight, ibgp)) inserted++;
+        if (insertPriv(src_router_id, r, attrib, weight, ibgp_asn)) inserted++;
     }
     update_id++;
     return inserted;
