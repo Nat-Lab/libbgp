@@ -485,6 +485,10 @@ bool BgpFsm::handleRoute6AddEvent(const Route6AddEvent &ev) {
     if (!send_ipv6_routes) return false; 
 
     logger->log(INFO, "BgpFsm::handleRoute6AddEvent: got route-add event with %zu routes.\n", ev.routes.size());
+    if (ibgp && ev.ibgp_peer_asn == peer_asn) {
+        logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: ignoring the add event since remote is IBGP.\n");
+        return false;
+    }
 
     std::vector<Prefix6> routes;
     const uint8_t *nh_global = ev.nexthop_global;
@@ -537,6 +541,11 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
     if (!send_ipv4_routes) return false;
 
     logger->log(INFO, "BgpFsm::handleRoute4AddEvent: got route-add event with %zu routes.\n", ev.routes.size());
+
+    if (ibgp && ev.ibgp_peer_asn == peer_asn) {
+        logger->log(DEBUG, "BgpFsm::handleRoute4AddEvent: ignoring the add event since remote is IBGP.\n");
+        return false;
+    }
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -970,6 +979,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     Route4AddEvent aev = Route4AddEvent();
                     aev.routes = routes;
                     aev.attribs = update->path_attribute;
+                    if (ibgp) aev.ibgp_peer_asn = peer_asn;
                     config.rev_bus->publish(this, aev);
                 }
             }
@@ -1028,6 +1038,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     aev.routes = filtered_routes;
                     memcpy(aev.nexthop_global, reach.nexthop_global, 16);
                     memcpy(aev.nexthop_linklocal, reach.nexthop_linklocal, 16);
+                    if (ibgp) aev.ibgp_peer_asn = peer_asn;
                     config.rev_bus->publish(this, aev);
                 }
             }
