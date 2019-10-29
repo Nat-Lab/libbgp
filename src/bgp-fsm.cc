@@ -579,7 +579,7 @@ bool BgpFsm::handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev) {
 
 void BgpFsm::alterNexthop4 (BgpUpdateMessage &update) {
     // ibgp
-    if (ibgp) return;
+    if (ibgp && !config.ibgp_alter_nexthop) return;
 
     // configured to fource default nexthop, or does not have a nexthop attribute
     if (config.forced_default_nexthop4 || !update.hasAttrib(NEXT_HOP)) {
@@ -610,7 +610,7 @@ void BgpFsm::alterNexthop4 (BgpUpdateMessage &update) {
 }
 
 void BgpFsm::alterNexthop6 (const uint8_t* &nh_global, const uint8_t* &nh_local) {
-    if (config.forced_default_nexthop6 && !config.peering_lan6.includes(nh_global) && !ibgp) {
+    if (config.forced_default_nexthop6 && !config.peering_lan6.includes(nh_global) && !ibgp && !config.ibgp_alter_nexthop) {
         LIBBGP_LOG(logger, INFO) {
             char nh_old_str[INET6_ADDRSTRLEN];
             char nh_def_str[INET6_ADDRSTRLEN];

@@ -41,7 +41,7 @@ typedef struct BgpConfig {
         allow_local_as = 0;
         weight = 0;
         no_autotick = false;
-        ibgp_next_hop_self = false;
+        ibgp_alter_nexthop = false;
     }
 
     /**
@@ -329,14 +329,13 @@ typedef struct BgpConfig {
     bool no_autotick;
 
     /**
-     * @brief Use default nexthop as nexthop in IBGP mode.
+     * @brief Do alter_nexthop for IBGP sessions.
      * 
-     * If true, default_nexthop4 and default_nexthop6 will be used when sending
-     * routes to IBGP peer. If false, nexthop will be leave as it is.
+     * If true, libbgp will alter IBGP nexthop attribute the same way as EBGP.
      * 
      * (default: false)
      */
-    bool ibgp_next_hop_self;
+    bool ibgp_alter_nexthop;
 } BgpConfig;
 
 /**
