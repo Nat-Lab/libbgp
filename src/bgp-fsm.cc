@@ -936,7 +936,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     return 1;
                 }
             
-                if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop)) {
+                if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop) && !ibgp) {
                     LIBBGP_LOG(logger, WARN) {
                         char ip_str_nh[INET_ADDRSTRLEN];
                         char ip_str_lan[INET_ADDRSTRLEN];
@@ -1021,6 +1021,8 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                 }
 
                 if (filtered_routes.size() <= 0) return 1;
+
+                // TODO verify with no_nexthop_check6
 
                 // remove MP_* & nexthop attribute
                 std::vector<std::shared_ptr<BgpPathAttrib>> attrs;
