@@ -62,11 +62,13 @@ rib6_t::const_iterator BgpRib6::find_entry(const Prefix6 &prefix, uint32_t src) 
 
 bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight) {
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight,
+        bool ibgp) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib6Entry new_entry(route, src_router_id, nexthop_global, nexthop_linklocal, attribs);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
+    new_entry.src = ibgp ? SRC_IBGP : SRC_EBGP;
     const char *op = "new_entry";
 
     rib6_t::const_iterator entry = find_entry(route, src_router_id);
@@ -267,9 +269,10 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
  */
 bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight) {
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight,
+    bool ibgp) {
 
-    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight);
+    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight, ibgp);
     if (inserted) update_id++;
 
     return inserted;
@@ -291,10 +294,10 @@ bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route,
  */
 ssize_t BgpRib6::insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
     size_t inserted = 0;
     for (const Prefix6 &r : routes) {
-        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib, weight)) inserted++;
+        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib, weight, ibgp)) inserted++;
     }
     update_id++;
     return inserted;

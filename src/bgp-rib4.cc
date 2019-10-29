@@ -72,11 +72,12 @@ rib4_t::const_iterator BgpRib4::find_entry(const Prefix4 &prefix, uint32_t src) 
     return rib.end();
 }
 
-bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
+bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib4Entry new_entry(route, src_router_id, attrib);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
+    new_entry.src = ibgp ? SRC_IBGP : SRC_EBGP;
     const char *op = "new_entry";
 
     rib4_t::const_iterator entry = find_entry(route, src_router_id);
@@ -265,8 +266,8 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @return true Prefix4 inserted/replaced.
  * @return false Prefix4 already exist and the existing one has lower metric. 
  */
-bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
-    bool inserted = insertPriv(src_router_id, route, attrib, weight);
+bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
+    bool inserted = insertPriv(src_router_id, route, attrib, weight, ibgp);
     if (inserted) update_id++;
     return inserted;
 }
@@ -282,10 +283,10 @@ bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::ve
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
-ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
+ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, bool ibgp) {
     size_t inserted = 0;
     for (const Prefix4 &r : routes) {
-        if (insertPriv(src_router_id, r, attrib, weight)) inserted++;
+        if (insertPriv(src_router_id, r, attrib, weight, ibgp)) inserted++;
     }
     update_id++;
     return inserted;

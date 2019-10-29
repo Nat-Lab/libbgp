@@ -759,6 +759,18 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
 
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
                 const Prefix4 &r = iter->second.route;
+                if (iter->second.src == SRC_IBGP && ibgp) {
+                    // FIXME: what if this BGP speaker has mutiple IBGP session w/ different ASN?
+                    LIBBGP_LOG(logger, DEBUG) {
+                        uint32_t prefix = r.getPrefix();
+                        char ip_str[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                        logger->log(DEBUG, "BgpFsm::fsmEvalOpenConfirm: ignored IBGP route %s/%d.\n", ip_str, r.getLength());
+                    }
+                    last_iter = iter;
+                    continue;
+                }
+
                 if (iter->second.src_router_id == peer_bgp_id) {
                     LIBBGP_LOG(logger, WARN) {
                         uint32_t prefix = r.getPrefix();
@@ -818,6 +830,18 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
 
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
                 const Prefix6 &r = iter->second.route;
+                if (iter->second.src == SRC_IBGP && ibgp) {
+                    // FIXME: what if this BGP speaker has mutiple IBGP session w/ different ASN?
+                    LIBBGP_LOG(logger, DEBUG) {
+                        uint8_t prefix[16]; 
+                        r.getPrefix(prefix);
+                        char ip_str[INET6_ADDRSTRLEN];
+                        inet_ntop(AF_INET6, &prefix, ip_str, INET6_ADDRSTRLEN);
+                        logger->log(DEBUG, "BgpFsm::fsmEvalOpenConfirm: ignored IBGP route %s/%d.\n", ip_str, r.getLength());
+                    }
+                    last_iter = iter;
+                    continue;
+                }
                 if (iter->second.src_router_id == peer_bgp_id) {
                     LIBBGP_LOG(logger, WARN) {
                         uint8_t prefix[16]; 
@@ -932,7 +956,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
 
             if (routes.size() > 0) {
-                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight);
+                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight, ibgp);
             }
 
             if (rev_bus_exist) {
@@ -996,7 +1020,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     attrs.push_back(attr);
                 }
 
-                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight);
+                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight, ibgp);
 
                 if (rev_bus_exist) {
                     Route6AddEvent aev = Route6AddEvent();
