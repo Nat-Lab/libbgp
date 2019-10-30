@@ -197,6 +197,8 @@ private:
     bool handleRouteCollisionEvent(const RouteCollisionEvent &ev);
     bool handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev);
     bool handleRoute4AddEvent(const Route4AddEvent &ev);
+    bool handleRoute6WithdrawEvent(const Route6WithdrawEvent &ev);
+    bool handleRoute6AddEvent(const Route6AddEvent &ev);
 
     int validateState(uint8_t type);
     int fsmEvalIdle(const BgpMessage *msg);
@@ -230,9 +232,15 @@ private:
 
     bool writeMessage(const BgpMessage &msg);
 
+    // automaically change IPv4 nexthop for outgoing routes if needed
+    void alterNexthop4 (BgpUpdateMessage &update);
+
+    // automaically change IPv4 nexthop for outgoing routes if needed
+    void alterNexthop6 (const uint8_t* &nh_global, const uint8_t* &nh_local);
+
     // prepare update message for advertisement (prepend my_asn, remove 
     // non-trans attrs)
-    void prepareUpdateMessage(BgpUpdateMessage &update, bool alter_v4_nexthop);
+    void prepareUpdateMessage(BgpUpdateMessage &update);
 
     BgpSink in_sink;
     BgpState state;
@@ -264,6 +272,7 @@ private:
 
     bool send_ipv4_routes;
     bool send_ipv6_routes;
+    bool ibgp;
 
     uint32_t peer_asn;
 

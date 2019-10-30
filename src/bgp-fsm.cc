@@ -84,7 +84,7 @@ BgpFsm::~BgpFsm() {
 }
 
 uint32_t BgpFsm::getAsn() const {
-    return (config.asn != 0) ? config.asn : peer_asn;
+    return config.asn;
 }
 
 uint32_t BgpFsm::getBgpId() const {
@@ -330,12 +330,16 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
         return 0;
     }
 
-    if (config.peer_asn != 0 && open_msg->getAsn() != config.peer_asn) {
+    peer_asn = open_msg->getAsn();
+
+    if (config.peer_asn != 0 && peer_asn != config.peer_asn) {
         BgpNotificationMessage notify (logger, E_OPEN, E_PEER_AS, NULL, 0);
         setState(IDLE);
         if(!writeMessage(notify)) return -1;
         return 0;
     }
+
+    ibgp = config.asn == peer_asn;
 
     if (!validAddr4(open_msg->bgp_id)) {
         LIBBGP_LOG(logger, ERROR) {
@@ -387,7 +391,6 @@ int BgpFsm::openRecv(const BgpOpenMessage *open_msg) {
 
     hold_timer = config.hold_timer > open_msg->hold_time ? open_msg->hold_time : config.hold_timer;
     peer_bgp_id = open_msg->bgp_id;
-    peer_asn = open_msg->getAsn();
     use_4b_asn = open_msg->hasCapability(ASN_4B) && config.use_4b_asn;
     send_ipv4_routes = true;
     if (open_msg->hasCapability(MP_BGP) && (config.mp_bgp_ipv6 || config.mp_bgp_ipv4)) {
@@ -461,6 +464,8 @@ int BgpFsm::resloveCollision(uint32_t peer_bgp_id, bool is_new) {
 bool BgpFsm::handleRouteEvent(const RouteEvent &ev) {
     if (ev.type == ADD4) return handleRoute4AddEvent(dynamic_cast <const Route4AddEvent&>(ev));
     if (ev.type == WITHDRAW4) return handleRoute4WithdrawEvent(dynamic_cast <const Route4WithdrawEvent&>(ev));
+    if (ev.type == ADD6) return handleRoute6AddEvent(dynamic_cast <const Route6AddEvent&>(ev));
+    if (ev.type == WITHDRAW6) return handleRoute6WithdrawEvent(dynamic_cast <const Route6WithdrawEvent&>(ev));
     if (ev.type == COLLISION) return handleRouteCollisionEvent(dynamic_cast <const RouteCollisionEvent&>(ev));
 
     return false;
@@ -475,11 +480,72 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
     return resloveCollision(ev.peer_bgp_id, false) == 1;
 }
 
+bool BgpFsm::handleRoute6AddEvent(const Route6AddEvent &ev) {
+    if (state != ESTABLISHED) return false;
+    if (!send_ipv6_routes) return false; 
+
+    logger->log(INFO, "BgpFsm::handleRoute6AddEvent: got route-add event with %zu routes.\n", ev.routes.size());
+    if (ibgp && ev.ibgp_peer_asn == peer_asn) {
+        logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: ignoring the add event since remote is IBGP.\n");
+        return false;
+    }
+
+    std::vector<Prefix6> routes;
+    const uint8_t *nh_global = ev.nexthop_global;
+    const uint8_t *nh_local = ev.nexthop_linklocal;
+    alterNexthop6(nh_local, nh_global);
+
+    for (const Prefix6 &route : ev.routes) {
+        if (config.out_filters6.apply(route, ev.attribs)) {
+            routes.push_back(route);
+        } else {
+            LIBBGP_LOG(logger, INFO) {
+                uint8_t prefix[16];
+                route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, &prefix, prefix_str, INET6_ADDRSTRLEN);
+                logger->log(INFO, "BgpFsm::handleRoute6AddEvent: route %s/%d filtered by out_filter.\n", prefix_str, route.getLength());
+            }
+        }
+    }
+
+    if (routes.size() > 0) {
+        BgpUpdateMessage update (logger, use_4b_asn);
+        update.setAttribs(ev.attribs);
+        prepareUpdateMessage(update);
+        update.setNlri6(routes, nh_global, nh_local);
+
+        if(!writeMessage(update)) return false;
+        return true;
+    }
+
+    return false;
+}
+
+bool BgpFsm::handleRoute6WithdrawEvent(const Route6WithdrawEvent &ev) {
+    if (state != ESTABLISHED) return false;
+    if (!send_ipv6_routes) return false;
+
+    logger->log(INFO, "BgpFsm::handleRoute6WithdrawEvent: got route-withdraw event with %zu routes.\n", ev.routes.size());
+
+
+    BgpUpdateMessage withdraw (logger, use_4b_asn);
+    withdraw.setWithdrawn6(ev.routes);
+
+    if(!writeMessage(withdraw)) return false;
+    return true;
+}
+
 bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
     if (state != ESTABLISHED) return false;
     if (!send_ipv4_routes) return false;
 
     logger->log(INFO, "BgpFsm::handleRoute4AddEvent: got route-add event with %zu routes.\n", ev.routes.size());
+
+    if (ibgp && ev.ibgp_peer_asn == peer_asn) {
+        logger->log(DEBUG, "BgpFsm::handleRoute4AddEvent: ignoring the add event since remote is IBGP.\n");
+        return false;
+    }
 
     BgpUpdateMessage update (logger, use_4b_asn);
     update.setAttribs(ev.attribs);
@@ -499,7 +565,8 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
 
     if (update.nlri.size() <= 0) return false;
 
-    prepareUpdateMessage(update, true);
+    alterNexthop4(update);
+    prepareUpdateMessage(update);
 
     if(!writeMessage(update)) return false;
     return true;
@@ -519,46 +586,69 @@ bool BgpFsm::handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev) {
     return true;
 }
 
-void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update, bool alter_v4_nexthop) {
-    update.dropNonTransitive();
+void BgpFsm::alterNexthop4 (BgpUpdateMessage &update) {
+    // ibgp
+    if (ibgp && !config.ibgp_alter_nexthop) return;
 
-    // ipv4 nexthop related stuffs
-    if (alter_v4_nexthop) {
-        if (config.forced_default_nexthop4 || !update.hasAttrib(NEXT_HOP)) {
-            LIBBGP_LOG(logger, INFO) {
-                char ip_str[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &(config.default_nexthop4), ip_str, INET_ADDRSTRLEN);
-                if (config.forced_default_nexthop4) {
-                    logger->log(INFO, "BgpFsm::prepareUpdateMessage: forced_default_nexthop4 set, using %s as nexthop.\n", ip_str);
-                } else {
-                    logger->log(INFO, "BgpFsm::prepareUpdateMessage: no nethop attribute set, using %s as nexthop.\n", ip_str);
-                }
-            }
-            update.setNextHop(config.default_nexthop4);
-        } else {
-            BgpPathAttribNexthop &nh = dynamic_cast<BgpPathAttribNexthop &> (update.getAttrib(NEXT_HOP));
-            if (!config.peering_lan4.includes(nh.next_hop)) {
-                LIBBGP_LOG(logger, INFO) {
-                    char def_nexthop[INET_ADDRSTRLEN];
-                    char cur_nexthop[INET_ADDRSTRLEN];
-                    inet_ntop(AF_INET, &(config.default_nexthop4), def_nexthop, INET_ADDRSTRLEN);
-                    inet_ntop(AF_INET, &(nh.next_hop), cur_nexthop, INET_ADDRSTRLEN);
-                    logger->log(INFO, "BgpFsm::prepareUpdateMessage: nexthop %s not in peering lan, using %s.\n", cur_nexthop, def_nexthop);
-                }
-                nh.next_hop = config.default_nexthop4;
+    // configured to fource default nexthop, or does not have a nexthop attribute
+    if (config.forced_default_nexthop4 || !update.hasAttrib(NEXT_HOP)) {
+        LIBBGP_LOG(logger, INFO) {
+            char ip_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &(config.default_nexthop4), ip_str, INET_ADDRSTRLEN);
+            if (config.forced_default_nexthop4) {
+                logger->log(INFO, "BgpFsm::alterNexthop4: forced_default_nexthop4 set, using %s as nexthop.\n", ip_str);
+            } else {
+                logger->log(INFO, "BgpFsm::alterNexthop4: no nethop attribute set, using %s as nexthop.\n", ip_str);
             }
         }
+        update.setNextHop(config.default_nexthop4);
+    } else {
+        // nexthop not forced, check w/ peering LAN
+        BgpPathAttribNexthop &nh = dynamic_cast<BgpPathAttribNexthop &> (update.getAttrib(NEXT_HOP));
+        if (!config.peering_lan4.includes(nh.next_hop)) {
+            LIBBGP_LOG(logger, INFO) {
+                char def_nexthop[INET_ADDRSTRLEN];
+                char cur_nexthop[INET_ADDRSTRLEN];
+                inet_ntop(AF_INET, &(config.default_nexthop4), def_nexthop, INET_ADDRSTRLEN);
+                inet_ntop(AF_INET, &(nh.next_hop), cur_nexthop, INET_ADDRSTRLEN);
+                logger->log(INFO, "BgpFsm::alterNexthop4: nexthop %s not in peering lan, using %s.\n", cur_nexthop, def_nexthop);
+            }
+            nh.next_hop = config.default_nexthop4;
+        }
     }
+}
+
+void BgpFsm::alterNexthop6 (const uint8_t* &nh_global, const uint8_t* &nh_local) {
+    if (config.forced_default_nexthop6 && !config.peering_lan6.includes(nh_global) && !ibgp && !config.ibgp_alter_nexthop) {
+        LIBBGP_LOG(logger, INFO) {
+            char nh_old_str[INET6_ADDRSTRLEN];
+            char nh_def_str[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET6, &nh_global, nh_old_str, INET6_ADDRSTRLEN);
+            inet_ntop(AF_INET6, &nh_def_str, nh_def_str, INET6_ADDRSTRLEN);
+
+            if (config.forced_default_nexthop6) {
+                logger->log(INFO, "BgpFsm::alterNexthop6: forced_default_nexthop6 set, default (%s) will be used.\n", nh_def_str);
+            }
+            else logger->log(INFO, "BgpFsm::alterNexthop6: nexthop %s is not in peering lan, default (%s) will be used.\n", nh_old_str, nh_def_str);
+        }
+
+        nh_global = config.default_nexthop6_global;
+        nh_local = config.default_nexthop6_linklocal;
+    }
+}
+
+void BgpFsm::prepareUpdateMessage(BgpUpdateMessage &update) {
+    update.dropNonTransitive();
 
     if (config.use_4b_asn && use_4b_asn) {                
         update.restoreAsPath();
         update.restoreAggregator();
-        update.prepend(config.asn);
     } else {
         update.downgradeAsPath();
         update.downgradeAggregator();
-        update.prepend(config.asn);
-    }    
+    }
+
+    if (!ibgp) update.prepend(config.asn);
 }
 
 int BgpFsm::validateState(uint8_t type) {
@@ -666,7 +756,8 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             uint64_t cur_group_id = iter->second.update_id;
             BgpUpdateMessage update (logger, use_4b_asn);
             update.setAttribs(iter->second.attribs);
-            prepareUpdateMessage(update, true);
+            alterNexthop4(update);
+            prepareUpdateMessage(update);
 
             // length of the update message, 19: headers, 4: length fields
             size_t msg_len = 19 + 4;
@@ -676,7 +767,19 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             }
 
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
-                const Prefix4 &r = iter->second.route;
+                const BgpRib4Entry &e = iter->second;
+                const Prefix4 &r = e.route;
+                if (ibgp && e.src == SRC_IBGP && e.ibgp_peer_asn == peer_asn) {
+                    LIBBGP_LOG(logger, DEBUG) {
+                        uint32_t prefix = r.getPrefix();
+                        char ip_str[INET_ADDRSTRLEN];
+                        inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
+                        logger->log(DEBUG, "BgpFsm::fsmEvalOpenConfirm: ignored IBGP route %s/%d.\n", ip_str, r.getLength());
+                    }
+                    last_iter = iter;
+                    continue;
+                }
+
                 if (iter->second.src_router_id == peer_bgp_id) {
                     LIBBGP_LOG(logger, WARN) {
                         uint32_t prefix = r.getPrefix();
@@ -723,7 +826,8 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             const uint8_t *nh_linklocal = iter->second.nexthop_linklocal;
             BgpUpdateMessage update (logger, use_4b_asn);
             update.setAttribs(iter->second.attribs);
-            prepareUpdateMessage(update, false);
+
+            prepareUpdateMessage(update);
             std::vector<Prefix6> filtered_nlri;
 
             // 8: mp-reach-nlri headers (attrib hdr: 3, afi/safi/nh_len/res: 5)
@@ -734,7 +838,19 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             }
 
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
-                const Prefix6 &r = iter->second.route;
+                const BgpRib6Entry &e = iter->second;
+                const Prefix6 &r = e.route;
+                if (ibgp && e.src == SRC_IBGP && e.ibgp_peer_asn == peer_asn) {
+                    LIBBGP_LOG(logger, DEBUG) {
+                        uint8_t prefix[16]; 
+                        r.getPrefix(prefix);
+                        char ip_str[INET6_ADDRSTRLEN];
+                        inet_ntop(AF_INET6, &prefix, ip_str, INET6_ADDRSTRLEN);
+                        logger->log(DEBUG, "BgpFsm::fsmEvalOpenConfirm: ignored IBGP route %s/%d.\n", ip_str, r.getLength());
+                    }
+                    last_iter = iter;
+                    continue;
+                }
                 if (iter->second.src_router_id == peer_bgp_id) {
                     LIBBGP_LOG(logger, WARN) {
                         uint8_t prefix[16]; 
@@ -768,23 +884,8 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             }
 
             if (filtered_nlri.size() > 0) {
-                if (config.forced_default_nexthop6 && !config.peering_lan6.includes(nh_global)) {
-                    LIBBGP_LOG(logger, INFO) {
-                        char nh_old_str[INET6_ADDRSTRLEN];
-                        char nh_def_str[INET6_ADDRSTRLEN];
-                        inet_ntop(AF_INET6, &nh_global, nh_old_str, INET6_ADDRSTRLEN);
-                        inet_ntop(AF_INET6, &nh_def_str, nh_def_str, INET6_ADDRSTRLEN);
-
-                        if (config.forced_default_nexthop6) {
-                            logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: forced_default_nexthop6 set, default (%s) will be used.\n", nh_def_str);
-                        }
-                        else logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: nexthop %s is not in peering lan, default (%s) will be used.\n", nh_old_str, nh_def_str);
-                    }
-
-                    update.setNlri6(filtered_nlri, config.default_nexthop6_global, config.default_nexthop6_linklocal);
-                } else update.setNlri6(filtered_nlri, nh_global, nh_linklocal);
-
-                
+                alterNexthop6(nh_global, nh_linklocal);
+                update.setNlri6(filtered_nlri, nh_global, nh_linklocal);
                 if(!writeMessage(update)) return -1;
             }
 
@@ -835,7 +936,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     return 1;
                 }
             
-                if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop)) {
+                if (!config.no_nexthop_check4 && !config.peering_lan4.includes(nh.next_hop) && !ibgp) {
                     LIBBGP_LOG(logger, WARN) {
                         char ip_str_nh[INET_ADDRSTRLEN];
                         char ip_str_lan[INET_ADDRSTRLEN];
@@ -864,7 +965,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
 
             if (routes.size() > 0) {
-                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight);
+                rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight, ibgp ? peer_asn : 0);
             }
 
             if (rev_bus_exist) {
@@ -878,6 +979,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     Route4AddEvent aev = Route4AddEvent();
                     aev.routes = routes;
                     aev.attribs = update->path_attribute;
+                    if (ibgp) aev.ibgp_peer_asn = peer_asn;
                     config.rev_bus->publish(this, aev);
                 }
             }
@@ -920,6 +1022,8 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
                 if (filtered_routes.size() <= 0) return 1;
 
+                // TODO verify with no_nexthop_check6
+
                 // remove MP_* & nexthop attribute
                 std::vector<std::shared_ptr<BgpPathAttrib>> attrs;
 
@@ -928,12 +1032,15 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     attrs.push_back(attr);
                 }
 
-                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight);
+                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight, ibgp ? peer_asn : 0);
 
                 if (rev_bus_exist) {
                     Route6AddEvent aev = Route6AddEvent();
                     aev.attribs = attrs;
                     aev.routes = filtered_routes;
+                    memcpy(aev.nexthop_global, reach.nexthop_global, 16);
+                    memcpy(aev.nexthop_linklocal, reach.nexthop_linklocal, 16);
+                    if (ibgp) aev.ibgp_peer_asn = peer_asn;
                     config.rev_bus->publish(this, aev);
                 }
             }

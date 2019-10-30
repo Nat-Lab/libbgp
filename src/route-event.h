@@ -49,7 +49,7 @@ public:
  */
 class Route4AddEvent : public RouteEvent {
 public:
-    Route4AddEvent () { type = ADD4; }
+    Route4AddEvent () { type = ADD4; ibgp_peer_asn = 0; }
 
     /**
      * @brief Path attribues of the route.
@@ -62,6 +62,14 @@ public:
      * 
      */
     std::vector<Prefix4> routes;
+
+    /**
+     * @brief ASN of the IBGP peer if the originating session is a IBGP session.
+     * 
+     * ASN of the IBGP peer. If the originating session is not IBGP, 
+     * ibgp_peer_asn will be 0;
+     */
+    uint32_t ibgp_peer_asn;
 };
 
 /**
@@ -85,7 +93,7 @@ public:
  */
 class Route6AddEvent : public RouteEvent {
 public:
-    Route6AddEvent () { type = ADD6; }
+    Route6AddEvent () { type = ADD6; ibgp_peer_asn = 0; }
 
     /**
      * @brief Path attribues of the route.
@@ -98,6 +106,26 @@ public:
      * 
      */
     std::vector<Prefix6> routes;
+
+    /**
+     * @brief Global IPv6 nexthop.
+     * 
+     */
+    uint8_t nexthop_global[16];
+
+    /**
+     * @brief Link-local IPv6 nexthop.
+     * 
+     */
+    uint8_t nexthop_linklocal[16];
+
+    /**
+     * @brief ASN of the IBGP peer if the originating session is a IBGP session.
+     * 
+     * ASN of the IBGP peer. If the originating session is not IBGP, 
+     * ibgp_peer_asn will be 0;
+     */
+    uint32_t ibgp_peer_asn;
 };
 
 /**

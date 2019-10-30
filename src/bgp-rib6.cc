@@ -62,11 +62,14 @@ rib6_t::const_iterator BgpRib6::find_entry(const Prefix6 &prefix, uint32_t src) 
 
 bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight) {
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight,
+        uint32_t ibgp_asn) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib6Entry new_entry(route, src_router_id, nexthop_global, nexthop_linklocal, attribs);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
+    new_entry.src = ibgp_asn > 0 ? SRC_IBGP : SRC_EBGP;
+    new_entry.ibgp_peer_asn = ibgp_asn;
     const char *op = "new_entry";
 
     rib6_t::const_iterator entry = find_entry(route, src_router_id);
@@ -262,14 +265,16 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @param attrib Path attribute.
  * @param weight weight of this entry.
+ * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
  * @return true Route inserted/replaced.
  * @return false Route already exist and the existing one has lower metric.
  */
 bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight) {
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight,
+    uint32_t ibgp_asn) {
 
-    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight);
+    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight, ibgp_asn);
     if (inserted) update_id++;
 
     return inserted;
@@ -284,17 +289,17 @@ bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route,
  * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
  * @param attrib Path attribute. 
  * @param weight weight of this entry.
- * @param weight weight of this entry.
+ * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
  * @return ssize_t Number of routes inserted.
  * @retval -1 Failed to insert routes.
  * @retval >=0 Number of routes inserted.
  */
 ssize_t BgpRib6::insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight) {
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     size_t inserted = 0;
     for (const Prefix6 &r : routes) {
-        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib, weight)) inserted++;
+        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib, weight, ibgp_asn)) inserted++;
     }
     update_id++;
     return inserted;

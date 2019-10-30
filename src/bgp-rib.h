@@ -10,12 +10,29 @@
 namespace libbgp {
 
 /**
+ * @brief Source of the RIB entry.
+ * 
+ */
+enum BgpRouteSource {
+    SRC_EBGP = 0,
+    SRC_IBGP = 1
+};
+
+/**
  * @brief The base of BGP RIB entry.
  * 
  * @tparam T Type of BgpRibEntry
  */
 template<typename T> class BgpRibEntry {
 public:
+    /**
+     * @brief Construct a new BgpRibEntry
+     * 
+     * source default to SRC_EBGP 
+     * 
+     */
+    BgpRibEntry () { src = SRC_EBGP; }
+
     /**
      * @brief The originating BGP speaker's ID of this entry. (network bytes order)
      * 
@@ -48,6 +65,24 @@ public:
     std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
 
     /**
+     * @brief Source of this entry.
+     * 
+     * If the route is from an IBGP peer, the nexthop might not be reachable
+     * directly. You may need recursive nexthop or info from other routing
+     * protocols.
+     */
+    BgpRouteSource src;
+
+    /**
+     * @brief ASN of the IBGP peer. (Valid iff src == SRC_IBGP)
+     * 
+     * The ibgp_peer_asn field can be used to identify which IBGP session does 
+     * this route belongs to. This is needed since a BGP speaker can have
+     * multiple IBGP sessions with different ASNS.
+     */
+    uint32_t ibgp_peer_asn;
+
+    /**
      * @brief Test if this entry has greater weight then anoter entry. 
      * Please note that weight are only calculated based on path attribues. 
      * (i.e., you need to compare route prefix first)
@@ -57,6 +92,10 @@ public:
      * @return false This entry has lower or equals weight.
      */
     bool operator> (const T &other) const {
+        // perfer ebgp
+        if (this->src > other.src) return false;
+
+        // prefer higher weight
         if (this->weight > other.weight) return true;
         if (this->weight < other.weight) return false;
 
@@ -75,6 +114,7 @@ public:
         uint32_t other_local_pref = 100;
         uint32_t this_local_pref = 100;
 
+        // grab attributes
         for (const std::shared_ptr<BgpPathAttrib> &attr : other.attribs) {
             if (attr->type_code == MULTI_EXIT_DISC) {
                 const BgpPathAttribMed &med = dynamic_cast<const BgpPathAttribMed &>(*attr);

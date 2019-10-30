@@ -41,6 +41,7 @@ typedef struct BgpConfig {
         allow_local_as = 0;
         weight = 0;
         no_autotick = false;
+        ibgp_alter_nexthop = false;
     }
 
     /**
@@ -235,7 +236,8 @@ typedef struct BgpConfig {
      * @brief Forced IPv4 default nexthop.
      * 
      * If this is set to true, the `default_nexthop4` configuration parameter 
-     * will always be used as nexthop, regardless of the peering LAN.
+     * will always be used as nexthop, regardless of the peering LAN. (EBGP 
+     * only, use ibgp_next_hop_self for IBGP.)
      * (default: false)
      */
     bool forced_default_nexthop4;
@@ -325,6 +327,15 @@ typedef struct BgpConfig {
      * (default: false)
      */
     bool no_autotick;
+
+    /**
+     * @brief Do alter_nexthop for IBGP sessions.
+     * 
+     * If true, libbgp will alter IBGP nexthop attribute the same way as EBGP.
+     * 
+     * (default: false)
+     */
+    bool ibgp_alter_nexthop;
 } BgpConfig;
 
 /**

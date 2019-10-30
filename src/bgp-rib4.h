@@ -100,11 +100,11 @@ public:
     const std::vector<BgpRib4Entry> insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight = 0);
 
     // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
+    bool insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
 
     // insert new routes into RIB, return number of routes inserted on success,
     // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
+    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
 
     // remove a route from RIB, return true if route removed, false if not exist.
     bool withdraw(uint32_t src_router_id, const Prefix4 &route);
@@ -128,7 +128,7 @@ public:
     const rib4_t &get() const;
 private:
     rib4_t::const_iterator find_entry(const Prefix4 &prefix, uint32_t src) const;
-    bool insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight);
+    bool insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
     rib4_t rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;
