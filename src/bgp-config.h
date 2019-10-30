@@ -236,8 +236,8 @@ typedef struct BgpConfig {
      * @brief Forced IPv4 default nexthop.
      * 
      * If this is set to true, the `default_nexthop4` configuration parameter 
-     * will always be used as nexthop, regardless of the peering LAN. (EBGP 
-     * only, use ibgp_next_hop_self for IBGP.)
+     * will always be used as nexthop, regardless of the peering LAN. (for IBGP,
+     * this will only work if ibgp_alter_nexthop is set to true.)
      * (default: false)
      */
     bool forced_default_nexthop4;
@@ -280,7 +280,8 @@ typedef struct BgpConfig {
      * @brief Forced IPv6 default nexthop.
      * 
      * If this is set to true, the `default_nexthop6` configuration parameter 
-     * will always be used as nexthop, regardless of the peering LAN.
+     * will always be used as nexthop, regardless of the peering LAN. (for IBGP,
+     * this will only work if ibgp_alter_nexthop is set to true.)
      * (default: false)
      */
     bool forced_default_nexthop6;
