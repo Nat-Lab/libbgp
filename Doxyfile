@@ -5,7 +5,7 @@
 #---------------------------------------------------------------------------
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = libbgp
-PROJECT_NUMBER         = 0.4.8
+PROJECT_NUMBER         = 0.5
 PROJECT_BRIEF          = "A C++ BGP Library."
 PROJECT_LOGO           =
 OUTPUT_DIRECTORY       = ./docs
