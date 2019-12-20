@@ -116,46 +116,55 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
     const char *op = "new_entry";
     const char *act = "new_best";
 
-    /* keep track of the old best route */
-    bool old_exist = false;
+    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> entries = 
+        rib.equal_range(BgpRib4EntryKey(route));
+
     bool best_changed = false;
-    uint64_t old_best_uid = 0;
+    bool old_exist = entries.first != rib.end();
+    const BgpRib4Entry *new_best = NULL;
 
-    rib4_t::const_iterator best_before_insert = find_best (route);
-    if (best_before_insert != rib.end()) {
-        old_exist = true;
-        old_best_uid = best_before_insert->second.update_id;
-    }
-
-    /* do the actual insert */
-    rib4_t::const_iterator best_after_insert = rib.end();
-    if (old_exist) { 
-        // erase old entry from same peer if exist.
-        std::pair<rib4_t::const_iterator, rib4_t::const_iterator> entries = 
-            rib.equal_range(BgpRib4EntryKey(route));
-        
-        for (rib4_t::const_iterator it = entries.first; it != entries.second;) {
-            if (it->second.route == route && it->second.src_router_id == src_router_id) {
-                op = "update";
-                it = rib.erase(it);
-            } else it++;
+    // older route exist
+    if (old_exist) {
+        // find old best & route to replace
+        rib4_t::const_iterator to_replace = rib.end();
+        const BgpRib4Entry *old_best = NULL;
+        for (rib4_t::const_iterator it = entries.first; it != entries.second; it++) {
+            if (it->second.route != route) continue;
+            if (it->second.src_router_id == src_router_id) {
+                to_replace = it;
+                continue;
+            }
+            old_best = selectEntry(old_best, &(it->second));
         }
 
-        // insert
-        rib4_t::const_iterator insetred = rib.insert(MAKE_ENTRY4(route, new_entry));
-
-        /* check the new best route */
-        best_after_insert = find_best (route);
-
-        // best route is old best route, 
-        if (best_after_insert->second.update_id == old_best_uid) {
+        const BgpRib4Entry *candidate = selectEntry(&new_entry, old_best);
+        if (candidate == old_best) {
             act = "not_new_best";
         } else best_changed = true;
-    } else {
-        // no old entry exist, inserted automaically become new best
-        best_after_insert = rib.insert(MAKE_ENTRY4(route, new_entry));
-    }
 
+        if (to_replace != rib.end()) {
+            const BgpRib4Entry *candidate = selectEntry(&(to_replace->second), old_best);
+            if (candidate == &(to_replace->second)) {
+                // the replaced route was the best route, now it is removed
+                act = "new_best";
+                best_changed = true;
+            }
+            // we need to replace a route
+            op = "update";
+            rib.erase(to_replace);
+        }
+
+        rib4_t::const_iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
+
+        if (best_changed)
+            new_best = candidate == &new_entry ? &(inserted->second) : old_best;
+
+    } else { // no older route, new one is best
+        best_changed = true;
+        rib4_t::const_iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
+        new_best = &(inserted->second);
+    }
+    
     LIBBGP_LOG(logger, INFO) {
         uint32_t prefix = route.getPrefix();
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
@@ -164,12 +173,7 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
         logger->log(INFO, "BgpRib4::insertPriv: (%s/%s) group %d, scope %s, route %s/%d\n", op, act, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
-    if (best_after_insert == rib.end()) {
-        logger->log(FATAL, "BgpRib4::insertPriv: internal error: best_after_insert does not exist.\n");
-        return NULL;
-    }
-
-    return (!old_exist || best_changed) ? &(best_after_insert->second) : NULL;
+    return new_best;
 }
 
 /**
@@ -318,8 +322,7 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
                 to_remove = it;
                 continue;
             }
-            if (replacement == NULL) replacement = &(it->second);
-            else replacement = selectEntry(replacement, &(it->second));
+            replacement = selectEntry(replacement, &(it->second));
         }
     }
 
