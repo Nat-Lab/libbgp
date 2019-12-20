@@ -19,7 +19,6 @@
 #include "bgp-rib.h"
 #include "prefix4.h"
 #include "bgp-path-attrib.h"
-#include "route-event-bus.h"
 
 namespace libbgp {
 
@@ -30,27 +29,24 @@ namespace libbgp {
 class BgpRib4EntryKey {
 public:
     BgpRib4EntryKey() {}
-    BgpRib4EntryKey(const Prefix4 &prefix, uint32_t src) {
+    BgpRib4EntryKey(const Prefix4 &prefix) {
         this->prefix = prefix.getPrefix();
         this->length = prefix.getLength();
-        this->src = src;
-        hash = (this->prefix ^ this->length) | this->src << 4;
+        hash = this->prefix | (this->length << 4);
     }
-    BgpRib4EntryKey(uint32_t prefix, uint32_t length, uint32_t src) {
+    BgpRib4EntryKey(uint32_t prefix, uint32_t length) {
         this->prefix = prefix;
         this->length = length;
-        this->src = src;
-        hash = (this->prefix ^ this->length) | this->src << 4;
+        hash = this->prefix | (this->length << 4);
     }
 
     bool operator== (const BgpRib4EntryKey &other) const {
-        return prefix == other.prefix && length == other.length && src == other.src;
+        return prefix == other.prefix && length == other.length;
     }
 
     uint64_t hash;
     uint32_t prefix;
     uint8_t length;
-    uint32_t src;
 };
 
 /**
@@ -92,31 +88,18 @@ class BgpRib4 : private BgpRib<BgpRib4Entry> {
 public:
     BgpRib4(BgpLogHandler *logger);
 
-    // insert a route as local routing information base
+    // insert a route as local routing information base. This MUST NOT be called when FSM is running.
     const BgpRib4Entry* insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, int32_t weight = 0);
-    const BgpRib4Entry* insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight = 0);
-
     const std::vector<BgpRib4Entry> insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, int32_t weight = 0);
-    const std::vector<BgpRib4Entry> insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight = 0);
 
-    // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
+    // insert a new route into RIB, return BgpRib4Entry that should be send to other peers.
+    const BgpRib4Entry* insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
 
-    // insert new routes into RIB, return number of routes inserted on success,
-    // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
+    // remove a route from RIB, return NULL if route no longer reachable, updated_route otherwise.
+    std::pair<bool, const BgpRib4Entry*> withdraw(uint32_t src_router_id, const Prefix4 &route);
 
-    // remove a route from RIB, return true if route removed, false if not exist.
-    bool withdraw(uint32_t src_router_id, const Prefix4 &route);
-    bool withdraw(uint32_t src_router_id, const Prefix4 &route, RouteEventBus *rev_bus);
-
-    // remove routes from RIB, return number of routes removed on success, -1
-    // on error
-    ssize_t withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes);
-    ssize_t withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes, RouteEventBus *rev_bus);
-
-    // remove all routes from a peer, return all discarded routes on success.
-    std::vector<Prefix4> discard(uint32_t src_router_id);
+    // remove all routes from a peer, return <unreachabled routes, updated_routes>.
+    std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
     const BgpRib4Entry* lookup(uint32_t dest) const;
@@ -127,8 +110,9 @@ public:
     // get RIB
     const rib4_t &get() const;
 private:
-    rib4_t::const_iterator find_entry(const Prefix4 &prefix, uint32_t src) const;
-    bool insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
+    rib4_t::const_iterator find_best (const Prefix4 &prefix) const;
+    rib4_t::const_iterator find_entry (const Prefix4 &prefix, uint32_t src) const;
+    const BgpRib4Entry* insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
     rib4_t rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;

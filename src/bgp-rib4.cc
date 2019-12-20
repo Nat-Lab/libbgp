@@ -10,7 +10,7 @@
  */
 #include "bgp-rib4.h"
 #include <arpa/inet.h>
-#define MAKE_ENTRY4(r, s, e) std::make_pair(BgpRib4EntryKey(r, s), e)
+#define MAKE_ENTRY4(r, e) std::make_pair(BgpRib4EntryKey(r), e)
 
 namespace libbgp {
 
@@ -57,9 +57,29 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
     update_id = 0;    
 }
 
-rib4_t::const_iterator BgpRib4::find_entry(const Prefix4 &prefix, uint32_t src) const {
+rib4_t::const_iterator BgpRib4::find_best (const Prefix4 &prefix) const {
     std::pair<rib4_t::const_iterator, rib4_t::const_iterator> its = 
-        rib.equal_range(BgpRib4EntryKey(prefix, src));
+        rib.equal_range(BgpRib4EntryKey(prefix));
+
+    rib4_t::const_iterator best = rib.end();
+    if (its.first == rib.end()) return rib.end();
+
+    for (rib4_t::const_iterator it = its.first; it != its.second; it++) {
+        if (it->second.route == prefix) {
+            if (best == rib.end()) best = it;
+            else {
+                const BgpRib4Entry *best_ptr = selectEntry(&(best->second), &(it->second));
+                best = best_ptr == &(best->second) ? best : it;
+            }
+        }
+    }
+
+    return best;
+}
+
+rib4_t::const_iterator BgpRib4::find_entry (const Prefix4 &prefix, uint32_t src) const {
+    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> its = 
+        rib.equal_range(BgpRib4EntryKey(prefix));
 
     if (its.first == rib.end()) return rib.end();
 
@@ -72,19 +92,68 @@ rib4_t::const_iterator BgpRib4::find_entry(const Prefix4 &prefix, uint32_t src) 
     return rib.end();
 }
 
-bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
+/**
+ * @brief The actual insert implementation.
+ * 
+ * @param src_router_id source router ID.
+ * @param route route to insert.
+ * @param attrib route attributes.
+ * @param weight route weight.
+ * @param ibgp_asn remote ASN, if IBGP.
+ * @return const BgpRib4Entry entry that should be send to peer. (NULL-able)
+ */
+const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
+
+    /* construct the new entry object */
     BgpRib4Entry new_entry(route, src_router_id, attrib);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
     new_entry.src = ibgp_asn > 0 ? SRC_IBGP : SRC_EBGP;
     new_entry.ibgp_peer_asn = ibgp_asn;
-    const char *op = "new_entry";
 
-    rib4_t::const_iterator entry = find_entry(route, src_router_id);
-    if (entry != rib.end()) {
-        op = "update";
-        rib.erase(entry);
+    // for logging
+    const char *op = "new_entry";
+    const char *act = "new_best";
+
+    /* keep track of the old best route */
+    bool old_exist = false;
+    bool best_changed = false;
+    uint64_t old_best_uid = 0;
+
+    rib4_t::const_iterator best_before_insert = find_best (route);
+    if (best_before_insert != rib.end()) {
+        old_exist = true;
+        old_best_uid = best_before_insert->second.update_id;
+    }
+
+    /* do the actual insert */
+    rib4_t::const_iterator best_after_insert = rib.end();
+    if (old_exist) { 
+        // erase old entry from same peer if exist.
+        std::pair<rib4_t::const_iterator, rib4_t::const_iterator> entries = 
+            rib.equal_range(BgpRib4EntryKey(route));
+        
+        for (rib4_t::const_iterator it = entries.first; it != entries.second;) {
+            if (it->second.route == route && it->second.src_router_id == src_router_id) {
+                op = "update";
+                it = rib.erase(it);
+            } else it++;
+        }
+
+        // insert
+        rib4_t::const_iterator insetred = rib.insert(MAKE_ENTRY4(route, new_entry));
+
+        /* check the new best route */
+        best_after_insert = find_best (route);
+
+        // best route is old best route, 
+        if (best_after_insert->second.update_id == old_best_uid) {
+            act = "not_new_best";
+        } else best_changed = true;
+    } else {
+        // no old entry exist, inserted automaically become new best
+        best_after_insert = rib.insert(MAKE_ENTRY4(route, new_entry));
     }
 
     LIBBGP_LOG(logger, INFO) {
@@ -92,11 +161,15 @@ bool BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib4::insert: (%s) group %d, scope %s, route %s/%d\n", op, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib4::insertPriv: (%s/%s) group %d, scope %s, route %s/%d\n", op, act, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
-    rib.insert(MAKE_ENTRY4(route, src_router_id, new_entry));
-    return true;
+    if (best_after_insert == rib.end()) {
+        logger->log(FATAL, "BgpRib4::insertPriv: internal error: best_after_insert does not exist.\n");
+        return NULL;
+    }
+
+    return (!old_exist || best_changed) ? &(best_after_insert->second) : NULL;
 }
 
 /**
@@ -154,36 +227,9 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
     new_entry.update_id = use_update_id;
     new_entry.weight = weight;
     if (use_update_id == update_id) update_id++;
-    rib4_t::const_iterator it = rib.insert(MAKE_ENTRY4(route, 0, new_entry));
+    rib4_t::const_iterator it = rib.insert(MAKE_ENTRY4(route, new_entry));
 
     return &(it->second);
-}
-
-/**
- * @brief Insert a local route into RIB.
- * 
- * Same as the other local insert, but this one notify the rev_bus after
- * inserting route.
- * 
- * @param logger Pointer to logger for the created path attributes to use. 
- * @param route Prefix4.
- * @param nexthop Nexthop for the route.
- * @param rev_bus event bus to publish to add event.
- * @param weight weight of this entry.
- * @retval NULL failed to insert.
- * @retval !=NULL Inserted route.
- */
-const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight) {
-    const BgpRib4Entry *entry = insert(logger, route, nexthop, weight);
-
-    if (entry != NULL) {
-        Route4AddEvent add_event;
-        add_event.routes.push_back(entry->route);
-        add_event.attribs = entry->attribs;
-        rev_bus->publish(NULL, add_event);
-    }
-
-    return entry;
 }
 
 /**
@@ -218,42 +264,11 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
         BgpRib4Entry new_entry (route, 0, attribs);
         new_entry.update_id = update_id;
         new_entry.weight = weight;
-        rib4_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY4(route, 0, new_entry));
+        rib4_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY4(route, new_entry));
         inserted.push_back(isrt_it->second);
     }
 
     update_id++;
-    return inserted;
-}
-
-/**
- * @brief Insert local routes into RIB.
- * 
- * ame as the other local insert, but this one insert mutiple routes and notify
- * the route event bus.
- * 
- * @param logger Pointer to logger for the created path attributes to use. 
- * @param routes Routes.
- * @param nexthop Nexthop for the route.
- * @param rev_bus event bus to publish to add event.
- * @param weight weight of this entry.
- * @return const std::vector<const BgpRib4Entry*> Inserted routes.
- */
-const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, RouteEventBus *rev_bus, int32_t weight) {
-    const std::vector<BgpRib4Entry> inserted =
-        insert(logger, routes, nexthop, weight);
-    
-    if (inserted.size() > 0) {
-        Route4AddEvent add_event;
-        add_event.attribs = (inserted.begin())->attribs;
-
-        for (const BgpRib4Entry &entry : inserted) {
-            add_event.routes.push_back(entry.route);
-        }
-
-        rev_bus->publish(NULL, add_event);
-    }
-
     return inserted;
 }
 
@@ -265,34 +280,11 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param attrib Path attribute.
  * @param weight weight of this entry.
  * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
- * @return true Prefix4 inserted/replaced.
- * @return false Prefix4 already exist and the existing one has lower metric. 
+ * @return const BgpRib4Entry* entry that should be send to peer. (NULL-able)
  */
-bool BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
-    bool inserted = insertPriv(src_router_id, route, attrib, weight, ibgp_asn);
-    if (inserted) update_id++;
-    return inserted;
-}
-
-/**
- * @brief Insert new entries into RIB.
- * 
- * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param routes List of routes.
- * @param attrib Path attribute.
- * @param weight weight of this entry.
- * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
- * @return ssize_t Number of routes inserted.
- * @retval -1 Failed to insert routes.
- * @retval >=0 Number of routes inserted.
- */
-ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
-    size_t inserted = 0;
-    for (const Prefix4 &r : routes) {
-        if (insertPriv(src_router_id, r, attrib, weight, ibgp_asn)) inserted++;
-    }
+const BgpRib4Entry* BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     update_id++;
-    return inserted;
+    return insertPriv(src_router_id, route, attrib, weight, ibgp_asn);
 }
 
 /**
@@ -300,85 +292,74 @@ ssize_t BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &rout
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
  * @param route Prefix4.
- * @return true Prefix4 dropped.
- * @return false Prefix4 not dropped. Likely becuase such route does not exist.
+ * @return <bool, const BgpRib4Entry*> withdrawn information
+ * @retval <false, NULL> if the withdrawed route is no longer reachable.
+ * @retval <true, NULL> if the route withdrawed but still reachable with current
+ * best route.
+ * @retval <true, const BgpRib4Entry*> if the route withdrawed and that changes
+ * the current best route.
  */
-bool BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
+std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> old_entries = 
+        rib.equal_range(BgpRib4EntryKey(route));
 
-    rib4_t::const_iterator it = find_entry(route, src_router_id);
-    if (it == rib.end()) return false;
+    if (old_entries.first == rib.end()) 
+        return std::make_pair<bool, const BgpRib4Entry*>(false, NULL); // not in RIB.
+
+    const char *op = "dropped/no_change";
+    const BgpRib4Entry *replacement = NULL;
+    uint64_t old_best_uid = 0;
+    rib4_t::const_iterator to_remove = rib.end();
+    
+    for (rib4_t::const_iterator it = old_entries.first; it != old_entries.second; it++) {
+        if (it->second.route == route) {
+            if (it->second.src_router_id == src_router_id) {
+                to_remove = it;
+                continue;
+            }
+            if (replacement == NULL) replacement = &(it->second);
+            else replacement = selectEntry(replacement, &(it->second));
+        }
+    }
+
+    bool reachabled = true;
+
+    if (to_remove == rib.end()) 
+        return std::make_pair<bool, const BgpRib4Entry*>(false, NULL);
+    if (replacement != NULL) {
+        const BgpRib4Entry *candidate = selectEntry(replacement, &(to_remove->second));
+        if (candidate == &(to_remove->second)) {
+            op = "dropped/best_changed";
+        } else replacement = NULL;
+        rib.erase(to_remove);
+    } else {
+        reachabled = false;
+        op = "dropped/unreachabled";
+    }
 
     LIBBGP_LOG(logger, INFO) {
         uint32_t prefix = route.getPrefix();
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib4::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib4::withdraw: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, route.getLength());
     }
 
-    rib.erase(it);
-    return true;
-}
-
-/**
- * @brief Withdrawn a route from RIB and send event to event bus.
- * 
- * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param route Prefix4.
- * @param rev_bus Event bus to send the drop event
- * @return true Prefix4 dropped.
- * @return false Prefix4 not dropped. Likely becuase such route does not exist.
- */
-bool BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route, RouteEventBus *rev_bus) {
-    Route4WithdrawEvent drop_ev;
-    drop_ev.routes.push_back(route);
-    rev_bus->publish(NULL, drop_ev);
-    return withdraw(src_router_id, route);
-}
-
-/**
- * @brief Withdraw routes from RIB.
- * 
- * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param routes Routes.
- * @return ssize_t Number of routes dropped.
- * @retval -1 Failed to drop routes.
- * @retval >=0 Number of routes dropped.
- */
-ssize_t BgpRib4::withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes) {
-    size_t dropped = 0;
-    for (const Prefix4 &r : routes) {
-        if (withdraw(src_router_id, r)) dropped++;
-    }
-    return dropped;
-}
-
-/**
- * @brief Withdraw routes from RIB and send event to event bus.
- * 
- * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param routes Routes.
- * @param rev_bus Event bus to send the drop event
- * @return ssize_t Number of routes dropped.
- * @retval -1 Failed to drop routes.
- * @retval >=0 Number of routes dropped.
- */
-ssize_t BgpRib4::withdraw(uint32_t src_router_id, const std::vector<Prefix4> &routes, RouteEventBus *rev_bus) {
-    Route4WithdrawEvent drop_ev;
-    drop_ev.routes = routes;
-    rev_bus->publish(NULL, drop_ev);
-    return withdraw(src_router_id, routes);
+    return std::pair<bool, const BgpRib4Entry*>(reachabled, replacement);
 }
 
 /**
  * @brief Drop all routes from RIB that originated from a BGP speaker.
  * 
  * @param src_router_id src_router_id Originating BGP speaker's ID in network bytes order.
- * @return std::vector<Prefix4> Dropped routes.
+ * @return std::pair<std::vector<Prefix4>, std::vector<BgpRib4Entry>> 
+ * <dropped_routes, updated_routes> pair. dropped_routes should be send as
+ * withdrawn to peers, updated_routes should be send as update to peer.
+ * 
  */
-std::vector<Prefix4> BgpRib4::discard(uint32_t src_router_id) {
-    std::lock_guard<std::recursive_mutex> lock(mutex);
+std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> BgpRib4::discard(uint32_t src_router_id) {
+    /*std::lock_guard<std::recursive_mutex> lock(mutex);
     std::vector<Prefix4> dropped_routes;
 
     for (rib4_t::const_iterator it = rib.begin(); it != rib.end();) {
@@ -395,7 +376,7 @@ std::vector<Prefix4> BgpRib4::discard(uint32_t src_router_id) {
         } else it++;
     }
 
-    return dropped_routes;
+    return dropped_routes;*/
 }
 
 /**
