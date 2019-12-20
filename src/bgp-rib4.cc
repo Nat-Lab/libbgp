@@ -116,19 +116,19 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
     const char *op = "new_entry";
     const char *act = "new_best";
 
-    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> entries = 
+    std::pair<rib4_t::iterator, rib4_t::iterator> entries = 
         rib.equal_range(BgpRib4EntryKey(route));
 
     bool best_changed = false;
     bool old_exist = entries.first != rib.end();
-    const BgpRib4Entry *new_best = NULL;
+    BgpRib4Entry *new_best = NULL;
 
     // older route exist
     if (old_exist) {
         // find old best & route to replace
         rib4_t::const_iterator to_replace = rib.end();
-        const BgpRib4Entry *old_best = NULL;
-        for (rib4_t::const_iterator it = entries.first; it != entries.second; it++) {
+        BgpRib4Entry *old_best = NULL;
+        for (rib4_t::iterator it = entries.first; it != entries.second; it++) {
             if (it->second.route != route) continue;
             if (it->second.src_router_id == src_router_id) {
                 to_replace = it;
@@ -139,8 +139,12 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
 
         const BgpRib4Entry *candidate = selectEntry(&new_entry, old_best);
         if (candidate == old_best) {
+            new_entry.status = RS_STANDBY;
             act = "not_new_best";
-        } else best_changed = true;
+        } else {
+            old_best->status = RS_STANDBY;
+            best_changed = true;
+        }
 
         if (to_replace != rib.end()) {
             const BgpRib4Entry *candidate = selectEntry(&(to_replace->second), old_best);
@@ -154,16 +158,19 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
             rib.erase(to_replace);
         }
 
-        rib4_t::const_iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
+        rib4_t::iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
 
-        if (best_changed)
+        if (best_changed) {
             new_best = candidate == &new_entry ? &(inserted->second) : old_best;
+        }
 
     } else { // no older route, new one is best
         best_changed = true;
-        rib4_t::const_iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
+        rib4_t::iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
         new_best = &(inserted->second);
     }
+
+    if (new_best != NULL) new_best->status = RS_ACTIVE;
     
     LIBBGP_LOG(logger, INFO) {
         uint32_t prefix = route.getPrefix();
@@ -305,18 +312,18 @@ const BgpRib4Entry* BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route
  */
 std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> old_entries = 
+    std::pair<rib4_t::iterator, rib4_t::iterator> old_entries = 
         rib.equal_range(BgpRib4EntryKey(route));
 
     if (old_entries.first == rib.end()) 
         return std::make_pair<bool, const BgpRib4Entry*>(false, NULL); // not in RIB.
 
     const char *op = "dropped/no_change";
-    const BgpRib4Entry *replacement = NULL;
+    BgpRib4Entry *replacement = NULL;
     uint64_t old_best_uid = 0;
     rib4_t::const_iterator to_remove = rib.end();
     
-    for (rib4_t::const_iterator it = old_entries.first; it != old_entries.second; it++) {
+    for (rib4_t::iterator it = old_entries.first; it != old_entries.second; it++) {
         if (it->second.route == route) {
             if (it->second.src_router_id == src_router_id) {
                 to_remove = it;
@@ -330,16 +337,19 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
 
     if (to_remove == rib.end()) 
         return std::make_pair<bool, const BgpRib4Entry*>(false, NULL);
+    
     if (replacement != NULL) {
         const BgpRib4Entry *candidate = selectEntry(replacement, &(to_remove->second));
         if (candidate == &(to_remove->second)) {
             op = "dropped/best_changed";
         } else replacement = NULL;
-        rib.erase(to_remove);
     } else {
         reachabled = false;
         op = "dropped/unreachabled";
     }
+
+    rib.erase(to_remove);
+    if (replacement != NULL) replacement->status = RS_ACTIVE;
 
     LIBBGP_LOG(logger, INFO) {
         uint32_t prefix = route.getPrefix();

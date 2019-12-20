@@ -19,6 +19,15 @@ enum BgpRouteSource {
 };
 
 /**
+ * @brief Status of the RIB entry.
+ * 
+ */
+enum BgpRouteStatus {
+    RS_STANDBY = 0,
+    RS_ACTIVE = 1
+};
+
+/**
  * @brief The base of BGP RIB entry.
  * 
  * @tparam T Type of BgpRibEntry
@@ -31,7 +40,7 @@ public:
      * source default to SRC_EBGP 
      * 
      */
-    BgpRibEntry () { src = SRC_EBGP; }
+    BgpRibEntry () { src = SRC_EBGP; status = RS_ACTIVE; }
 
     /**
      * @brief The originating BGP speaker's ID of this entry. (network bytes order)
@@ -72,6 +81,14 @@ public:
      * protocols.
      */
     BgpRouteSource src;
+
+    /**
+     * @brief Status of this entry.
+     * 
+     * Active routes are routes currently picked as best routes. 
+     * 
+     */
+    BgpRouteStatus status;
 
     /**
      * @brief ASN of the IBGP peer. (Valid iff src == SRC_IBGP)
@@ -214,6 +231,33 @@ protected:
      * @return const T* Selected entry. One of A and B. 
      */
     static const T* selectEntry (const T *a, const T *b) {
+        if (a == NULL) return b;
+        if (b == NULL) return a;
+
+        auto &ra = a->route;
+        auto &rb = b->route;
+
+        // a is more specific, use a
+        if (ra.getLength() > rb.getLength()) return a;
+
+        // a, b are same level of specific, check metric
+        if (ra.getLength() == rb.getLength()) {
+            // return the one with higher weight
+            return (*b > *a) ? b : a;
+        }
+
+        // b is more specific, use b
+        return b;
+    }
+
+    /**
+     * @brief Select an entry from two to use.
+     * 
+     * @param a Entry A
+     * @param b Entry B
+     * @return T* Selected entry. One of A and B. 
+     */
+    static T* selectEntry (T *a, T *b) {
         if (a == NULL) return b;
         if (b == NULL) return a;
 
