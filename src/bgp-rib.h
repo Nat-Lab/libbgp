@@ -176,10 +176,15 @@ public:
         }
 
         /**/ if (this_local_pref > other_local_pref) return true;
+        else if (this_local_pref < other_local_pref) return false;
         else if (other_as_path_len > this_as_path_len) return true;
+        else if (other_as_path_len < this_as_path_len) return false;
         else if (other_origin > this_origin) return true;
+        else if (other_origin < this_origin) return false;
         else if (other_orig_as == this_orig_as && other_med > this_med) return true;
+        else if (other_orig_as == this_orig_as && other_med < this_med) return false;
         else if (other.update_id > update_id) return true;
+        else if (other.update_id < update_id) return false;
         else if (htonl(other.src_router_id) > htonl(src_router_id)) return true;
 
         return false;
