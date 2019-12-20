@@ -57,14 +57,14 @@ BgpRib4::BgpRib4(BgpLogHandler *logger) {
     update_id = 0;    
 }
 
-rib4_t::const_iterator BgpRib4::find_best (const Prefix4 &prefix) const {
-    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> its = 
+rib4_t::iterator BgpRib4::find_best (const Prefix4 &prefix) {
+    std::pair<rib4_t::iterator, rib4_t::iterator> its = 
         rib.equal_range(BgpRib4EntryKey(prefix));
 
-    rib4_t::const_iterator best = rib.end();
+    rib4_t::iterator best = rib.end();
     if (its.first == rib.end()) return rib.end();
 
-    for (rib4_t::const_iterator it = its.first; it != its.second; it++) {
+    for (rib4_t::iterator it = its.first; it != its.second; it++) {
         if (it->second.route == prefix) {
             if (best == rib.end()) best = it;
             else {
@@ -77,13 +77,13 @@ rib4_t::const_iterator BgpRib4::find_best (const Prefix4 &prefix) const {
     return best;
 }
 
-rib4_t::const_iterator BgpRib4::find_entry (const Prefix4 &prefix, uint32_t src) const {
-    std::pair<rib4_t::const_iterator, rib4_t::const_iterator> its = 
+rib4_t::iterator BgpRib4::find_entry (const Prefix4 &prefix, uint32_t src) {
+    std::pair<rib4_t::iterator, rib4_t::iterator> its = 
         rib.equal_range(BgpRib4EntryKey(prefix));
 
     if (its.first == rib.end()) return rib.end();
 
-    for (rib4_t::const_iterator it = its.first; it != its.second; it++) {
+    for (rib4_t::iterator it = its.first; it != its.second; it++) {
         if (it->second.route == prefix && it->second.src_router_id == src) {
             return it;
         }
@@ -135,6 +135,7 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
                 continue;
             }
             old_best = selectEntry(old_best, &(it->second));
+            //if (it->second.status == RS_ACTIVE) old_best = &(it->second);
         }
 
         const BgpRib4Entry *candidate = selectEntry(&new_entry, old_best);
@@ -142,7 +143,7 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
             new_entry.status = RS_STANDBY;
             act = "not_new_best";
         } else {
-            old_best->status = RS_STANDBY;
+            if (old_best != NULL) old_best->status = RS_STANDBY;
             best_changed = true;
         }
 
@@ -172,12 +173,12 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
 
     if (new_best != NULL) new_best->status = RS_ACTIVE;
     
-    LIBBGP_LOG(logger, INFO) {
+    LIBBGP_LOG(logger, DEBUG) {
         uint32_t prefix = route.getPrefix();
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib4::insertPriv: (%s/%s) group %d, scope %s, route %s/%d\n", op, act, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
+        logger->log(DEBUG, "BgpRib4::insertPriv: (%s/%s) group %d, scope %s, route %s/%d\n", op, act, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
     return new_best;
@@ -339,8 +340,8 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
         return std::make_pair<bool, const BgpRib4Entry*>(false, NULL);
     
     if (replacement != NULL) {
-        const BgpRib4Entry *candidate = selectEntry(replacement, &(to_remove->second));
-        if (candidate == &(to_remove->second)) {
+        // const BgpRib4Entry *candidate = selectEntry(replacement, &(to_remove->second));
+        if (to_remove->second.status == RS_ACTIVE) {
             op = "dropped/best_changed";
         } else replacement = NULL;
     } else {
@@ -351,12 +352,12 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
     rib.erase(to_remove);
     if (replacement != NULL) replacement->status = RS_ACTIVE;
 
-    LIBBGP_LOG(logger, INFO) {
+    LIBBGP_LOG(logger, DEBUG) {
         uint32_t prefix = route.getPrefix();
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib4::withdraw: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, route.getLength());
+        logger->log(DEBUG, "BgpRib4::withdraw: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, route.getLength());
     }
 
     return std::pair<bool, const BgpRib4Entry*>(reachabled, replacement);
@@ -372,24 +373,55 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
  * 
  */
 std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> BgpRib4::discard(uint32_t src_router_id) {
-    /*std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::lock_guard<std::recursive_mutex> lock(mutex);
+    std::vector<Prefix4> reevaluate_routes;
     std::vector<Prefix4> dropped_routes;
 
     for (rib4_t::const_iterator it = rib.begin(); it != rib.end();) {
-        if (it->second.src_router_id == src_router_id) {
+        const char *op = "dropped";
+        if (it->second.src_router_id != src_router_id) {
+            it++;
+            continue;
+        }
+        if (it->second.status != RS_ACTIVE) {
             dropped_routes.push_back(it->second.route);
-            LIBBGP_LOG(logger, INFO) {
-                uint32_t prefix = it->second.route.getPrefix();
-                char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
-                inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
-                inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
-                logger->log(INFO, "BgpRib4::discard: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, it->second.route.getLength());
-            }
-            it = rib.erase(it);
-        } else it++;
+        } else {
+            reevaluate_routes.push_back(it->second.route);
+            op = "dropped/pending-reevaluate";
+        }
+        LIBBGP_LOG(logger, DEBUG) {
+            uint32_t prefix = it->second.route.getPrefix();
+            char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+            inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+            logger->log(DEBUG, "BgpRib4::discard: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, it->second.route.getLength());
+        }
+        it = rib.erase(it);
     }
 
-    return dropped_routes;*/
+    std::vector<const BgpRib4Entry*> replacements;
+
+    for (std::vector<Prefix4>::const_iterator it = reevaluate_routes.begin(); it != reevaluate_routes.end(); it++) {
+        const char *op = "replacement found";
+        const Prefix4 &prefix = *it;
+        rib4_t::iterator replacement = find_best(prefix);
+        if (replacement == rib.end()) { // no replacement.
+            dropped_routes.push_back(prefix);
+            op = "no available replacement";
+        } else {
+            replacement->second.status = RS_ACTIVE;
+            replacements.push_back(&(replacement->second));
+        }
+
+        LIBBGP_LOG(logger, DEBUG) {
+            uint32_t pfx = prefix.getPrefix();
+            char prefix_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &pfx, prefix_str, INET_ADDRSTRLEN);
+            logger->log(DEBUG, "BgpRib4::discard: %s for route %s/%d\n", op, prefix_str, prefix.getLength());
+        }
+    }
+
+    return std::make_pair(dropped_routes, replacements);
 }
 
 /**
@@ -401,15 +433,20 @@ std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> BgpRib4::disca
  * @retval BgpRib4Entry* Matching entry.
  */
 const BgpRib4Entry* BgpRib4::lookup(uint32_t dest) const {
-    const BgpRib4Entry *selected_entry = NULL;
+    /*const BgpRib4Entry *selected_entry = NULL;
 
     for (const auto &entry : rib) {
         const Prefix4 &route = entry.second.route;
         if (route.includes(dest)) 
             selected_entry = selectEntry(&entry.second, selected_entry);
+    }*/
+
+    for (const auto &entry : rib) {
+        if (entry.second.status != RS_ACTIVE) continue;
+        if (entry.second.route.includes(dest)) return &entry.second;
     }
 
-    return selected_entry;
+    return NULL;
 }
 
 /**
@@ -425,7 +462,7 @@ const BgpRib4Entry* BgpRib4::lookup(uint32_t dest) const {
  * @retval BgpRib4Entry* Matching entry.
  */
 const BgpRib4Entry* BgpRib4::lookup(uint32_t src_router_id, uint32_t dest) const {
-    const BgpRib4Entry *selected_entry = NULL;
+    /*const BgpRib4Entry *selected_entry = NULL;
 
     for (const auto &entry : rib) {
         if (entry.second.src_router_id != src_router_id) continue;
@@ -434,7 +471,15 @@ const BgpRib4Entry* BgpRib4::lookup(uint32_t src_router_id, uint32_t dest) const
             selected_entry = selectEntry(&entry.second, selected_entry);
     }
 
-    return selected_entry;
+    return selected_entry;*/
+
+    for (const auto &entry : rib) {
+        if (entry.second.status != RS_ACTIVE) continue;
+        if (entry.second.src_router_id != src_router_id) continue;
+        if (entry.second.route.includes(dest)) return &entry.second;
+    }
+
+    return NULL;   
 }
 
 /**
