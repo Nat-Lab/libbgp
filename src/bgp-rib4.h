@@ -93,7 +93,15 @@ public:
     const std::vector<BgpRib4Entry> insert(BgpLogHandler *logger, const std::vector<Prefix4> &routes, uint32_t nexthop, int32_t weight = 0);
 
     // insert a new route into RIB, return BgpRib4Entry that should be send to other peers.
-    const BgpRib4Entry* insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
+    // <NULL, false> if a better route is already exist
+    // <BgpRib4Entry*, false> if inserted route replaced current best route, and another route become the new best
+    // <BgpRib4Entry*, true> if inserted route become the new best route
+    std::pair<const BgpRib4Entry*, bool> insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
+
+    // insert new routes w/ common attribs.
+    // returns a pair: <updated_routes, new_best_routes> where updated_routes is a vector
+    // containing routes with different attribute then provided.
+    std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
 
     // remove a route from RIB, return NULL if route no longer reachable, updated_route otherwise.
     std::pair<bool, const BgpRib4Entry*> withdraw(uint32_t src_router_id, const Prefix4 &route);
@@ -112,7 +120,7 @@ public:
 private:
     rib4_t::iterator find_best (const Prefix4 &prefix);
     rib4_t::iterator find_entry (const Prefix4 &prefix, uint32_t src);
-    const BgpRib4Entry* insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
+    std::pair<const BgpRib4Entry*, bool> insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn);
     rib4_t rib;
     std::recursive_mutex mutex;
     BgpLogHandler *logger;

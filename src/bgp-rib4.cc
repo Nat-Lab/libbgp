@@ -102,7 +102,7 @@ rib4_t::iterator BgpRib4::find_entry (const Prefix4 &prefix, uint32_t src) {
  * @param ibgp_asn remote ASN, if IBGP.
  * @return const BgpRib4Entry entry that should be send to peer. (NULL-able)
  */
-const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
+std::pair<const BgpRib4Entry*, bool> BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
 
     /* construct the new entry object */
@@ -119,6 +119,7 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
     std::pair<rib4_t::iterator, rib4_t::iterator> entries = 
         rib.equal_range(BgpRib4EntryKey(route));
 
+    bool newly_inserted_is_best = false;
     bool best_changed = false;
     bool old_exist = entries.first != rib.end();
     BgpRib4Entry *new_best = NULL;
@@ -162,11 +163,12 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
         rib4_t::iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
 
         if (best_changed) {
-            new_best = candidate == &new_entry ? &(inserted->second) : old_best;
+            newly_inserted_is_best = candidate == &new_entry;
+            new_best = newly_inserted_is_best ? &(inserted->second) : old_best;
         }
 
     } else { // no older route, new one is best
-        best_changed = true;
+        best_changed = newly_inserted_is_best = true;
         rib4_t::iterator inserted = rib.insert(MAKE_ENTRY4(route, new_entry));
         new_best = &(inserted->second);
     }
@@ -181,7 +183,7 @@ const BgpRib4Entry* BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &r
         logger->log(DEBUG, "BgpRib4::insertPriv: (%s/%s) group %d, scope %s, route %s/%d\n", op, act, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
-    return new_best;
+    return std::make_pair(new_best, newly_inserted_is_best);
 }
 
 /**
@@ -294,9 +296,34 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
  * @return const BgpRib4Entry* entry that should be send to peer. (NULL-able)
  */
-const BgpRib4Entry* BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
+std::pair<const BgpRib4Entry*, bool> BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     update_id++;
     return insertPriv(src_router_id, route, attrib, weight, ibgp_asn);
+}
+
+/**
+ * @brief Insert new entries into RIB.
+ * 
+ * @param src_router_id Originating BGP speaker's ID in network bytes order.
+ * @param routes Routes.
+ * @param attrib Path attribs.
+ * @param weight weight of this entry.
+ * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
+ * @return std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> pair of
+ * vectors. <updated_entries, unchanged_entries>.
+ */
+std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> BgpRib4::insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn) {
+    update_id++;
+    std::vector<BgpRib4Entry> updated;
+    std::vector<Prefix4> unchanged;
+    for (const Prefix4 &route : routes) {
+        std::pair<const BgpRib4Entry*, bool> rslt = insertPriv(src_router_id, route, attrib, weight, ibgp_asn);
+        if (rslt.first != NULL) {
+            if (!rslt.second) updated.push_back(*(rslt.first));
+            else unchanged.push_back(route);
+        }
+    }
+    return std::make_pair(updated, unchanged);
 }
 
 /**
