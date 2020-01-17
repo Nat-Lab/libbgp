@@ -16,6 +16,10 @@
 
 namespace libbgp {
 
+/* forward */
+class BgpRib4Entry;
+class BgpRib6Entry;
+
 /**
  * @brief Type of route events.
  * 
@@ -49,19 +53,31 @@ public:
  */
 class Route4AddEvent : public RouteEvent {
 public:
-    Route4AddEvent () { type = ADD4; ibgp_peer_asn = 0; }
+    Route4AddEvent () { 
+        type = ADD4;
+        ibgp_peer_asn = 0; 
+        shared_attribs = NULL;
+        new_routes = NULL;
+        replaced_entries = NULL;
+    }
 
     /**
-     * @brief Path attribues of the route.
+     * @brief Shared attributes for the new routes
      * 
      */
-    std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
+    const std::vector<std::shared_ptr<BgpPathAttrib>> *shared_attribs;
 
     /**
-     * @brief Routes to add.
+     * @brief Newly added routes
      * 
      */
-    std::vector<Prefix4> routes;
+    const std::vector<Prefix4> *new_routes;
+
+    /**
+     * @brief Pointer to the route replacement entries vector.
+     * 
+     */
+    const std::vector<BgpRib4Entry> *replaced_entries;
 
     /**
      * @brief ASN of the IBGP peer if the originating session is a IBGP session.
@@ -78,13 +94,16 @@ public:
  */
 class Route4WithdrawEvent : public RouteEvent {
 public:
-    Route4WithdrawEvent () { type = WITHDRAW4; }
+    Route4WithdrawEvent () { 
+        type = WITHDRAW4; 
+        routes = NULL;
+    }
 
     /**
      * @brief Routes to withdraw.
      * 
      */
-    std::vector<Prefix4> routes;
+    std::vector<Prefix4> *routes;
 };
 
 /**

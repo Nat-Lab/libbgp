@@ -107,7 +107,7 @@ public:
     std::pair<bool, const BgpRib4Entry*> withdraw(uint32_t src_router_id, const Prefix4 &route);
 
     // remove all routes from a peer, return <unreachabled routes, updated_routes>.
-    std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> discard(uint32_t src_router_id);
+    std::pair<std::vector<Prefix4>, std::vector<BgpRib4Entry>> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
     const BgpRib4Entry* lookup(uint32_t dest) const;

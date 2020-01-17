@@ -399,7 +399,7 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
  * withdrawn to peers, updated_routes should be send as update to peer.
  * 
  */
-std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> BgpRib4::discard(uint32_t src_router_id) {
+std::pair<std::vector<Prefix4>, std::vector<BgpRib4Entry>> BgpRib4::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     std::vector<Prefix4> reevaluate_routes;
     std::vector<Prefix4> dropped_routes;
@@ -426,7 +426,7 @@ std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> BgpRib4::disca
         it = rib.erase(it);
     }
 
-    std::vector<const BgpRib4Entry*> replacements;
+    std::vector<BgpRib4Entry> replacements;
 
     for (std::vector<Prefix4>::const_iterator it = reevaluate_routes.begin(); it != reevaluate_routes.end(); it++) {
         const char *op = "replacement found";
@@ -437,7 +437,7 @@ std::pair<std::vector<Prefix4>, std::vector<const BgpRib4Entry*>> BgpRib4::disca
             op = "no available replacement";
         } else {
             replacement->second.status = RS_ACTIVE;
-            replacements.push_back(&(replacement->second));
+            replacements.push_back(replacement->second);
         }
 
         LIBBGP_LOG(logger, DEBUG) {
