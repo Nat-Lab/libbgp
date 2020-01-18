@@ -348,7 +348,7 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
 
     const char *op = "dropped/no_change";
     BgpRib4Entry *replacement = NULL;
-    uint64_t old_best_uid = 0;
+    // uint64_t old_best_uid = 0;
     rib4_t::const_iterator to_remove = rib.end();
     
     for (rib4_t::iterator it = old_entries.first; it != old_entries.second; it++) {
@@ -405,14 +405,12 @@ std::pair<std::vector<Prefix4>, std::vector<BgpRib4Entry>> BgpRib4::discard(uint
     std::vector<Prefix4> dropped_routes;
 
     for (rib4_t::const_iterator it = rib.begin(); it != rib.end();) {
-        const char *op = "dropped";
+        const char *op = "dropped/silent";
         if (it->second.src_router_id != src_router_id) {
             it++;
             continue;
         }
-        if (it->second.status != RS_ACTIVE) {
-            dropped_routes.push_back(it->second.route);
-        } else {
+        if (it->second.status == RS_ACTIVE) {
             reevaluate_routes.push_back(it->second.route);
             op = "dropped/pending-reevaluate";
         }

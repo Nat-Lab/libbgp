@@ -547,7 +547,7 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
 
     logger->log(DEBUG, "BgpFsm::handleRoute4AddEvent: got route-add event with %zu routes.\n", nroutes);
 
-    if (ev.new_routes == NULL || ev.shared_attribs == NULL) {
+    if (ev.new_routes != NULL && ev.shared_attribs != NULL) {
         if (!ibgp || ev.ibgp_peer_asn != peer_asn) {
             BgpUpdateMessage update (logger, use_4b_asn);
             update.setAttribs(*(ev.shared_attribs));
@@ -584,6 +584,8 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
     }
 
     for (const BgpRib4Entry &entry : *(ev.replaced_entries)) {
+        if (entry.src_router_id == peer_bgp_id) continue;
+
         if (ibgp && entry.ibgp_peer_asn == peer_asn) {
             LIBBGP_LOG(logger, DEBUG) {
                 uint32_t prefix = entry.route.getPrefix();
@@ -621,6 +623,7 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
 bool BgpFsm::handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
     if (!send_ipv4_routes) return false;
+    if (ev.routes == NULL) return false;
 
     logger->log(INFO, "BgpFsm::handleRoute4AddEvent: got route-withdraw event with %zu routes.\n", ev.routes->size());
 
@@ -1025,22 +1028,25 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
 
             std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> rslt;
             if (routes.size() > 0) {
-                std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> rslt = rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight, ibgp ? peer_asn : 0);
+                rslt = rib4->insert(peer_bgp_id, routes, update->path_attribute, config.weight, ibgp ? peer_asn : 0);
                 for (const BgpRib4Entry &entry : rslt.first) {
                     changed_entries.push_back(entry);
                 }
+                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: rib4.insert(): %zu altered and %zu added in %zu routes.\n", rslt.first.size(), rslt.second.size(), routes.size());
             }
 
-            if (rev_bus_exist && changed_entries.size() > 0) {
+            if (rev_bus_exist && (changed_entries.size() > 0 || rslt.second.size() > 0)) {
+                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing new routes on event bus...\n");
                 Route4AddEvent aev = Route4AddEvent();
-                aev.replaced_entries = &changed_entries;
+                aev.replaced_entries = changed_entries.size() > 0 ? &changed_entries : NULL;
                 aev.shared_attribs = &(update->path_attribute);
-                aev.new_routes = &(rslt.second);
+                aev.new_routes = rslt.second.size() > 0 ? &(rslt.second) : NULL;
                 if (ibgp) aev.ibgp_peer_asn = peer_asn;
                 config.rev_bus->publish(this, aev);
             }
 
             if (rev_bus_exist && unreach.size() > 0) {
+                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing dropped routes on event bus...\n");
                 Route4WithdrawEvent wev = Route4WithdrawEvent();
                 wev.routes = &unreach;
                 config.rev_bus->publish(this, wev);
