@@ -30,24 +30,22 @@ namespace libbgp {
 class BgpRib6EntryKey {
 public:
     BgpRib6EntryKey() {}
-    BgpRib6EntryKey(const Prefix6 &prefix, uint32_t src) {
+    BgpRib6EntryKey(const Prefix6 &prefix) {
         prefix.getPrefix(this->prefix);
         length = prefix.getLength();
-        this->src = src;
 
         uint64_t prefix_pre = 0;
         memcpy(&prefix_pre, this->prefix, 8);
-        hash = (prefix_pre ^ length) | src << 4;
+        hash = prefix_pre;
     }
 
     bool operator== (const BgpRib6EntryKey &other) const {
         return memcmp(other.prefix, prefix, 16) == 0 && 
-            length == other.length && src == other.src;
+            length == other.length;
     }
 
     uint8_t prefix[16];
     uint8_t length;
-    uint32_t src;
     uint64_t hash;
 };
 
@@ -106,42 +104,34 @@ public:
         const Prefix6 &route, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16], int32_t weight = 0);
 
-    const BgpRib6Entry* insert(BgpLogHandler *logger, 
-        const Prefix6 &route, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus,
-        int32_t weight = 0);
-
     const std::vector<BgpRib6Entry> insert(BgpLogHandler *logger, 
         const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
         const uint8_t nexthop_linklocal[16], int32_t weight = 0);
 
-    const std::vector<BgpRib6Entry> insert(BgpLogHandler *logger, 
-        const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus,
-        int32_t weight = 0);
-
-    // insert a new route into RIB, return true if success.
-    bool insert(uint32_t src_router_id, const Prefix6 &route, 
+    // insert a new route into RIB, return BgpRib6Entry that should be send to other peers.
+    // <NULL, false> if a better route is already exist
+    // <BgpRib6Entry*, false> if inserted route replaced current best route, and another route become the new best
+    // <BgpRib6Entry*, true> if inserted route become the new best route
+    std::pair<const BgpRib6Entry*, bool> insert(uint32_t src_router_id, 
+        const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,
         uint32_t ibgp_asn);
 
-    // insert new routes into RIB, return number of routes inserted on success,
-    // -1 on error.
-    ssize_t insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
+    // insert new routes w/ common attribs.
+    // returns a pair: <updated_routes, new_best_routes> where updated_routes is a vector
+    // containing routes with different attribute then provided.
+    std::pair<std::vector<BgpRib6Entry>, std::vector<Prefix6>> insert(
+        uint32_t src_router_id, const std::vector<Prefix6> &routes, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
         const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,
         uint32_t ibgp_asn);
 
-    // remove a route from RIB, return true if route removed, false if not exist.
-    bool withdraw(uint32_t src_router_id, const Prefix6 &route);
+    // remove a route from RIB
+    std::pair<bool, const BgpRib6Entry*> withdraw(uint32_t src_router_id, const Prefix6 &route);
 
-    // remove routes from RIB, return number of routes removed on success, -1
-    // on error
-    ssize_t withdraw(uint32_t src_router_id, const std::vector<Prefix6> &routes);
-
-    // remove all routes from a peer, return all discarded routes on success.
-    std::vector<Prefix6> discard(uint32_t src_router_id);
+    // remove all routes from a peer, return <unreachabled routes, updated_routes>.
+    std::pair<std::vector<Prefix6>, std::vector<BgpRib6Entry>> discard(uint32_t src_router_id);
 
     // lookup in rib, return null if not found
     const BgpRib6Entry* lookup(const uint8_t dest[16]) const;
@@ -152,11 +142,14 @@ public:
     // get RIB
     const rib6_t &get() const;
 private:
-    rib6_t::const_iterator find_entry(const Prefix6 &prefix, uint32_t src) const;
-    bool insertPriv(uint32_t src_router_id, const Prefix6 &route, 
+    rib6_t::iterator find_best (const Prefix6 &prefix);
+    rib6_t::iterator find_entry (const Prefix6 &prefix, uint32_t src);
+
+    std::pair<const BgpRib6Entry*, bool> insertPriv(uint32_t src_router_id, 
+        const Prefix6 &route, 
         const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,
-        uint32_t ibgp_asn);
+        const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, 
+        int32_t weight, uint32_t ibgp_asn);
 
     rib6_t rib;
     std::recursive_mutex mutex;

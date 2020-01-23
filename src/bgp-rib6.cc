@@ -11,7 +11,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "bgp-rib6.h"
-#define MAKE_ENTRY6(r, s, e) std::make_pair(BgpRib6EntryKey(r, s), e)
+#define MAKE_ENTRY6(r, e) std::make_pair(BgpRib6EntryKey(r), e)
 
 namespace libbgp {
 
@@ -45,13 +45,13 @@ BgpRib6::BgpRib6(BgpLogHandler *logger) {
     update_id = 0;
 }
 
-rib6_t::const_iterator BgpRib6::find_entry(const Prefix6 &prefix, uint32_t src) const {
-    std::pair<rib6_t::const_iterator, rib6_t::const_iterator> its = 
-        rib.equal_range(BgpRib6EntryKey(prefix, src));
+rib6_t::iterator BgpRib6::find_entry(const Prefix6 &prefix, uint32_t src) {
+    std::pair<rib6_t::iterator, rib6_t::iterator> its = 
+        rib.equal_range(BgpRib6EntryKey(prefix));
 
     if (its.first == rib.end()) return rib.end();
 
-    for (rib6_t::const_iterator it = its.first; it != its.second; it++) {
+    for (rib6_t::iterator it = its.first; it != its.second; it++) {
         if (it->second.route == prefix && it->second.src_router_id == src) {
             return it;
         }
@@ -60,23 +60,98 @@ rib6_t::const_iterator BgpRib6::find_entry(const Prefix6 &prefix, uint32_t src) 
     return rib.end();
 }
 
-bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route, 
-        const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-        const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight,
-        uint32_t ibgp_asn) {
+rib6_t::iterator BgpRib6::find_best (const Prefix6 &prefix) {
+    std::pair<rib6_t::iterator, rib6_t::iterator> its = 
+        rib.equal_range(BgpRib6EntryKey(prefix));
+
+    rib6_t::iterator best = rib.end();
+    if (its.first == rib.end()) return rib.end();
+
+    for (rib6_t::iterator it = its.first; it != its.second; it++) {
+        if (it->second.route == prefix) {
+            if (best == rib.end()) best = it;
+            else {
+                const BgpRib6Entry *best_ptr = selectEntry(&(best->second), &(it->second));
+                best = best_ptr == &(best->second) ? best : it;
+            }
+        }
+    }
+
+    return best;
+}
+
+std::pair<const BgpRib6Entry*, bool> BgpRib6::insertPriv(uint32_t src_router_id, 
+    const Prefix6 &route, 
+    const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, 
+    int32_t weight, uint32_t ibgp_asn) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     BgpRib6Entry new_entry(route, src_router_id, nexthop_global, nexthop_linklocal, attribs);
     new_entry.update_id = update_id;
     new_entry.weight = weight;
     new_entry.src = ibgp_asn > 0 ? SRC_IBGP : SRC_EBGP;
     new_entry.ibgp_peer_asn = ibgp_asn;
-    const char *op = "new_entry";
 
-    rib6_t::const_iterator entry = find_entry(route, src_router_id);
-    if (entry != rib.end()) {
-        op = "update";
-        rib.erase(entry);
+    const char *op = "new_entry";
+    const char *act = "new_best";
+
+    std::pair<rib6_t::iterator, rib6_t::iterator> entries = rib.equal_range(BgpRib6EntryKey(route));
+
+    bool newly_inserted_is_best = false;
+    bool best_changed = false;
+    bool old_exist = entries.first != rib.end();
+    BgpRib6Entry *new_best = NULL;
+
+    // older route exist
+    if (old_exist) {
+        // find old best & route to replace
+        rib6_t::const_iterator to_replace = rib.end();
+        BgpRib6Entry *old_best = NULL;
+        for (rib6_t::iterator it = entries.first; it != entries.second; it++) {
+            if (it->second.route != route) continue;
+            if (it->second.src_router_id == src_router_id) {
+                to_replace = it;
+                continue;
+            }
+            old_best = selectEntry(old_best, &(it->second));
+            //if (it->second.status == RS_ACTIVE) old_best = &(it->second);
+        }
+
+        const BgpRib6Entry *candidate = selectEntry(&new_entry, old_best);
+        if (candidate == old_best) {
+            new_entry.status = RS_STANDBY;
+            act = "not_new_best";
+        } else {
+            if (old_best != NULL) old_best->status = RS_STANDBY;
+            best_changed = true;
+        }
+
+        if (to_replace != rib.end()) {
+            const BgpRib6Entry *candidate = selectEntry(&(to_replace->second), old_best);
+            if (candidate == &(to_replace->second)) {
+                // the replaced route was the best route, now it is removed
+                act = "new_best";
+                best_changed = true;
+            }
+            // we need to replace a route
+            op = "update";
+            rib.erase(to_replace);
+        }
+
+        rib6_t::iterator inserted = rib.insert(MAKE_ENTRY6(route, new_entry));
+
+        if (best_changed) {
+            newly_inserted_is_best = candidate == &new_entry;
+            new_best = newly_inserted_is_best ? &(inserted->second) : old_best;
+        }
+
+    } else { // no older route, new one is best
+        best_changed = newly_inserted_is_best = true;
+        rib6_t::iterator inserted = rib.insert(MAKE_ENTRY6(route, new_entry));
+        new_best = &(inserted->second);
     }
+
+    if (new_best != NULL) new_best->status = RS_ACTIVE;
     
     LIBBGP_LOG(logger, INFO) {
         uint8_t prefix_arr[16];
@@ -84,11 +159,10 @@ bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route,
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib6::insert: (%s) group %d, scope %s, route %s/%d\n", op, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib6::insertPriv: (%s/%s) group %d, scope %s, route %s/%d\n", op, act, new_entry.update_id, src_router_id_str, prefix_str, route.getLength());
     }
 
-    rib.insert(MAKE_ENTRY6(route, src_router_id, new_entry));
-    return true;
+    return std::make_pair(new_best, newly_inserted_is_best);
 }
 
 /**
@@ -102,6 +176,8 @@ bool BgpRib6::insertPriv(uint32_t src_router_id, const Prefix6 &route,
  * deserialize, it will print to the provided logger).
  * 
  * To remove an entry inserted with this method, use 0 as `src_router_id`.
+ * 
+ * This SHOULD NOT be called when the any of the upper FSM is running. 
  * 
  * @param logger Pointer to logger for the created path attributes to use. 
  * @param route Route.
@@ -144,47 +220,17 @@ const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, const Prefix6 &route,
     std::lock_guard<std::recursive_mutex> lock(mutex);
     new_entry.update_id = use_update_id;
     if (use_update_id == update_id) update_id++;
-    rib6_t::const_iterator it = rib.insert(MAKE_ENTRY6(route, 0, new_entry));
+    rib6_t::const_iterator it = rib.insert(MAKE_ENTRY6(route, new_entry));
 
     return &(it->second);
-}
-
-/**
- * @brief Insert a local route into RIB.
- * 
- * Same as the other local insert, but this one notify the rev_bus after
- * inserting route.
- * 
- * @param logger Pointer to logger for the created path attributes to use. 
- * @param route Route.
- * @param nexthop_global Global IPv6 address of nexthop.
- * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
- * @param rev_bus The route event bus to publish to add event.
- * @param weight weight of this entry.
- * @return const BgpRib6Entry* Inserted route entry.
- * @retval NULL failed to insert.
- * @retval !=NULL Inserted route entry.
- */
-const BgpRib6Entry* BgpRib6::insert(BgpLogHandler *logger, 
-        const Prefix6 &route, const uint8_t nexthop_global[16], 
-        const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus, int32_t weight) {
-
-    const BgpRib6Entry *entry = insert(logger, route, nexthop_global, nexthop_linklocal, weight);
-
-    if (entry != NULL) {
-        Route6AddEvent add_event;
-        add_event.routes.push_back(entry->route);
-        add_event.attribs = entry->attribs;
-        rev_bus->publish(NULL, add_event);
-    }
-
-    return entry;
 }
 
 /**
  * @brief Insert local routes into RIB.
  * 
  * Same as the other local insert, but this one insert mutiple routes.
+ * 
+ * This SHOULD NOT be called when the any of the upper FSM is running. 
  * 
  * @param logger Pointer to logger for the created path attributes to use. 
  * @param routes Routes.
@@ -213,46 +259,11 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
         BgpRib6Entry new_entry (route, 0, nexthop_global, nexthop_linklocal, attribs);
         new_entry.update_id = update_id;
         new_entry.weight = weight;
-        rib6_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY6(route, 0, new_entry));
+        rib6_t::const_iterator isrt_it = rib.insert(MAKE_ENTRY6(route, new_entry));
         inserted.push_back(isrt_it->second);
     }
 
     update_id++;
-    return inserted;
-}
-
-/**
- * @brief Insert local routes into RIB.
- * 
- * Same as the other local insert, but this one insert mutiple routes and notify
- * the event bus.
- * 
- * @param logger Pointer to logger for the created path attributes to use. 
- * @param routes Routes.
- * @param nexthop_global Global IPv6 address of nexthop.
- * @param nexthop_linklocal Link local IPv6 address of nexthop. (if none, use NULL)
- * @param rev_bus The event bus to use
- * @param weight weight of this entry.
- * @return const std::vector<BgpRib6Entry*> Insert routes.
- */
-const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger, 
-    const std::vector<Prefix6> &routes, const uint8_t nexthop_global[16], 
-    const uint8_t nexthop_linklocal[16], RouteEventBus *rev_bus, int32_t weight) {
-        
-    const std::vector<BgpRib6Entry> inserted =
-        insert(logger, routes, nexthop_global, nexthop_linklocal, weight);
-    
-    if (inserted.size() > 0) {
-        Route6AddEvent add_event;
-        add_event.attribs = (inserted.begin())->attribs;
-
-        for (const BgpRib6Entry &entry : inserted) {
-            add_event.routes.push_back(entry.route);
-        }
-
-        rev_bus->publish(NULL, add_event);
-    }
-
     return inserted;
 }
 
@@ -266,18 +277,24 @@ const std::vector<BgpRib6Entry> BgpRib6::insert(BgpLogHandler *logger,
  * @param attrib Path attribute.
  * @param weight weight of this entry.
  * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
- * @return true Route inserted/replaced.
- * @return false Route already exist and the existing one has lower metric.
+ * @return <const BgpRib6Entry*, bool> inserted info: <new_best_route, 
+ * inserted_is_best>
+ * @retval <const BgpRib6Entry*, true> inserted route is the new best route. 
+ * const BgpRib6Entry* is the inserted route.
+ * @retval <const BgpRib6Entry*, false> inseted route replaced current best
+ * route, but new best route is NOT the inserted one. New best has been returned
+ * in const BgpRib6Entry*.
+ * @retval <NULL, false> inserted route is not the new best, and current best
+ * has not changed.
  */
-bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route, 
+std::pair<const BgpRib6Entry*, bool> BgpRib6::insert(uint32_t src_router_id, 
+    const Prefix6 &route, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
     const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight,
     uint32_t ibgp_asn) {
 
-    bool inserted = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight, ibgp_asn);
-    if (inserted) update_id++;
-
-    return inserted;
+    update_id++;
+    return insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight, ibgp_asn);
 }
 
 /**
@@ -290,19 +307,23 @@ bool BgpRib6::insert(uint32_t src_router_id, const Prefix6 &route,
  * @param attrib Path attribute. 
  * @param weight weight of this entry.
  * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
- * @return ssize_t Number of routes inserted.
- * @retval -1 Failed to insert routes.
- * @retval >=0 Number of routes inserted.
+ * @return <updated_routes, new_best_routes>
  */
-ssize_t BgpRib6::insert(uint32_t src_router_id, const std::vector<Prefix6> &routes, 
+std::pair<std::vector<BgpRib6Entry>, std::vector<Prefix6>> BgpRib6::insert(
+    uint32_t src_router_id, const std::vector<Prefix6> &routes, 
     const uint8_t nexthop_global[16], const uint8_t nexthop_linklocal[16], 
-    const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
-    size_t inserted = 0;
-    for (const Prefix6 &r : routes) {
-        if (insertPriv(src_router_id, r, nexthop_linklocal, nexthop_global, attrib, weight, ibgp_asn)) inserted++;
-    }
+    const std::vector<std::shared_ptr<BgpPathAttrib>> &attribs, int32_t weight, uint32_t ibgp_asn) {
     update_id++;
-    return inserted;
+    std::vector<BgpRib6Entry> updated;
+    std::vector<Prefix6> unchanged;
+    for (const Prefix6 &route : routes) {
+        std::pair<const BgpRib6Entry*, bool> rslt = insertPriv(src_router_id, route, nexthop_global, nexthop_linklocal, attribs, weight, ibgp_asn);
+        if (rslt.first != NULL) {
+            if (!rslt.second) updated.push_back(*(rslt.first));
+            else unchanged.push_back(route);
+        }
+    }
+    return std::make_pair(updated, unchanged);
 }
 
 /**
@@ -310,14 +331,54 @@ ssize_t BgpRib6::insert(uint32_t src_router_id, const std::vector<Prefix6> &rout
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
  * @param route Route.
- * @return true Route dropped.
- * @return false Route not dropped. Likely becuase such route does not exist.
+ * @return <bool, const BgpRib6Entry*> withdrawn information
+ * @retval <false, NULL> if the withdrawed route is no longer reachable.
+ * @retval <true, NULL> if the route withdrawed but still reachable with current
+ * best route.
+ * @retval <true, const BgpRib6Entry*> if the route withdrawed and that changes
+ * the current best route.
  */
-bool BgpRib6::withdraw(uint32_t src_router_id, const Prefix6 &route) {
+std::pair<bool, const BgpRib6Entry*> BgpRib6::withdraw(uint32_t src_router_id, const Prefix6 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
 
-    rib6_t::const_iterator it = find_entry(route, src_router_id);
-    if (it == rib.end()) return false;
+    std::pair<rib6_t::iterator, rib6_t::iterator> old_entries = 
+        rib.equal_range(BgpRib6EntryKey(route));
+
+    if (old_entries.first == rib.end()) 
+        return std::make_pair<bool, const BgpRib6Entry*>(false, NULL); // not in RIB.
+
+    const char *op = "dropped/no_change";
+
+    BgpRib6Entry *replacement = NULL;
+    // uint64_t old_best_uid = 0;
+    rib6_t::const_iterator to_remove = rib.end();
+    
+    for (rib6_t::iterator it = old_entries.first; it != old_entries.second; it++) {
+        if (it->second.route == route) {
+            if (it->second.src_router_id == src_router_id) {
+                to_remove = it;
+                continue;
+            }
+            replacement = selectEntry(replacement, &(it->second));
+        }
+    }
+
+    bool reachabled = true;
+
+    if (to_remove == rib.end()) 
+        return std::make_pair<bool, const BgpRib6Entry*>(false, NULL);
+    
+    if (replacement != NULL) {
+        if (to_remove->second.status == RS_ACTIVE) {
+            op = "dropped/best_changed";
+        } else replacement = NULL;
+    } else {
+        reachabled = false;
+        op = "dropped/unreachabled";
+    }
+
+    rib.erase(to_remove);
+    if (replacement != NULL) replacement->status = RS_ACTIVE;
 
     LIBBGP_LOG(logger, INFO) {
         uint8_t prefix_arr[16];
@@ -325,39 +386,23 @@ bool BgpRib6::withdraw(uint32_t src_router_id, const Prefix6 &route) {
         char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
         inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
         inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
-        logger->log(INFO, "BgpRib6::withdraw: (dropped) scope %s, route %s/%d\n", src_router_id_str, prefix_str, route.getLength());
+        logger->log(INFO, "BgpRib6::withdraw: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, route.getLength());
     }
 
-    rib.erase(it);
-    return true;
-}
-
-/**
- * @brief Withdraw routes from RIB.
- * 
- * @param src_router_id Originating BGP speaker's ID in network bytes order.
- * @param routes Routes.
- * @return ssize_t Number of routes dropped.
- * @retval -1 Failed to drop routes.
- * @retval >=0 Number of routes dropped.
- */
-ssize_t BgpRib6::withdraw(uint32_t src_router_id, const std::vector<Prefix6> &routes) {
-    size_t dropped = 0;
-    for (const Prefix6 &r : routes) {
-        if (withdraw(src_router_id, r)) dropped++;
-    }
-    return dropped;
+    return std::pair<bool, const BgpRib6Entry*>(reachabled, replacement);
 }
 
 /**
  * @brief Drop all routes from RIB that originated from a BGP speaker.
  * 
  * @param src_router_id src_router_id Originating BGP speaker's ID in network bytes order.
- * @return std::vector<Route> Dropped routes.
+ * @return std::pair<std::vector<Prefix6>, std::vector<BgpRib6Entry>> 
+ * <dropped_routes, updated_routes> pair. dropped_routes should be send as
+ * withdrawn to peers, updated_routes should be send as update to peer.
  */
-std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
+std::pair<std::vector<Prefix6>, std::vector<BgpRib6Entry>> BgpRib6::discard(uint32_t src_router_id) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    std::vector<Prefix6> dropped_routes;
+    /*std::vector<Prefix6> dropped_routes;
 
     for (rib6_t::const_iterator it = rib.begin(); it != rib.end();) {
         if (it->second.src_router_id == src_router_id) {
@@ -372,9 +417,59 @@ std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
             }
             it = rib.erase(it);
         } else it++;
+    }*/
+
+    std::vector<Prefix6> reevaluate_routes;
+    std::vector<Prefix6> dropped_routes;
+
+    for (rib6_t::const_iterator it = rib.begin(); it != rib.end();) {
+        const char *op = "dropped/silent";
+        if (it->second.src_router_id != src_router_id) {
+            it++;
+            continue;
+        }
+        if (it->second.status == RS_ACTIVE) {
+            reevaluate_routes.push_back(it->second.route);
+            op = "dropped/pending-reevaluate";
+        }
+        LIBBGP_LOG(logger, INFO) {
+            uint8_t prefix_arr[16];
+            it->second.route.getPrefix(prefix_arr);
+            char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+            inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
+            logger->log(INFO, "BgpRib6::discard: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, it->second.route.getLength());
+        }
+        it = rib.erase(it);
     }
 
-    return dropped_routes;
+    std::vector<BgpRib6Entry> replacements;
+
+    for (std::vector<Prefix6>::const_iterator it = reevaluate_routes.begin(); it != reevaluate_routes.end(); it++) {
+        const char *op = "replacement found";
+        const Prefix6 &prefix = *it;
+        rib6_t::iterator replacement = find_best(prefix);
+        if (replacement == rib.end()) { // no replacement.
+            dropped_routes.push_back(prefix);
+            op = "no available replacement";
+        } else {
+            replacement->second.status = RS_ACTIVE;
+            replacements.push_back(replacement->second);
+        }
+
+        LIBBGP_LOG(logger, INFO) {
+            uint8_t prefix_arr[16];
+            prefix.getPrefix(prefix_arr);
+            char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET6_ADDRSTRLEN];
+            inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+            inet_ntop(AF_INET6, prefix_arr, prefix_str, INET6_ADDRSTRLEN);
+            logger->log(INFO, "BgpRib6::discard: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, prefix.getLength());
+        }
+    }
+
+    return std::make_pair(dropped_routes, replacements);
+
+    // return dropped_routes;
 }
 
 /**
@@ -386,15 +481,20 @@ std::vector<Prefix6> BgpRib6::discard(uint32_t src_router_id) {
  * @retval BgpRib6Entry* Matching entry.
  */
 const BgpRib6Entry* BgpRib6::lookup(const uint8_t dest[16]) const {
-        const BgpRib6Entry *selected_entry = NULL;
+    /*const BgpRib6Entry *selected_entry = NULL;
 
     for (const auto &entry : rib) {
         const Prefix6 &route = entry.second.route;
         if (route.includes(dest)) 
             selected_entry = selectEntry(&entry.second, selected_entry);
+    }*/
+
+    for (const auto &entry : rib) {
+        if (entry.second.status != RS_ACTIVE) continue;
+        if (entry.second.route.includes(dest)) return &entry.second;
     }
 
-    return selected_entry;
+    return NULL;
 }
 
 /**
@@ -410,7 +510,7 @@ const BgpRib6Entry* BgpRib6::lookup(const uint8_t dest[16]) const {
  * @retval BgpRib6Entry* Matching entry.
  */
 const BgpRib6Entry* BgpRib6::lookup(uint32_t src_router_id, const uint8_t dest[16]) const {
-    const BgpRib6Entry *selected_entry = NULL;
+    /*const BgpRib6Entry *selected_entry = NULL;
 
     for (const auto &entry : rib) {
         if (entry.second.src_router_id != src_router_id) continue;
@@ -419,7 +519,15 @@ const BgpRib6Entry* BgpRib6::lookup(uint32_t src_router_id, const uint8_t dest[1
             selected_entry = selectEntry(&entry.second, selected_entry);
     }
 
-    return selected_entry;
+    return selected_entry;*/
+
+    for (const auto &entry : rib) {
+        if (entry.second.status != RS_ACTIVE) continue;
+        if (entry.second.src_router_id != src_router_id) continue;
+        if (entry.second.route.includes(dest)) return &entry.second;
+    }
+
+    return NULL;
 }
 
 /**
