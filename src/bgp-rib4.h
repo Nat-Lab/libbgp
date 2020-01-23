@@ -103,7 +103,7 @@ public:
     // containing routes with different attribute then provided.
     std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> insert(uint32_t src_router_id, const std::vector<Prefix4> &routes, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight,  uint32_t ibgp_asn);
 
-    // remove a route from RIB, return NULL if route no longer reachable, updated_route otherwise.
+    // remove a route from RIB
     std::pair<bool, const BgpRib4Entry*> withdraw(uint32_t src_router_id, const Prefix4 &route);
 
     // remove all routes from a peer, return <unreachabled routes, updated_routes>.

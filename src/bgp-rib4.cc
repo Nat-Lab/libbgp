@@ -100,7 +100,15 @@ rib4_t::iterator BgpRib4::find_entry (const Prefix4 &prefix, uint32_t src) {
  * @param attrib route attributes.
  * @param weight route weight.
  * @param ibgp_asn remote ASN, if IBGP.
- * @return const BgpRib4Entry entry that should be send to peer. (NULL-able)
+ * @return <const BgpRib4Entry*, bool> inserted info: <new_best_route, 
+ * inserted_is_best>
+ * @retval <const BgpRib4Entry*, true> inserted route is the new best route. 
+ * const BgpRib4Entry* is the inserted route.
+ * @retval <const BgpRib4Entry*, false> inseted route replaced current best
+ * route, but new best route is NOT the inserted one. New best has been returned
+ * in const BgpRib4Entry*.
+ * @retval <NULL, false> inserted route is not the new best, and current best
+ * has not changed.
  */
 std::pair<const BgpRib4Entry*, bool> BgpRib4::insertPriv(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
@@ -198,6 +206,8 @@ std::pair<const BgpRib4Entry*, bool> BgpRib4::insertPriv(uint32_t src_router_id,
  * 
  * To remove an entry inserted with this method, use 0 as `src_router_id`.
  * 
+ * This SHOULD NOT be called when the any of the upper FSM is running.
+ * 
  * @param logger Pointer to logger for the created path attributes to use. 
  * @param route Prefix4.
  * @param nexthop Nexthop for the route.
@@ -251,6 +261,8 @@ const BgpRib4Entry* BgpRib4::insert(BgpLogHandler *logger, const Prefix4 &route,
  * 
  * ame as the other local insert, but this one insert mutiple routes.
  * 
+ * This SHOULD NOT be called when the any of the upper FSM is running. 
+ * 
  * @param logger Pointer to logger for the created path attributes to use. 
  * @param routes Routes.
  * @param nexthop Nexthop for the route.
@@ -294,7 +306,7 @@ const std::vector<BgpRib4Entry> BgpRib4::insert(BgpLogHandler *logger, const std
  * @param attrib Path attribute.
  * @param weight weight of this entry.
  * @param ibgp_asn ASN of the peer if the route is from an IBGP peer. 0 if not.
- * @return const BgpRib4Entry* entry that should be send to peer. (NULL-able)
+ * @return <const BgpRib4Entry*, bool> entry that should be send to peer. (NULL-able)
  */
 std::pair<const BgpRib4Entry*, bool> BgpRib4::insert(uint32_t src_router_id, const Prefix4 &route, const std::vector<std::shared_ptr<BgpPathAttrib>> &attrib, int32_t weight, uint32_t ibgp_asn) {
     update_id++;
