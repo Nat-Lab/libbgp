@@ -126,7 +126,7 @@ int BgpFsm::start() {
         return 0;
     }
     
-    logger->log(INFO, "BgpFsm::start: sending OPEN message to peer.\n");
+    logger->log(DEBUG, "BgpFsm::start: sending OPEN message to peer.\n");
 
     uint16_t my_asn_2b = config.asn >= 0xffff ? 23456 : config.asn;
 
@@ -483,54 +483,109 @@ bool BgpFsm::handleRouteCollisionEvent(const RouteCollisionEvent &ev) {
 bool BgpFsm::handleRoute6AddEvent(const Route6AddEvent &ev) {
     if (state != ESTABLISHED) return false;
     if (!send_ipv6_routes) return false; 
+    if ((ev.shared_attribs == NULL || ev.new_routes == NULL) && ev.replaced_entries == NULL) return false;
 
-    logger->log(INFO, "BgpFsm::handleRoute6AddEvent: got route-add event with %zu routes.\n", ev.routes.size());
-    if (ibgp && ev.ibgp_peer_asn == peer_asn) {
-        logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: ignoring the add event since remote is IBGP.\n");
-        return false;
-    }
+    size_t nroutes = 0;
+    if (ev.replaced_entries != NULL) nroutes += ev.replaced_entries->size();
+    if (ev.new_routes != NULL) nroutes += ev.new_routes->size();
 
-    std::vector<Prefix6> routes;
-    const uint8_t *nh_global = ev.nexthop_global;
-    const uint8_t *nh_local = ev.nexthop_linklocal;
-    alterNexthop6(nh_local, nh_global);
+    logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: got route-add event with %zu routes.\n", nroutes);
 
-    for (const Prefix6 &route : ev.routes) {
-        if (config.out_filters6.apply(route, ev.attribs)) {
-            routes.push_back(route);
-        } else {
-            LIBBGP_LOG(logger, INFO) {
-                uint8_t prefix[16];
-                route.getPrefix(prefix);
-                char prefix_str[INET6_ADDRSTRLEN];
-                inet_ntop(AF_INET6, &prefix, prefix_str, INET6_ADDRSTRLEN);
-                logger->log(INFO, "BgpFsm::handleRoute6AddEvent: route %s/%d filtered by out_filter.\n", prefix_str, route.getLength());
+    if (ev.new_routes != NULL && ev.shared_attribs != NULL) {
+        if (!ibgp || ev.ibgp_peer_asn != peer_asn) {
+            std::vector<Prefix6> routes;
+            const uint8_t *nh_global = ev.nexthop_global;
+            const uint8_t *nh_local = ev.nexthop_linklocal;
+            alterNexthop6(nh_local, nh_global);
+
+            for (const Prefix6 &route : *(ev.new_routes)) {
+                if (config.out_filters6.apply(route, *(ev.shared_attribs))) {
+                    routes.push_back(route);
+                } else {
+                    LIBBGP_LOG(logger, DEBUG) {
+                        uint8_t prefix[16];
+                        route.getPrefix(prefix);
+                        char prefix_str[INET6_ADDRSTRLEN];
+                        inet_ntop(AF_INET6, &prefix, prefix_str, INET6_ADDRSTRLEN);
+                        logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: route %s/%d filtered by out_filter.\n", prefix_str, route.getLength());
+                    }
+                }
             }
+
+            if (routes.size() > 0) {
+                BgpUpdateMessage update (logger, use_4b_asn);
+                update.setAttribs(*(ev.shared_attribs));
+                prepareUpdateMessage(update);
+                update.setNlri6(routes, nh_global, nh_local);
+
+                if(!writeMessage(update)) return false;
+            }
+
+        } else {
+            logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: ignoring new_routes in add event since remote is IBGP.\n");
         }
+    } else {
+        logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: new_routes or shared_attribs is NULL.\n");
     }
 
-    if (routes.size() > 0) {
-        BgpUpdateMessage update (logger, use_4b_asn);
-        update.setAttribs(ev.attribs);
-        prepareUpdateMessage(update);
-        update.setNlri6(routes, nh_global, nh_local);
-
-        if(!writeMessage(update)) return false;
+    if (ev.replaced_entries == NULL) {
+        logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: replaced_entries is NULL.\n");
         return true;
     }
 
-    return false;
+    // consider merging of replaced_entries?
+    for (const BgpRib6Entry &entry : *(ev.replaced_entries)) {
+        if (entry.src_router_id == peer_bgp_id) continue;
+
+        if (ibgp && entry.ibgp_peer_asn == peer_asn) {
+            LIBBGP_LOG(logger, DEBUG) {
+                uint8_t prefix[16];
+                entry.route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, &prefix, prefix_str, INET6_ADDRSTRLEN);
+                logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: route %s/%d in replaced_entries ignored as it is IBGP.\n", prefix_str, entry.route.getLength());
+            }
+            
+            continue;
+        }
+
+        if (config.out_filters6.apply(entry.route, entry.attribs) != ACCEPT) {
+            LIBBGP_LOG(logger, DEBUG) {
+                uint8_t prefix[16];
+                entry.route.getPrefix(prefix);
+                char prefix_str[INET6_ADDRSTRLEN];
+                inet_ntop(AF_INET6, &prefix, prefix_str, INET6_ADDRSTRLEN);
+                logger->log(DEBUG, "BgpFsm::handleRoute6AddEvent: route %s/%d in replaced_entries filtered.\n", prefix_str, entry.route.getLength());
+            }
+
+            continue;
+        }
+
+        BgpUpdateMessage update (logger, use_4b_asn);
+        update.setAttribs(entry.attribs);
+        const uint8_t *nh_global = entry.nexthop_global;
+        const uint8_t *nh_local = entry.nexthop_linklocal;
+        alterNexthop6(nh_local, nh_global);
+        std::vector<Prefix6> routes;
+        routes.push_back(entry.route);
+        update.setNlri6(routes, nh_global, nh_local);
+        prepareUpdateMessage(update);
+        if(!writeMessage(update)) return false;
+    }
+
+    return true;
 }
 
 bool BgpFsm::handleRoute6WithdrawEvent(const Route6WithdrawEvent &ev) {
     if (state != ESTABLISHED) return false;
     if (!send_ipv6_routes) return false;
+    if (ev.routes == NULL) return false;
 
-    logger->log(INFO, "BgpFsm::handleRoute6WithdrawEvent: got route-withdraw event with %zu routes.\n", ev.routes.size());
+    logger->log(DEBUG, "BgpFsm::handleRoute6WithdrawEvent: got route-withdraw event with %zu routes.\n", ev.routes->size());
 
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
-    withdraw.setWithdrawn6(ev.routes);
+    withdraw.setWithdrawn6(*(ev.routes));
 
     if(!writeMessage(withdraw)) return false;
     return true;
@@ -583,6 +638,7 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
         return true;
     }
 
+    // consider merging of replaced_entries?
     for (const BgpRib4Entry &entry : *(ev.replaced_entries)) {
         if (entry.src_router_id == peer_bgp_id) continue;
 
@@ -613,7 +669,6 @@ bool BgpFsm::handleRoute4AddEvent(const Route4AddEvent &ev) {
         update.addNlri4(entry.route);
         alterNexthop4(update);
         prepareUpdateMessage(update);
-        // check if nexthop in attribs list
         if(!writeMessage(update)) return false;
     }
 
@@ -625,7 +680,7 @@ bool BgpFsm::handleRoute4WithdrawEvent(const Route4WithdrawEvent &ev) {
     if (!send_ipv4_routes) return false;
     if (ev.routes == NULL) return false;
 
-    logger->log(INFO, "BgpFsm::handleRoute4AddEvent: got route-withdraw event with %zu routes.\n", ev.routes->size());
+    logger->log(DEBUG, "BgpFsm::handleRoute4AddEvent: got route-withdraw event with %zu routes.\n", ev.routes->size());
 
     BgpUpdateMessage withdraw (logger, use_4b_asn);
     withdraw.setWithdrawn4(*(ev.routes));
@@ -849,11 +904,11 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                     }
                     update.addNlri4(r);
                 } else {
-                    LIBBGP_LOG(logger, INFO) {
+                    LIBBGP_LOG(logger, DEBUG) {
                         uint32_t prefix = r.getPrefix();
                         char ip_str[INET_ADDRSTRLEN];
                         inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                        logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
+                        logger->log(DEBUG, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
                     }
                 }
                 last_iter = iter;
@@ -890,6 +945,7 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
             for (; iter != end && cur_group_id == iter->second.update_id && msg_len < 4096; iter++) {
                 const BgpRib6Entry &e = iter->second;
                 const Prefix6 &r = e.route;
+                if (e.status != RS_ACTIVE) continue;
                 if (ibgp && e.src == SRC_IBGP && e.ibgp_peer_asn == peer_asn) {
                     LIBBGP_LOG(logger, DEBUG) {
                         uint8_t prefix[16]; 
@@ -922,12 +978,12 @@ int BgpFsm::fsmEvalOpenConfirm(__attribute__((unused)) const BgpMessage *msg) {
                     }
                     filtered_nlri.push_back(r);
                 } else {
-                    LIBBGP_LOG(logger, INFO) {
+                    LIBBGP_LOG(logger, DEBUG) {
                         uint8_t prefix[16]; 
                         r.getPrefix(prefix);
                         char ip_str[INET6_ADDRSTRLEN];
                         inet_ntop(AF_INET6, &prefix, ip_str, INET6_ADDRSTRLEN);
-                        logger->log(INFO, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
+                        logger->log(DEBUG, "BgpFsm::fsmEvalOpenConfirm: route %s/%d filtered by out_filter.\n", ip_str, r.getLength());
                     }
                 }
                 last_iter = iter;
@@ -1017,11 +1073,11 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                 if(config.in_filters4.apply(route, update->path_attribute) == ACCEPT) {
                     routes.push_back(route);
                 } else {
-                    LIBBGP_LOG(logger, INFO) {
+                    LIBBGP_LOG(logger, DEBUG) {
                         uint32_t prefix = route.getPrefix();
                         char ip_str[INET_ADDRSTRLEN];
                         inet_ntop(AF_INET, &prefix, ip_str, INET_ADDRSTRLEN);
-                        logger->log(INFO, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters4.\n", ip_str, route.getLength());
+                        logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: route %s/%d filtered by in_filters4.\n", ip_str, route.getLength());
                     }
                 }
             }
@@ -1036,7 +1092,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
 
             if (rev_bus_exist && (changed_entries.size() > 0 || rslt.second.size() > 0)) {
-                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing new routes on event bus...\n");
+                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing new v4 routes on event bus...\n");
                 Route4AddEvent aev = Route4AddEvent();
                 aev.replaced_entries = changed_entries.size() > 0 ? &changed_entries : NULL;
                 aev.shared_attribs = &(update->path_attribute);
@@ -1046,7 +1102,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
             }
 
             if (rev_bus_exist && unreach.size() > 0) {
-                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing dropped routes on event bus...\n");
+                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing dropped v4 routes on event bus...\n");
                 Route4WithdrawEvent wev = Route4WithdrawEvent();
                 wev.routes = &unreach;
                 config.rev_bus->publish(this, wev);
@@ -1055,17 +1111,21 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
     }
 
     if (send_ipv6_routes) {
+        std::vector<Prefix6> unreach;
+        std::vector<BgpRib6Entry> changed_entries;
         if (update->hasAttrib(MP_UNREACH_NLRI)) {
             const BgpPathAttrib &attr = update->getAttrib(MP_UNREACH_NLRI);
             const BgpPathAttribMpNlriBase &mp_unreach = dynamic_cast<const BgpPathAttribMpNlriBase &>(attr);
             if (mp_unreach.afi == IPV6 && mp_unreach.safi == UNICAST) {
-                const BgpPathAttribMpUnreachNlriIpv6 &unreach = dynamic_cast<const BgpPathAttribMpUnreachNlriIpv6 &>(mp_unreach);
-                rib6->withdraw(peer_bgp_id, unreach.withdrawn_routes);
+                const BgpPathAttribMpUnreachNlriIpv6 &u = dynamic_cast<const BgpPathAttribMpUnreachNlriIpv6 &>(mp_unreach);
 
-                if (rev_bus_exist) {
-                    Route6WithdrawEvent wev = Route6WithdrawEvent();
-                    wev.routes = unreach.withdrawn_routes;
-                    config.rev_bus->publish(this, wev);
+                for (const Prefix6 &r : u.withdrawn_routes) {
+                    std::pair<bool, const BgpRib6Entry*> w_ret = rib6->withdraw(peer_bgp_id, r);
+                    if (!rev_bus_exist) continue;
+                    if (!w_ret.first) unreach.push_back(r);
+                    else if (w_ret.second != NULL) {
+                        changed_entries.push_back(*(w_ret.second));
+                    }
                 }
             }
         }
@@ -1100,16 +1160,29 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                     attrs.push_back(attr);
                 }
 
-                rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight, ibgp ? peer_asn : 0);
+                std::pair<std::vector<BgpRib6Entry>, std::vector<Prefix6>> rslt = rib6->insert(peer_bgp_id, filtered_routes, reach.nexthop_global, reach.nexthop_linklocal, attrs, config.weight, ibgp ? peer_asn : 0);
+                logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: rib6.insert(): %zu altered and %zu added in %zu routes.\n", rslt.first.size(), rslt.second.size(), filtered_routes.size());
 
-                if (rev_bus_exist) {
+                for (const BgpRib6Entry &e : rslt.first) {
+                    changed_entries.push_back(e);
+                }
+
+                if (rev_bus_exist && (changed_entries.size() > 0 || rslt.second.size() > 0)) {
                     Route6AddEvent aev = Route6AddEvent();
-                    aev.attribs = attrs;
-                    aev.routes = filtered_routes;
                     memcpy(aev.nexthop_global, reach.nexthop_global, 16);
                     memcpy(aev.nexthop_linklocal, reach.nexthop_linklocal, 16);
+                    aev.new_routes = rslt.second.size() > 0 ? &(rslt.second) : NULL;
+                    aev.replaced_entries = changed_entries.size() > 0 ? &changed_entries : NULL;
+                    aev.shared_attribs = &attrs;
                     if (ibgp) aev.ibgp_peer_asn = peer_asn;
                     config.rev_bus->publish(this, aev);
+                }
+
+                if (rev_bus_exist && unreach.size() > 0) {
+                    logger->log(DEBUG, "BgpFsm::fsmEvalEstablished: publishing dropped v6 routes on event bus...\n");
+                    Route6WithdrawEvent wev = Route6WithdrawEvent();
+                    wev.routes = &unreach;
+                    config.rev_bus->publish(this, wev);
                 }
             }
         }
@@ -1131,11 +1204,16 @@ void BgpFsm::dropAllRoutes() {
             aev.replaced_entries = &(rslt4.second);
             config.rev_bus->publish(this, aev);
         }
-        std::vector<Prefix6> dropped_routes6 = rib6->discard(peer_bgp_id);
-        if (rev_bus_exist && dropped_routes6.size() > 0) {
+        std::pair<std::vector<Prefix6>, std::vector<BgpRib6Entry>> rslt6 = rib6->discard(peer_bgp_id);
+        if (rev_bus_exist && rslt6.first.size() > 0) {
             Route6WithdrawEvent wev;
-            wev.routes = dropped_routes6;
+            wev.routes = &(rslt6.first);
             config.rev_bus->publish(this, wev);
+        }
+        if (rev_bus_exist && rslt6.second.size() > 0) {
+            Route6AddEvent aev;
+            aev.replaced_entries = &(rslt6.second);
+            config.rev_bus->publish(this, aev);
         }
     }
 }

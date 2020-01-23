@@ -112,19 +112,31 @@ public:
  */
 class Route6AddEvent : public RouteEvent {
 public:
-    Route6AddEvent () { type = ADD6; ibgp_peer_asn = 0; }
+    Route6AddEvent () { 
+        type = ADD6; 
+        ibgp_peer_asn = 0;
+        shared_attribs = NULL; 
+        new_routes = NULL;
+        replaced_entries = NULL;
+    }
 
     /**
      * @brief Path attribues of the route.
      * 
      */
-    std::vector<std::shared_ptr<BgpPathAttrib>> attribs;
+    std::vector<std::shared_ptr<BgpPathAttrib>> *shared_attribs;
 
     /**
      * @brief Routes to add.
      * 
      */
-    std::vector<Prefix6> routes;
+    std::vector<Prefix6> *new_routes;
+
+    /**
+     * @brief Pointer to the route replacement entries vector.
+     * 
+     */
+    const std::vector<BgpRib6Entry> *replaced_entries;
 
     /**
      * @brief Global IPv6 nexthop.
@@ -159,7 +171,7 @@ public:
      * @brief Routes to withdraw.
      * 
      */
-    std::vector<Prefix6> routes;
+    std::vector<Prefix6> *routes;
 };
 
 /**
