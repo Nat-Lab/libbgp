@@ -3,10 +3,10 @@
  * @author Nato Morichika <nat@nat.moe>
  * @brief Example of adding new routes to RIB while BGP FSM is running. Notify 
  * BGP FSM to send updates to the peer with RouteEventBus.
- * @version 0.1
- * @date 2019-07-14
+ * @version 0.2
+ * @date 2020-01-23
  * 
- * @copyright Copyright (c) 2019
+ * @copyright Copyright (c) 2020
  * 
  */
 #include <libbgp/bgp-fsm.h>
@@ -36,11 +36,18 @@ protected:
     bool handleRouteEvent(const libbgp::RouteEvent &ev) {
         if (ev.type == libbgp::ADD4) {
             const libbgp::Route4AddEvent &add_ev = dynamic_cast<const libbgp::Route4AddEvent &>(ev);
-            printRoutes("add", add_ev.routes);
+            if (add_ev.new_routes) printRoutes("add", *(add_ev.new_routes));
+            if (add_ev.replaced_entries) {
+                std::vector<libbgp::Prefix4> altered;
+                for (const libbgp::BgpRib4Entry &e : *(add_ev.replaced_entries)) {
+                    altered.push_back(e.route);
+                }
+                printRoutes("changed", *(add_ev.new_routes));
+            }
         }
         if (ev.type == libbgp::WITHDRAW4) {
             const libbgp::Route4WithdrawEvent &wd_ev = dynamic_cast<const libbgp::Route4WithdrawEvent &>(ev);
-            printRoutes("withdraw", wd_ev.routes);
+            if (wd_ev.routes) printRoutes("withdraw", *(wd_ev.routes));
         }
 
         // we are just peeking the events, no need to report event handled
@@ -221,8 +228,10 @@ int main(void) {
 
     // create an route-add event.
     libbgp::Route4AddEvent add_event;
-    add_event.routes.push_back(inserted->route);
-    add_event.attribs = inserted->attribs;
+    std::vector<libbgp::Prefix4> new_routes;
+    new_routes.push_back(inserted->route);
+    add_event.new_routes = &new_routes;
+    add_event.shared_attribs = &(inserted->attribs);
 
     // publish the event with event bus. The first parameter is pointer to the
     // publisher, and it is for ensuring publisher of the event does not
@@ -238,25 +247,10 @@ int main(void) {
 
     // and notify the FSM.
     libbgp::Route4WithdrawEvent withdraw_event;
-    withdraw_event.routes.push_back(r_172_30_24);
+    std::vector<libbgp::Prefix4> drop_routes;
+    drop_routes.push_back(r_172_30_24);
+    withdraw_event.routes = &drop_routes;
     local_bus.publish(&local_handler, withdraw_event);
-
-    // starting from libbgp 0.4.3, you can have bgp-rib to publish the event
-    // for you. let's add the same route again:
-    local_rib.insert(&local_logger, r_172_30_24, local_bgp_config.default_nexthop4, &local_bus);
-    
-    // then drop it again.
-    local_rib.withdraw(0, r_172_30_24, &local_bus);
-
-    // starting from 0.4.3, you may also add list of routes to rib.
-    std::vector<libbgp::Prefix4> routes;
-    routes.push_back(libbgp::Prefix4("172.29.0.0", 24));
-    routes.push_back(libbgp::Prefix4("172.28.0.0", 24));
-    routes.push_back(libbgp::Prefix4("172.27.0.0", 24));
-    local_rib.insert(&local_logger, routes, local_bgp_config.default_nexthop4, &local_bus);
-
-    // you may also drop mutiple of routes too:
-    local_rib.withdraw(0, routes, &local_bus);
 
     // clean up
     local.stop();
