@@ -481,20 +481,16 @@ std::pair<std::vector<Prefix6>, std::vector<BgpRib6Entry>> BgpRib6::discard(uint
  * @retval BgpRib6Entry* Matching entry.
  */
 const BgpRib6Entry* BgpRib6::lookup(const uint8_t dest[16]) const {
-    /*const BgpRib6Entry *selected_entry = NULL;
-
-    for (const auto &entry : rib) {
-        const Prefix6 &route = entry.second.route;
-        if (route.includes(dest)) 
-            selected_entry = selectEntry(&entry.second, selected_entry);
-    }*/
+    const BgpRib6Entry *selected_entry = NULL;
 
     for (const auto &entry : rib) {
         if (entry.second.status != RS_ACTIVE) continue;
-        if (entry.second.route.includes(dest)) return &entry.second;
+        const Prefix6 &route = entry.second.route;
+        if (route.includes(dest)) 
+            selected_entry = selectEntry(&entry.second, selected_entry);
     }
 
-    return NULL;
+    return selected_entry;
 }
 
 /**
@@ -510,24 +506,17 @@ const BgpRib6Entry* BgpRib6::lookup(const uint8_t dest[16]) const {
  * @retval BgpRib6Entry* Matching entry.
  */
 const BgpRib6Entry* BgpRib6::lookup(uint32_t src_router_id, const uint8_t dest[16]) const {
-    /*const BgpRib6Entry *selected_entry = NULL;
+    const BgpRib6Entry *selected_entry = NULL;
 
     for (const auto &entry : rib) {
+        if (entry.second.status != RS_ACTIVE) continue;
         if (entry.second.src_router_id != src_router_id) continue;
         const Prefix6 &route = entry.second.route;
         if (route.includes(dest)) 
             selected_entry = selectEntry(&entry.second, selected_entry);
     }
 
-    return selected_entry;*/
-
-    for (const auto &entry : rib) {
-        if (entry.second.status != RS_ACTIVE) continue;
-        if (entry.second.src_router_id != src_router_id) continue;
-        if (entry.second.route.includes(dest)) return &entry.second;
-    }
-
-    return NULL;
+    return selected_entry;
 }
 
 /**
