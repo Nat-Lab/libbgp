@@ -49,18 +49,15 @@ BgpSink::~BgpSink() {
  */
 ssize_t BgpSink::fill(const uint8_t *buffer, size_t len) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
-    if (len > buffer_size) {
-        if (logger) logger->log(ERROR, "BgpSink::fill: buffer length (%d) > sink size (%d).\n", len, buffer_size);
-        return -1;
-    }
+
+    // expand if too small
+    while (len > buffer_size) expand();
 
     // first try settle
     if (offset_end + len > buffer_size) settle();
 
     // if still too small, expand
-    while (offset_end + len > buffer_size) {
-        expand();
-    }
+    while (offset_end + len > buffer_size) expand();
 
     memcpy(this->buffer + offset_end, buffer, len);
     offset_end += len;
