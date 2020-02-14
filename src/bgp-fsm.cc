@@ -1025,7 +1025,7 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                 break;
             }
         }
-    } else ignore_routes = true; // since no AS_PATH and nlri non empty. (should be handleded by update-msg already tho)
+    } else if (update->nlri.size() > 0) ignore_routes = true; // since no AS_PATH and nlri non empty. (should be handleded by update-msg already tho)
 
     if (send_ipv4_routes) {
         std::vector<Prefix4> unreach;
