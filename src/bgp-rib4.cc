@@ -355,8 +355,17 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
     std::pair<rib4_t::iterator, rib4_t::iterator> old_entries = 
         rib.equal_range(BgpRib4EntryKey(route));
 
-    if (old_entries.first == rib.end()) 
+    if (old_entries.first == rib.end()) {
+        LIBBGP_LOG(logger, DEBUG) {
+            uint32_t prefix = route.getPrefix();
+            char src_router_id_str[INET_ADDRSTRLEN], prefix_str[INET_ADDRSTRLEN];
+            inet_ntop(AF_INET, &src_router_id, src_router_id_str, INET_ADDRSTRLEN);
+            inet_ntop(AF_INET, &prefix, prefix_str, INET_ADDRSTRLEN);
+            logger->log(DEBUG, "BgpRib4::withdraw: scope %s, route %s/%d: not found.\n", src_router_id_str, prefix_str, route.getLength());
+        }
+
         return std::make_pair<bool, const BgpRib4Entry*>(false, NULL); // not in RIB.
+    }
 
     const char *op = "dropped/no_change";
     BgpRib4Entry *replacement = NULL;
