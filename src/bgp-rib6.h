@@ -128,7 +128,7 @@ public:
         uint32_t ibgp_asn);
 
     // remove a route from RIB
-    std::pair<bool, const BgpRib6Entry*> withdraw(uint32_t src_router_id, const Prefix6 &route);
+    std::pair<bool, const void*> withdraw(uint32_t src_router_id, const Prefix6 &route);
 
     // remove all routes from a peer, return <unreachabled routes, updated_routes>.
     std::pair<std::vector<Prefix6>, std::vector<BgpRib6Entry>> discard(uint32_t src_router_id);

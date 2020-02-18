@@ -331,21 +331,22 @@ std::pair<std::vector<BgpRib6Entry>, std::vector<Prefix6>> BgpRib6::insert(
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
  * @param route Route.
- * @return <bool, const BgpRib6Entry*> withdrawn information
+ * @return <bool, const void*> withdrawn information
  * @retval <false, NULL> if the withdrawed route is no longer reachable.
+ * @retval <false, const Prefix6 *> if the withdrawed route is not in rib.
  * @retval <true, NULL> if the route withdrawed but still reachable with current
  * best route.
  * @retval <true, const BgpRib6Entry*> if the route withdrawed and that changes
  * the current best route.
  */
-std::pair<bool, const BgpRib6Entry*> BgpRib6::withdraw(uint32_t src_router_id, const Prefix6 &route) {
+std::pair<bool, const void*> BgpRib6::withdraw(uint32_t src_router_id, const Prefix6 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
 
     std::pair<rib6_t::iterator, rib6_t::iterator> old_entries = 
         rib.equal_range(BgpRib6EntryKey(route));
 
     if (old_entries.first == rib.end()) 
-        return std::make_pair<bool, const BgpRib6Entry*>(false, NULL); // not in RIB.
+        return std::make_pair<bool, const BgpRib6Entry*>(false, &route); // not in RIB.
 
     const char *op = "dropped/no_change";
 

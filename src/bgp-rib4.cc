@@ -343,14 +343,15 @@ std::pair<std::vector<BgpRib4Entry>, std::vector<Prefix4>> BgpRib4::insert(uint3
  * 
  * @param src_router_id Originating BGP speaker's ID in network bytes order.
  * @param route Prefix4.
- * @return <bool, const BgpRib4Entry*> withdrawn information
+ * @return <bool, const void*> withdrawn information
  * @retval <false, NULL> if the withdrawed route is no longer reachable.
+ * @retval <false, const Prefix4*> if the withdrawed route is not in rib.
  * @retval <true, NULL> if the route withdrawed but still reachable with current
  * best route.
  * @retval <true, const BgpRib4Entry*> if the route withdrawed and that changes
  * the current best route.
  */
-std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
+std::pair<bool, const void*> BgpRib4::withdraw(uint32_t src_router_id, const Prefix4 &route) {
     std::lock_guard<std::recursive_mutex> lock(mutex);
     std::pair<rib4_t::iterator, rib4_t::iterator> old_entries = 
         rib.equal_range(BgpRib4EntryKey(route));
@@ -364,7 +365,7 @@ std::pair<bool, const BgpRib4Entry*> BgpRib4::withdraw(uint32_t src_router_id, c
             logger->log(DEBUG, "BgpRib4::withdraw: scope %s, route %s/%d: not found.\n", src_router_id_str, prefix_str, route.getLength());
         }
 
-        return std::make_pair<bool, const BgpRib4Entry*>(false, NULL); // not in RIB.
+        return std::make_pair<bool, const BgpRib4Entry*>(false, &route); // not in RIB.
     }
 
     const char *op = "dropped/no_change";
