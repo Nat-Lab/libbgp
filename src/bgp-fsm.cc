@@ -1033,7 +1033,9 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
         for (const Prefix4 &r : update->withdrawn_routes) {
             std::pair<bool, const void*> w_ret = rib4->withdraw(peer_bgp_id, r);
             if (!rev_bus_exist) continue;
-            if (!w_ret.first && w_ret.second == NULL) unreach.push_back(r);
+            if (!w_ret.first) {
+                if (w_ret.second == NULL) unreach.push_back(r);
+            }
             else if (w_ret.second != NULL) {
                 changed_entries.push_back(*((BgpRib4Entry *) w_ret.second));
             }
@@ -1122,7 +1124,9 @@ int BgpFsm::fsmEvalEstablished(const BgpMessage *msg) {
                 for (const Prefix6 &r : u.withdrawn_routes) {
                     std::pair<bool, const void*> w_ret = rib6->withdraw(peer_bgp_id, r);
                     if (!rev_bus_exist) continue;
-                    if (!w_ret.first && w_ret.second == NULL) unreach.push_back(r);
+                    if (!w_ret.first) {
+                        if (w_ret.second == NULL) unreach.push_back(r);
+                    }
                     else if (w_ret.second != NULL) {
                         changed_entries.push_back(*((BgpRib6Entry *) w_ret.second));
                     }
