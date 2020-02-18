@@ -346,7 +346,7 @@ std::pair<bool, const void*> BgpRib6::withdraw(uint32_t src_router_id, const Pre
         rib.equal_range(BgpRib6EntryKey(route));
 
     if (old_entries.first == rib.end()) 
-        return std::make_pair<bool, const BgpRib6Entry*>(false, &route); // not in RIB.
+        return std::make_pair<bool, const void*>(false, &route); // not in RIB.
 
     const char *op = "dropped/no_change";
 
@@ -367,7 +367,7 @@ std::pair<bool, const void*> BgpRib6::withdraw(uint32_t src_router_id, const Pre
     bool reachabled = true;
 
     if (to_remove == rib.end()) 
-        return std::make_pair<bool, const BgpRib6Entry*>(false, NULL);
+        return std::make_pair<bool, const void*>(false, NULL);
     
     if (replacement != NULL) {
         if (to_remove->second.status == RS_ACTIVE) {

@@ -365,7 +365,7 @@ std::pair<bool, const void*> BgpRib4::withdraw(uint32_t src_router_id, const Pre
             logger->log(DEBUG, "BgpRib4::withdraw: scope %s, route %s/%d: not found.\n", src_router_id_str, prefix_str, route.getLength());
         }
 
-        return std::make_pair<bool, const BgpRib4Entry*>(false, &route); // not in RIB.
+        return std::make_pair<bool, const void*>(false, &route); // not in RIB.
     }
 
     const char *op = "dropped/no_change";
@@ -386,7 +386,7 @@ std::pair<bool, const void*> BgpRib4::withdraw(uint32_t src_router_id, const Pre
     bool reachabled = true;
 
     if (to_remove == rib.end()) 
-        return std::make_pair<bool, const BgpRib4Entry*>(false, NULL);
+        return std::make_pair<bool, const void*>(false, NULL);
     
     if (replacement != NULL) {
         // const BgpRib4Entry *candidate = selectEntry(replacement, &(to_remove->second));
@@ -409,7 +409,7 @@ std::pair<bool, const void*> BgpRib4::withdraw(uint32_t src_router_id, const Pre
         logger->log(DEBUG, "BgpRib4::withdraw: (%s) scope %s, route %s/%d\n", op, src_router_id_str, prefix_str, route.getLength());
     }
 
-    return std::pair<bool, const BgpRib4Entry*>(reachabled, replacement);
+    return std::pair<bool, const void*>(reachabled, replacement);
 }
 
 /**
