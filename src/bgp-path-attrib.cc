@@ -431,7 +431,7 @@ ssize_t BgpPathAttribAsPath::doPrint(size_t indent, uint8_t **to, size_t *buf_sz
                     }
                     indent++; {
                         for (uint32_t asn : seg.value) {
-                            written += _print(indent, to, buf_sz, "%d\n", asn);
+                            written += _print(indent, to, buf_sz, "%u\n", asn);
                         }
                     }; indent--;
                     written += _print(indent, to, buf_sz, "}\n");
@@ -1072,7 +1072,7 @@ ssize_t BgpPathAttribAs4Path::doPrint(size_t indent, uint8_t **to, size_t *buf_s
                     }
                     indent++; {
                         for (uint32_t asn : seg.value) {
-                            written += _print(indent, to, buf_sz, "%d\n", asn);
+                            written += _print(indent, to, buf_sz, "%u\n", asn);
                         }
                     }; indent--;
                     written += _print(indent, to, buf_sz, "}\n");

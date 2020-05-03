@@ -69,8 +69,8 @@ ssize_t BgpCapability4BytesAsn::doPrint(size_t indent, uint8_t **to, size_t *buf
     ssize_t written = 0;
     written += _print(indent, to, buf_sz, "FourOctetAsnCapability {\n");
     indent++; {
-        written += _print(indent, to, buf_sz, "Code { %d }\n", code);
-        written += _print(indent, to, buf_sz, "MyAsn { %d }\n", my_asn);
+        written += _print(indent, to, buf_sz, "Code { %u }\n", code);
+        written += _print(indent, to, buf_sz, "MyAsn { %u }\n", my_asn);
     }; indent--;
     written += _print(indent, to, buf_sz, "}\n");
 
