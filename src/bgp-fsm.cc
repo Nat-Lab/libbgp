@@ -496,7 +496,7 @@ bool BgpFsm::handleRoute6AddEvent(const Route6AddEvent &ev) {
             std::vector<Prefix6> routes;
             const uint8_t *nh_global = ev.nexthop_global;
             const uint8_t *nh_local = ev.nexthop_linklocal;
-            alterNexthop6(nh_local, nh_global);
+            alterNexthop6(nh_global, nh_local);
 
             for (const Prefix6 &route : *(ev.new_routes)) {
                 if (config.out_filters6.apply(route, *(ev.shared_attribs))) {
@@ -565,7 +565,7 @@ bool BgpFsm::handleRoute6AddEvent(const Route6AddEvent &ev) {
         update.setAttribs(entry.attribs);
         const uint8_t *nh_global = entry.nexthop_global;
         const uint8_t *nh_local = entry.nexthop_linklocal;
-        alterNexthop6(nh_local, nh_global);
+        alterNexthop6(nh_global, nh_local);
         std::vector<Prefix6> routes;
         routes.push_back(entry.route);
         update.setNlri6(routes, nh_global, nh_local);
@@ -722,17 +722,22 @@ void BgpFsm::alterNexthop4 (BgpUpdateMessage &update) {
 }
 
 void BgpFsm::alterNexthop6 (const uint8_t* &nh_global, const uint8_t* &nh_local) {
-    if (config.forced_default_nexthop6 && !config.peering_lan6.includes(nh_global) && !ibgp && !config.ibgp_alter_nexthop) {
+    // ibgp
+    if (ibgp && !config.ibgp_alter_nexthop) return;
+
+    if (config.forced_default_nexthop6 || !config.peering_lan6.includes(nh_global)) {
         LIBBGP_LOG(logger, INFO) {
             char nh_old_str[INET6_ADDRSTRLEN];
             char nh_def_str[INET6_ADDRSTRLEN];
+            char nh_def_ll_str[INET6_ADDRSTRLEN];
             inet_ntop(AF_INET6, &nh_global, nh_old_str, INET6_ADDRSTRLEN);
-            inet_ntop(AF_INET6, &nh_def_str, nh_def_str, INET6_ADDRSTRLEN);
+            inet_ntop(AF_INET6, &config.default_nexthop6_global, nh_def_str, INET6_ADDRSTRLEN);
+            inet_ntop(AF_INET6, &config.default_nexthop6_linklocal, nh_def_ll_str, INET6_ADDRSTRLEN);
 
             if (config.forced_default_nexthop6) {
-                logger->log(INFO, "BgpFsm::alterNexthop6: forced_default_nexthop6 set, default (%s) will be used.\n", nh_def_str);
+                logger->log(INFO, "BgpFsm::alterNexthop6: forced_default_nexthop6 set, default (%s) and link local (%s) will be used.\n", nh_def_str, nh_def_ll_str);
             }
-            else logger->log(INFO, "BgpFsm::alterNexthop6: nexthop %s is not in peering lan, default (%s) will be used.\n", nh_old_str, nh_def_str);
+            else logger->log(INFO, "BgpFsm::alterNexthop6: nexthop %s is not in peering lan, default (%s) and link local (%s) will be used.\n", nh_old_str, nh_def_str, nh_def_ll_str);
         }
 
         nh_global = config.default_nexthop6_global;
